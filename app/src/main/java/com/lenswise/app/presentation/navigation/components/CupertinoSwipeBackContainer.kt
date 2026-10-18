@@ -176,13 +176,14 @@ fun CupertinoSwipeBackContainer(
             }
 
             // Layer 2: Root-Level Input Engine (根座標手勢引擎)
-            if (backStack.size > 1 || state.isTransitioning) {
+            // 當前畫面若明確停用右滑返回（如 CapturedViewer），則完全不攔截邊緣手勢
+            if ((backStack.size > 1 && topRoute.isSwipeBackEnabled) || state.isTransitioning) {
                 Box(
                     modifier = Modifier
                         .fillMaxHeight()
                         .width(36.dp)
                         .align(Alignment.CenterStart)
-                        .pointerInput(state, backStack.size) {
+                        .pointerInput(state, backStack.size, topRoute.isSwipeBackEnabled) {
                             val velocityTracker = VelocityTracker()
                             val edgeThresholdPx = 36.dp.toPx()
                             val touchSlop = viewConfiguration.touchSlop
@@ -191,7 +192,7 @@ fun CupertinoSwipeBackContainer(
                                 while (isActive) {
                                     awaitPointerEventScope {
                                         val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                                        if (down.position.x > edgeThresholdPx || state.isTransitioning || backStack.size <= 1) {
+                                        if (down.position.x > edgeThresholdPx || state.isTransitioning || backStack.size <= 1 || !topRoute.isSwipeBackEnabled) {
                                             return@awaitPointerEventScope
                                         }
 

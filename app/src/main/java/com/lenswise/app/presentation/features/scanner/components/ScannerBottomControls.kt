@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dev.chrisbanes.haze.HazeState
 import com.lenswise.app.domain.scanner.ScannerMode
 import com.lenswise.app.presentation.features.scanner.ScannerUiState
 
@@ -25,7 +26,8 @@ fun ScannerBottomControls(
     onOpenViewer: () -> Unit,
     onTriggerAnalysis: () -> Unit,
     onSelectMode: (ScannerMode) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    hazeState: HazeState? = null
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -53,7 +55,8 @@ fun ScannerBottomControls(
             GalleryPickerButton(
                 isLoading = uiState.isPickingGallery,
                 isLocked = uiState.isLocked,
-                onClick = onPickGallery
+                onClick = onPickGallery,
+                hazeState = hazeState
             )
 
             ShutterButton(

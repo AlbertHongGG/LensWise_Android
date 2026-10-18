@@ -21,6 +21,9 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeChild
+
 /**
  * 快門左側相簿挑選按鈕。
  * 採 1:1 白透磨砂毛玻璃質感搭配實心圓角相簿圖示。
@@ -30,7 +33,8 @@ fun GalleryPickerButton(
     isLoading: Boolean,
     isLocked: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    hazeState: HazeState? = null
 ) {
     Box(
         modifier = modifier
@@ -42,7 +46,17 @@ fun GalleryPickerButton(
                 spotColor = Color.Black.copy(alpha = 0.35f)
             )
             .clip(CircleShape)
-            .background(Color.White.copy(alpha = 0.22f))
+            .then(
+                if (hazeState != null) {
+                    Modifier.hazeChild(state = hazeState) {
+                        blurRadius = 24.dp
+                        noiseFactor = 0.05f
+                        backgroundColor = Color.White.copy(alpha = 0.22f)
+                    }
+                } else {
+                    Modifier.background(Color.White.copy(alpha = 0.22f))
+                }
+            )
             .border(width = 0.5.dp, color = Color.White.copy(alpha = 0.35f), shape = CircleShape)
             .clickable(
                 enabled = !isLocked && !isLoading,

@@ -18,6 +18,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.haze
 import com.lenswise.app.core.camera.CameraManager
 import com.lenswise.app.presentation.features.scanner.components.CameraViewfinder
 import com.lenswise.app.presentation.features.scanner.components.ScannerBottomControls
@@ -36,6 +38,7 @@ fun ScannerScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val cameraManager = remember { CameraManager(context) }
+    val hazeState = remember { HazeState() }
     var showCustomGallery by remember { mutableStateOf(false) }
 
     // 1. 相機權限請求器
@@ -73,10 +76,12 @@ fun ScannerScreen(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        // 1. 全螢幕相機視口 (支援雙指縮放與單擊對焦環)
+        // 1. 全螢幕相機視口 (支援雙指縮放與單擊對焦環，並提供 Haze 磨砂毛玻璃繪圖採樣)
         CameraViewfinder(
             cameraManager = cameraManager,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .haze(hazeState)
         )
 
         // 2. 頂部列 (設定與歷史紀錄入口)
@@ -89,6 +94,7 @@ fun ScannerScreen(
         // 3. 底部綜合控制區塊 (發光分析按鈕、快門三鍵列、模式切換膠囊)
         ScannerBottomControls(
             uiState = uiState,
+            hazeState = hazeState,
             onTakeShutter = {
                 if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
                     viewModel.takePicture(context, cameraManager)

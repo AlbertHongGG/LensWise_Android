@@ -4,36 +4,38 @@ import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,18 +53,21 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.lenswise.app.core.media.MediaAsset
 import com.lenswise.app.core.media.MediaRepository
+import com.lenswise.app.presentation.components.IsolatedHandleBottomSheet
 import com.lenswise.app.presentation.theme.AppColors
 import com.lenswise.app.presentation.theme.OutfitFontFamily
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
- * 高效能自製相簿選擇器底部彈窗 (CustomGalleryBottomSheet)。
+ * 高效能手勢隔離自製相簿選擇器底部彈窗 (CustomGalleryBottomSheet)。
  *
  * 核心保證：
- * 1. 1:1 對齊原版 LensWise 介面設計（頂部把手、居中「選擇照片」、右上角 CheckCircle 確認按鈕）。
- * 2. 徹底根除原版 Flutter 下拉載入卡頓：元數據背景一次性讀取 + Coil 視口異步降採樣（60~120 FPS 絲滑滾動）。
- * 3. 支援日期分組、多選勾選遮罩與動態張數上限保護。
+ * 1. 採用 IsolatedHandleBottomSheet：高度硬性鎖定 88%，永遠置底錨定，物理上不可能衝入狀態列。
+ * 2. 徹底消除手勢衝突：僅頂部 Header 具備拖曳關閉能力，照片網格區域手勢 100% 隔離，滾動順暢無阻。
+ * 3. 視口分頁預載：批次 48 筆載入，提前 24 筆背景預載下一頁。
+ * 4. 點陣圖請求優化：使用 remember(uri) 快取 ImageRequest，強制 360x360 降採樣並關閉 crossfade。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomGalleryBottomSheet(
     maxItems: Int = 10,
@@ -71,177 +76,293 @@ fun CustomGalleryBottomSheet(
 ) {
     val context = LocalContext.current
     val isDark = isSystemInDarkTheme()
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val repository = remember { MediaRepository(context) }
 
+    var allAssets by remember { mutableStateOf<List<MediaAsset>>(emptyList()) }
     var groupedAssets by remember { mutableStateOf<Map<String, List<MediaAsset>>>(emptyMap()) }
+    var groupKeys by remember { mutableStateOf<List<String>>(emptyList()) }
+
+    var currentOffset by remember { mutableIntStateOf(0) }
+    val pageSize = 48
+    var hasMore by remember { mutableStateOf(true) }
     var isLoading by remember { mutableStateOf(true) }
+    var isLoadingMore by remember { mutableStateOf(false) }
+
     val selectedUris = remember { mutableStateListOf<Uri>() }
 
-    LaunchedEffect(Unit) {
-        val repository = MediaRepository(context)
-        groupedAssets = repository.loadAllMediaAssets()
+    // 載入分頁資料函式
+    suspend fun loadPage(isInitial: Boolean) {
+        if (isInitial) {
+            isLoading = true
+            currentOffset = 0
+        } else {
+            isLoadingMore = true
+        }
+
+        val assets = repository.getMediaPaged(offset = currentOffset, limit = pageSize)
+        if (assets.isEmpty()) {
+            hasMore = false
+            isLoading = false
+            isLoadingMore = false
+            return
+        }
+
+        val updatedAll = if (isInitial) assets else allAssets + assets
+        val (newGrouped, newKeys) = withContext(Dispatchers.Default) {
+            val map = linkedMapOf<String, MutableList<MediaAsset>>()
+            val keys = mutableListOf<String>()
+
+            for (asset in updatedAll) {
+                val list = map.getOrPut(asset.groupKey) {
+                    keys.add(asset.groupKey)
+                    mutableListOf()
+                }
+                list.add(asset)
+            }
+            Pair(map, keys)
+        }
+
+        allAssets = updatedAll
+        groupedAssets = newGrouped
+        groupKeys = newKeys
+        currentOffset += assets.size
+        hasMore = assets.size == pageSize
         isLoading = false
+        isLoadingMore = false
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = if (isDark) AppColors.backgroundDark else Color.White,
-        dragHandle = null,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        modifier = Modifier.fillMaxHeight(0.90f)
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // 1. 頂部拖曳把手
-            Box(
+    // 初次載入
+    LaunchedEffect(Unit) {
+        loadPage(isInitial = true)
+    }
+
+    IsolatedHandleBottomSheet(
+        onDismiss = onDismiss,
+        heightRatio = 0.88f,
+        header = {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 12.dp, bottom = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                // 1. 頂部拖曳指示條 (Handle)
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .width(48.dp)
+                        .height(5.dp)
+                        .background(
+                            color = if (isDark) Color.White.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(2.5.dp)
+                        )
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // 2. 標題與確認勾選按鈕 (標題絕對置中)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // 左側佔位 48dp
+                    Spacer(modifier = Modifier.width(48.dp))
+
+                    Text(
+                        text = "選擇照片",
+                        fontFamily = OutfitFontFamily,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 2.sp,
+                        color = if (isDark) Color.White.copy(alpha = 0.65f) else Color.Black.copy(alpha = 0.65f)
+                    )
+
+                    val canConfirm = selectedUris.isNotEmpty()
+                    IconButton(
+                        onClick = {
+                            if (canConfirm) {
+                                onConfirmSelection(selectedUris.toList())
+                                onDismiss()
+                            }
+                        },
+                        enabled = canConfirm,
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.CheckCircle,
+                            contentDescription = "確認選擇",
+                            tint = if (canConfirm) AppColors.electricBlue else (if (isDark) Color.White.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.25f)),
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                }
+            }
+        }
+    ) {
+        // 內容區域：手勢 100% 隔離，滾動完全不連動彈窗
+        if (isLoading && allAssets.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(width = 44.dp, height = 4.5.dp)
-                        .clip(RoundedCornerShape(2.5.dp))
-                        .background(if (isDark) Color.White.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.15f))
+                CircularProgressIndicator(
+                    color = AppColors.electricBlue,
+                    strokeWidth = 2.5.dp
                 )
             }
-
-            // 2. 標題與確認列
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+        } else if (allAssets.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
-                // 左側佔位保持標題絕對居中
-                Box(modifier = Modifier.size(48.dp))
-
                 Text(
-                    text = "選擇照片",
+                    text = "相簿內查無照片",
                     fontFamily = OutfitFontFamily,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 2.0.sp,
-                    color = if (isDark) Color.White.copy(alpha = 0.70f) else Color.Black.copy(alpha = 0.60f)
+                    color = if (isDark) Color.White.copy(alpha = 0.5f) else Color.Black.copy(alpha = 0.5f)
                 )
+            }
+        } else {
+            val gridState = rememberLazyGridState()
 
-                IconButton(
-                    enabled = selectedUris.isNotEmpty(),
-                    onClick = {
-                        onConfirmSelection(selectedUris.toList())
-                        onDismiss()
-                    },
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.CheckCircle,
-                        contentDescription = "完成選取",
-                        tint = if (selectedUris.isNotEmpty()) AppColors.electricBlue else (if (isDark) Color.White.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.2f)),
-                        modifier = Modifier.size(28.dp)
-                    )
+            // 監聽滾動至末端提早 24 筆預載
+            val shouldLoadMore by remember {
+                derivedStateOf {
+                    val total = gridState.layoutInfo.totalItemsCount
+                    val lastVisible = gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+                    total > 0 && lastVisible >= total - 24
                 }
             }
 
-            // 3. 照片網格內容
-            if (isLoading) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        color = if (isDark) Color.White else AppColors.primary,
-                        strokeWidth = 2.5.dp
-                    )
+            LaunchedEffect(shouldLoadMore) {
+                if (shouldLoadMore && hasMore && !isLoadingMore && !isLoading) {
+                    loadPage(isInitial = false)
                 }
-            } else if (groupedAssets.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "無可用照片",
-                        fontFamily = OutfitFontFamily,
-                        color = if (isDark) Color.White.copy(alpha = 0.5f) else Color.Black.copy(alpha = 0.5f)
-                    )
-                }
-            } else {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .padding(horizontal = 2.dp)
-                ) {
-                    groupedAssets.forEach { (monthKey, assets) ->
-                        // 月份標題 Header
-                        item(span = { GridItemSpan(3) }) {
-                            Text(
-                                text = monthKey,
-                                fontFamily = OutfitFontFamily,
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = if (isDark) Color.White else Color(0xFF1A1A1A),
-                                modifier = Modifier.padding(start = 14.dp, top = 20.dp, bottom = 8.dp)
-                            )
-                        }
+            }
 
-                        // 月份內照片單元格
-                        items(assets, key = { it.id }) { asset ->
-                            val isSelected = selectedUris.contains(asset.contentUri)
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                state = gridState,
+                contentPadding = PaddingValues(horizontal = 2.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                groupKeys.forEach { monthKey ->
+                    val assetsInMonth = groupedAssets[monthKey].orEmpty()
 
-                            Box(
-                                modifier = Modifier
-                                    .aspectRatio(1f)
-                                    .clickable {
-                                        if (isSelected) {
-                                            selectedUris.remove(asset.contentUri)
-                                        } else {
-                                            if (selectedUris.size < maxItems) {
-                                                selectedUris.add(asset.contentUri)
-                                            }
-                                        }
-                                    }
-                            ) {
-                                AsyncImage(
-                                    model = ImageRequest.Builder(context)
-                                        .data(asset.contentUri)
-                                        .size(240, 240)
-                                        .crossfade(true)
-                                        .build(),
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
+                    // 月份標題 Header
+                    item(
+                        key = "header_$monthKey",
+                        span = { GridItemSpan(3) }
+                    ) {
+                        Text(
+                            text = monthKey,
+                            fontFamily = OutfitFontFamily,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (isDark) Color.White else Color(0xFF1A1A1A),
+                            modifier = Modifier.padding(start = 14.dp, top = 20.dp, bottom = 8.dp)
+                        )
+                    }
 
+                    // 月份內照片單元格
+                    items(
+                        items = assetsInMonth,
+                        key = { it.id }
+                    ) { asset ->
+                        val isSelected = selectedUris.contains(asset.contentUri)
+
+                        GalleryPhotoThumbnailItem(
+                            asset = asset,
+                            isSelected = isSelected,
+                            onToggle = {
                                 if (isSelected) {
-                                    // 勾選半透明遮罩
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .background(Color.Black.copy(alpha = 0.40f))
-                                            .border(width = 3.dp, color = AppColors.electricBlue),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.CheckCircle,
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(28.dp)
-                                        )
+                                    selectedUris.remove(asset.contentUri)
+                                } else {
+                                    if (selectedUris.size < maxItems) {
+                                        selectedUris.add(asset.contentUri)
                                     }
                                 }
                             }
+                        )
+                    }
+                }
+
+                if (isLoadingMore) {
+                    item(
+                        key = "loading_indicator_footer",
+                        span = { GridItemSpan(3) }
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                color = AppColors.electricBlue,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * 獨立高頻重組隔離的相簿縮圖單元格。
+ * 1. 使用 remember(asset.contentUri) 杜絕反覆建構 ImageRequest 物件。
+ * 2. 嚴格限定 360x360 視口縮圖與關閉 crossfade 動畫，消滅 GPU Alpha 堵塞與卡頓。
+ */
+@Composable
+private fun GalleryPhotoThumbnailItem(
+    asset: MediaAsset,
+    isSelected: Boolean,
+    onToggle: () -> Unit
+) {
+    val context = LocalContext.current
+    val imageRequest = remember(asset.contentUri) {
+        ImageRequest.Builder(context)
+            .data(asset.contentUri)
+            .size(360, 360)
+            .crossfade(false)
+            .build()
+    }
+
+    Box(
+        modifier = Modifier
+            .aspectRatio(1f)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onToggle
+            )
+    ) {
+        AsyncImage(
+            model = imageRequest,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        if (isSelected) {
+            // 勾選半透明遮罩與打勾圖示
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.40f))
+                    .border(width = 3.dp, color = AppColors.electricBlue),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.CheckCircle,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp)
+                )
             }
         }
     }

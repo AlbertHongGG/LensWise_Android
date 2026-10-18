@@ -6,6 +6,7 @@ package com.lenswise.app.presentation.navigation.model
  */
 sealed interface AppRoute {
     val key: String
+    val isSwipeBackEnabled: Boolean get() = true
 
     /** 主相機掃描核心主畫面 (ScannerScreen) */
     data object Scanner : AppRoute {
@@ -22,8 +23,9 @@ sealed interface AppRoute {
         override val key: String = "route_history_$initialTab"
     }
 
-    /** 已捕獲/選取照片全螢幕檢視與刪除畫面 (CapturedImageViewerScreen) */
+    /** 已捕獲/選取照片全螢幕檢視與刪除畫面 (CapturedImageViewerScreen) - 唯一禁用右滑返回介面 */
     data object CapturedViewer : AppRoute {
         override val key: String = "route_captured_viewer"
+        override val isSwipeBackEnabled: Boolean = false
     }
 }
