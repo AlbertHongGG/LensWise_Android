@@ -1,0 +1,73 @@
+# ==========================================
+# Android & Gradle Build Artifacts
+# ==========================================
+*.apk
+*.ap_
+*.aab
+*.dex
+*.class
+
+# Build directories
+build/
+**/build/
+app/build/
+
+# Gradle cache and execution logs
+.gradle/
+.kotlin/
+buildOutputCleanup/
+
+# ==========================================
+# Local Configuration & Private SDK Paths
+# ==========================================
+local.properties
+.env
+*.env
+
+# ==========================================
+# Keystore & Signing Secrets
+# ==========================================
+*.jks
+*.keystore
+*.key
+signing.properties
+
+# ==========================================
+# Android Studio & IntelliJ IDEA
+# ==========================================
+*.iml
+.idea/
+.gradle/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# ==========================================
+# VS Code & Other Editors
+# ==========================================
+.vscode/
+
+# ==========================================
+# OS-Specific Files
+# ==========================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+
+# ==========================================
+# Diagnostic & Profiler Dumps
+# ==========================================
+*.hprof
+hs_err_pid*
+replay_pid*
