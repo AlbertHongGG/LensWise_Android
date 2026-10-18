@@ -12,6 +12,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -34,9 +35,10 @@ import com.lenswise.app.presentation.theme.OutfitFontFamily
 /**
  * 快門右側已捕獲照片縮圖與數量 Badge 按鈕。
  *
- * 核心保證：
- * 1. 圖片與 Badge 結構徹底解耦，父層絕不全局裁切。
- * 2. 右上角 Badge 固定為 20dp 絕對正圓形，100% 完整顯示，零裁切與零長條變形。
+ * 核心幾何保證：
+ * 1. 數量 Badge 直接以照片圓形主體為座標錨點，嚴格消除 Magic Number 拼湊。
+ * 2. Badge 圓心精確壓在照片圓形外框 (Perimeter) 上（剛好壓邊，半嵌半露）。
+ * 3. 固定 20dp 正圓，零拉伸變形，白色 1.5dp 精緻外邊框。
  */
 @Composable
 fun CapturedThumbnailButton(
@@ -46,7 +48,7 @@ fun CapturedThumbnailButton(
     modifier: Modifier = Modifier
 ) {
     Box(
-        modifier = modifier.size(62.dp),
+        modifier = modifier.size(60.dp),
         contentAlignment = Alignment.Center
     ) {
         AnimatedVisibility(
@@ -56,56 +58,61 @@ fun CapturedThumbnailButton(
         ) {
             Box(
                 modifier = Modifier
-                    .size(62.dp)
+                    .size(60.dp)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = ripple(bounded = false, radius = 32.dp),
+                        indication = ripple(bounded = false, radius = 30.dp),
                         onClick = onClick
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                // 1. 照片縮圖圓形主體 (54dp，獨立裁切)
+                // 核心縮圖主體與壓邊 Badge 共同錨定容器 (52dp)
                 Box(
-                    modifier = Modifier
-                        .size(54.dp)
-                        .clip(CircleShape)
-                        .border(width = 2.dp, color = Color.White, shape = CircleShape)
+                    modifier = Modifier.size(52.dp)
                 ) {
-                    if (thumbnailBitmap != null) {
-                        Image(
-                            bitmap = thumbnailBitmap.asImageBitmap(),
-                            contentDescription = "照片檢視",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.size(54.dp)
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .size(54.dp)
-                                .background(Color(0xFF333333))
+                    // 1. 照片縮圖圓形 (52dp，白色 2dp 邊框)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                            .border(width = 2.dp, color = Color.White, shape = CircleShape)
+                    ) {
+                        if (thumbnailBitmap != null) {
+                            Image(
+                                bitmap = thumbnailBitmap.asImageBitmap(),
+                                contentDescription = "照片檢視",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color(0xFF333333))
+                            )
+                        }
+                    }
+
+                    // 2. 右上角數量 Badge (20dp 正圓，圓心精準壓在 52dp 圓周外邊框上)
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = 3.dp, y = (-3).dp)
+                            .size(20.dp)
+                            .clip(CircleShape)
+                            .background(AppColors.primary)
+                            .border(width = 1.5.dp, color = Color.White, shape = CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (imageCount > 99) "99+" else imageCount.toString(),
+                            color = Color.White,
+                            fontFamily = OutfitFontFamily,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            lineHeight = 11.sp
                         )
                     }
-                }
-
-                // 2. 右上角獨立懸浮正圓形數量 Badge (固定 20dp，絕無長條變形，絕不被裁切)
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .offset(x = 2.dp, y = (-2).dp)
-                        .size(20.dp)
-                        .clip(CircleShape)
-                        .background(AppColors.primary)
-                        .border(width = 1.5.dp, color = Color.White, shape = CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "$imageCount",
-                        color = Color.White,
-                        fontFamily = OutfitFontFamily,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        lineHeight = 11.sp
-                    )
                 }
             }
         }

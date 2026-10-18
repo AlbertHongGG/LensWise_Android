@@ -21,7 +21,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -32,22 +31,19 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.lenswise.app.core.image.AppImageEntity
-import com.lenswise.app.presentation.theme.AppColors
-import com.lenswise.app.presentation.theme.OutfitFontFamily
 
 /**
  * 底部照片水平滑動膠捲縮圖列 (Filmstrip Carousel)。
  *
  * 核心特性：
  * 1. 支援水平自由滑動瀏覽所有照片，使用者可飛速切換定位。
- * 2. 選中項以 Electric Blue (0xFF3B82F6) 發光框聚焦放大，非選中項半透明淡化。
+ * 2. 選中項以純白 (Color.White) 2dp 外框聚焦放大，非選中項半透明淡化。
  * 3. 點擊任一縮圖瞬間連動切換大圖。
- * 4. 序號角標 (01, 02...) 清晰辨識位置。
+ * 4. 無多餘 idx 序號標記，純粹呈現照片細節。
+ * 5. 底部貫穿至導航列下方全黑背景，杜絕白色底欄。
  */
 @Composable
 fun ViewerThumbnailFilmstrip(
@@ -64,9 +60,10 @@ fun ViewerThumbnailFilmstrip(
                 brush = Brush.verticalGradient(
                     colors = listOf(
                         Color.Transparent,
-                        Color.Black.copy(alpha = 0.55f),
-                        Color.Black.copy(alpha = 0.85f),
-                        Color.Black.copy(alpha = 0.95f)
+                        Color.Black.copy(alpha = 0.65f),
+                        Color.Black.copy(alpha = 0.90f),
+                        Color.Black,
+                        Color.Black
                     )
                 )
             )
@@ -97,17 +94,17 @@ fun ViewerThumbnailFilmstrip(
                     label = "thumb_height"
                 )
                 val cardAlpha by animateFloatAsState(
-                    targetValue = if (isSelected) 1.0f else 0.55f,
+                    targetValue = if (isSelected) 1.0f else 0.50f,
                     animationSpec = tween(durationMillis = 180),
                     label = "thumb_alpha"
                 )
                 val borderColor by animateColorAsState(
-                    targetValue = if (isSelected) AppColors.electricBlue else Color.White.copy(alpha = 0.20f),
+                    targetValue = if (isSelected) Color.White else Color.White.copy(alpha = 0.20f),
                     animationSpec = tween(durationMillis = 180),
                     label = "thumb_border"
                 )
                 val borderWidth = if (isSelected) 2.dp else 1.dp
-                val cornerRadius = if (isSelected) 12.dp else 8.dp
+                val cornerRadius = if (isSelected) 10.dp else 8.dp
                 val shape = RoundedCornerShape(cornerRadius)
 
                 Box(
@@ -115,10 +112,10 @@ fun ViewerThumbnailFilmstrip(
                         .width(cardWidth)
                         .height(cardHeight)
                         .shadow(
-                            elevation = if (isSelected) 10.dp else 0.dp,
+                            elevation = if (isSelected) 6.dp else 0.dp,
                             shape = shape,
-                            ambientColor = AppColors.electricBlue,
-                            spotColor = AppColors.electricBlue
+                            ambientColor = Color.White.copy(alpha = 0.35f),
+                            spotColor = Color.White.copy(alpha = 0.35f)
                         )
                         .clip(shape)
                         .border(
@@ -147,26 +144,6 @@ fun ViewerThumbnailFilmstrip(
                             modifier = Modifier
                                 .matchParentSize()
                                 .background(Color.Black.copy(alpha = 1f - cardAlpha))
-                        )
-                    }
-
-                    // 序號膠囊角標
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = 3.dp)
-                            .background(
-                                color = if (isSelected) Color.Black.copy(alpha = 0.75f) else Color.Black.copy(alpha = 0.55f),
-                                shape = RoundedCornerShape(4.dp)
-                            )
-                            .padding(horizontal = 5.dp, vertical = 1.dp)
-                    ) {
-                        Text(
-                            text = String.format("%02d", index + 1),
-                            color = if (isSelected) AppColors.electricBlue else Color.White.copy(alpha = 0.85f),
-                            fontFamily = OutfitFontFamily,
-                            fontSize = 10.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                         )
                     }
                 }
