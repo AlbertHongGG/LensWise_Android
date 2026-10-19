@@ -39,6 +39,7 @@ import com.lenswise.app.features.ai.config.ConfigField
 import com.lenswise.app.features.ai.config.SelectOption
 import com.lenswise.app.features.ai.domain.AiAgentType
 import com.lenswise.app.presentation.theme.AppColors
+import com.lenswise.app.presentation.theme.AppTypography
 import com.lenswise.app.presentation.theme.OutfitFontFamily
 
 /**
@@ -85,12 +86,10 @@ fun AiDispatchDialogs(
 
                     Text(
                         text = "選擇全域 AI 引擎",
-                        fontFamily = OutfitFontFamily,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 1.2.sp,
-                        color = textPrimaryColor,
-                        textAlign = TextAlign.Center,
+                        style = AppTypography.dialogTitle.copy(
+                            color = textPrimaryColor,
+                            textAlign = TextAlign.Center
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -115,10 +114,11 @@ fun AiDispatchDialogs(
                             Spacer(modifier = Modifier.width(16.dp))
                             Text(
                                 text = providerType.displayName.uppercase(),
-                                fontFamily = OutfitFontFamily,
-                                fontSize = 16.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = textPrimaryColor,
+                                style = if (isSelected) {
+                                    AppTypography.listItemSelected.copy(color = textPrimaryColor)
+                                } else {
+                                    AppTypography.listItemUnselected.copy(color = textPrimaryColor)
+                                },
                                 modifier = Modifier.weight(1f)
                             )
                             if (isSelected) {
@@ -157,12 +157,10 @@ fun AiDispatchDialogs(
 
                     Text(
                         text = "選擇 AI 引擎",
-                        fontFamily = OutfitFontFamily,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 1.2.sp,
-                        color = textPrimaryColor,
-                        textAlign = TextAlign.Center,
+                        style = AppTypography.dialogTitle.copy(
+                            color = textPrimaryColor,
+                            textAlign = TextAlign.Center
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -187,10 +185,11 @@ fun AiDispatchDialogs(
                             Spacer(modifier = Modifier.width(16.dp))
                             Text(
                                 text = providerType.displayName.uppercase(),
-                                fontFamily = OutfitFontFamily,
-                                fontSize = 16.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = textPrimaryColor,
+                                style = if (isSelected) {
+                                    AppTypography.listItemSelected.copy(color = textPrimaryColor)
+                                } else {
+                                    AppTypography.listItemUnselected.copy(color = textPrimaryColor)
+                                },
                                 modifier = Modifier.weight(1f)
                             )
                             if (isSelected) {
@@ -306,12 +305,10 @@ private fun OptionBottomSheetContent(
 
         Text(
             text = title,
-            fontFamily = OutfitFontFamily,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = 1.2.sp,
-            color = textPrimaryColor,
-            textAlign = TextAlign.Center,
+            style = AppTypography.dialogTitle.copy(
+                color = textPrimaryColor,
+                textAlign = TextAlign.Center
+            ),
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -343,10 +340,11 @@ private fun OptionBottomSheetContent(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = option.label,
-                        fontFamily = OutfitFontFamily,
-                        fontSize = 16.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        color = textPrimaryColor
+                        style = if (isSelected) {
+                            AppTypography.listItemSelected.copy(color = textPrimaryColor)
+                        } else {
+                            AppTypography.listItemUnselected.copy(color = textPrimaryColor)
+                        }
                     )
                     if (!option.description.isNullOrEmpty()) {
                         Spacer(modifier = Modifier.height(2.dp))

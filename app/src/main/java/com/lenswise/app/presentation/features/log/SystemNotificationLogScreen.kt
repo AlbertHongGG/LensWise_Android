@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import com.lenswise.app.core.logging.NotificationLogManager
 import com.lenswise.app.domain.model.log.NotificationLogEntry
 import com.lenswise.app.presentation.components.PremiumConfigHeader
+import com.lenswise.app.presentation.theme.AppTypography
 import com.lenswise.app.presentation.features.log.components.GenericLogViewerScaffold
 import com.lenswise.app.presentation.notification.NotificationType
 
@@ -137,10 +138,12 @@ private fun NotificationLogCardContent(
                 ) {
                     Text(
                         text = entry.type.name.uppercase(),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = typeColor,
-                        letterSpacing = 1.5.sp
+                        style = AppTypography.sectionHeader.copy(
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = typeColor,
+                            letterSpacing = 1.5.sp
+                        )
                     )
 
                     Text(

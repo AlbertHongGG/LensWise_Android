@@ -171,7 +171,7 @@ private fun JsonNodeRenderer(
                         Text(
                             text = keyName,
                             fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.SemiBold,
                             fontSize = 13.sp,
                             color = if (isDark) Color(0xFF93C5FD) else Color(0xFF1D4ED8)
                         )
@@ -238,7 +238,7 @@ private fun JsonNodeRenderer(
                         Text(
                             text = keyName,
                             fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.SemiBold,
                             fontSize = 13.sp,
                             color = if (isDark) Color(0xFF93C5FD) else Color(0xFF1D4ED8)
                         )
@@ -307,7 +307,7 @@ private fun RenderPrimitiveRow(
             Text(
                 text = "$keyName:",
                 fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Medium,
                 fontSize = 13.sp,
                 color = keyColor
             )
@@ -324,7 +324,7 @@ private fun RenderPrimitiveRow(
             Text(
                 text = "$keyName: ",
                 fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Medium,
                 fontSize = 13.sp,
                 color = keyColor
             )

@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lenswise.app.presentation.features.log.components.JsonTreeViewer
 import com.lenswise.app.presentation.theme.AppColors
+import com.lenswise.app.presentation.theme.AppTypography
 import org.json.JSONObject
 
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -90,9 +91,10 @@ fun ApiLogDetailScreen(
 
                 Text(
                     text = agentName,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isDark) Color.White else Color(0xFF1E293B)
+                    style = AppTypography.cardTitle.copy(
+                        fontSize = 20.sp,
+                        color = if (isDark) Color.White else Color(0xFF1E293B)
+                    )
                 )
             }
 

@@ -109,7 +109,7 @@ fun CapturedThumbnailButton(
                             color = Color.White,
                             fontFamily = OutfitFontFamily,
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.SemiBold,
                             lineHeight = 11.sp
                         )
                     }

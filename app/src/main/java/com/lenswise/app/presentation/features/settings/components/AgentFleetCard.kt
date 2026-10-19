@@ -23,6 +23,7 @@ import com.lenswise.app.features.ai.config.AiProviderConfig
 import com.lenswise.app.features.ai.config.AiProviderType
 import com.lenswise.app.features.ai.config.ConfigField
 import com.lenswise.app.features.ai.domain.AiAgentType
+import com.lenswise.app.presentation.theme.AppTypography
 import com.lenswise.app.presentation.theme.OutfitFontFamily
 
 /**
@@ -48,11 +49,7 @@ fun AgentFleetCard(
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
             text = "AGENT FLEET CONFIGURATION",
-            fontFamily = OutfitFontFamily,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = 1.2.sp,
-            color = textSecondaryColor,
+            style = AppTypography.sectionHeader.copy(color = textSecondaryColor),
             modifier = Modifier.padding(start = 16.dp, bottom = 10.dp)
         )
 

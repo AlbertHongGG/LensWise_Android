@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lenswise.app.features.ai.config.ConfigField
 import com.lenswise.app.presentation.theme.AppColors
+import com.lenswise.app.presentation.theme.AppTypography
 import com.lenswise.app.presentation.theme.OutfitFontFamily
 
 /**
@@ -78,10 +79,9 @@ fun ConfigFieldTile(
 
                 Text(
                     text = field.displayLabel,
-                    fontFamily = OutfitFontFamily,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (isUnset) textSecondary else textPrimary,
+                    style = AppTypography.itemValue.copy(
+                        color = if (isUnset) textSecondary else textPrimary
+                    ),
                     modifier = Modifier.weight(1f)
                 )
 
@@ -129,10 +129,10 @@ fun ConfigFieldTile(
                         }
                         Text(
                             text = placeholderText,
-                            fontFamily = OutfitFontFamily,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Normal,
-                            color = if (isDark) Color.White.copy(alpha = 0.30f) else Color.Black.copy(alpha = 0.38f)
+                            style = AppTypography.itemValue.copy(
+                                fontWeight = FontWeight.Normal,
+                                color = if (isDark) Color.White.copy(alpha = 0.30f) else Color.Black.copy(alpha = 0.38f)
+                            )
                         )
                     }
 
@@ -143,10 +143,7 @@ fun ConfigFieldTile(
                             onTextChanged(it)
                         },
                         singleLine = true,
-                        textStyle = TextStyle(
-                            fontFamily = OutfitFontFamily,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
+                        textStyle = AppTypography.inputText.copy(
                             color = textPrimary
                         ),
                         cursorBrush = SolidColor(AppColors.primary),

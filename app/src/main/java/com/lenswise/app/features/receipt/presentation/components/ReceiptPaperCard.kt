@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import com.lenswise.app.domain.model.receipt.ReceiptItem
 import com.lenswise.app.domain.model.receipt.ReceiptScannerRecord
 import com.lenswise.app.presentation.theme.AppColors
+import com.lenswise.app.presentation.theme.AppTypography
 import com.lenswise.app.presentation.theme.OutfitFontFamily
 
 /**
@@ -63,10 +64,7 @@ fun ReceiptPaperCard(
 
             Text(
                 text = storeTitle,
-                fontFamily = OutfitFontFamily,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black
+                style = AppTypography.receiptStoreTitle.copy(color = Color.Black)
             )
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -91,17 +89,11 @@ fun ReceiptPaperCard(
             ) {
                 Text(
                     text = "品項",
-                    fontFamily = OutfitFontFamily,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.Black.copy(alpha = 0.6f)
+                    style = AppTypography.receiptTableHeader.copy(color = Color.Black.copy(alpha = 0.6f))
                 )
                 Text(
                     text = "金額",
-                    fontFamily = OutfitFontFamily,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.Black.copy(alpha = 0.6f)
+                    style = AppTypography.receiptTableHeader.copy(color = Color.Black.copy(alpha = 0.6f))
                 )
             }
 
@@ -209,17 +201,11 @@ fun ReceiptPaperCard(
             ) {
                 Text(
                     text = "總計",
-                    fontFamily = OutfitFontFamily,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
+                    style = AppTypography.receiptTotalLabel.copy(color = Color.Black)
                 )
                 Text(
                     text = "${record.currency ?: "$"} ${"%.2f".format(record.totalAmount)}",
-                    fontFamily = OutfitFontFamily,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Black,
-                    color = Color.Black
+                    style = AppTypography.receiptTotalAmount.copy(color = Color.Black)
                 )
             }
         }
@@ -257,7 +243,7 @@ private fun ReceiptItemRow(item: ReceiptItem, currency: String) {
             text = "$currency ${"%.2f".format(item.price)}",
             fontFamily = OutfitFontFamily,
             fontSize = 15.sp,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Medium,
             color = Color.Black,
             textAlign = TextAlign.End
         )

@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lenswise.app.presentation.theme.AppColors
+import com.lenswise.app.presentation.theme.AppTypography
 import com.lenswise.app.presentation.theme.OutfitFontFamily
 
 /**
@@ -71,22 +72,18 @@ fun PremiumEmptyState(
 
             Text(
                 text = title,
-                fontFamily = OutfitFontFamily,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = baseColor.copy(alpha = 0.90f),
-                letterSpacing = 0.5.sp
+                style = AppTypography.emptyStateTitle.copy(
+                    color = baseColor.copy(alpha = 0.90f)
+                )
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
                 text = description,
-                fontFamily = OutfitFontFamily,
-                fontSize = 15.sp,
-                color = baseColor.copy(alpha = 0.50f),
-                lineHeight = 22.sp,
-                textAlign = TextAlign.Center
+                style = AppTypography.emptyStateDesc.copy(
+                    color = baseColor.copy(alpha = 0.50f)
+                )
             )
         }
     }

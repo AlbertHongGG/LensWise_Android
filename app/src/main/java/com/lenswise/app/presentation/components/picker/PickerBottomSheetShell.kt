@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lenswise.app.presentation.theme.AppColors
+import com.lenswise.app.presentation.theme.AppTypography
 import com.lenswise.app.presentation.theme.OutfitFontFamily
 
 /**
@@ -112,11 +113,7 @@ fun PickerBottomSheetShell(
                 // 中央大寫粗體追蹤標題 (採用 Outfit 字體族，13sp Bold，letterSpacing 2.0sp)
                 Text(
                     text = title.uppercase(),
-                    fontFamily = OutfitFontFamily,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 2.0.sp,
-                    color = titleColor
+                    style = AppTypography.sheetHeader.copy(color = titleColor)
                 )
 
                 // 右側確認按鈕 (28dp 圓形勾選圖標)

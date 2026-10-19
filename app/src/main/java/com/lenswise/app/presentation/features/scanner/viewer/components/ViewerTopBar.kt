@@ -94,7 +94,7 @@ fun ViewerTopBar(
                 color = Color.White,
                 fontFamily = OutfitFontFamily,
                 fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.Medium
             )
         }
 

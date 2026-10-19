@@ -49,6 +49,7 @@ import com.lenswise.app.domain.model.receipt.ReceiptScannerRecord
 import com.lenswise.app.features.ai.agents.receipt.ReceiptChatAgent
 import com.lenswise.app.features.ai.agents.receipt.ReceiptChatPrompts
 import com.lenswise.app.presentation.theme.AppColors
+import com.lenswise.app.presentation.theme.AppTypography
 import com.lenswise.app.presentation.theme.OutfitFontFamily
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
@@ -118,10 +119,7 @@ fun ReceiptChatBottomSheet(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "AI 收據分析顧問",
-                    fontFamily = OutfitFontFamily,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    style = AppTypography.dialogTitle.copy(color = Color.White)
                 )
             }
 

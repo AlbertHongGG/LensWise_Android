@@ -46,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.lenswise.app.presentation.theme.AppTypography
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -145,10 +146,10 @@ fun SwipeToObliterateButton(
             // 置中提示文字：小於 80% 為 SLIDE TO WIPE，大於 80% 動態切換為 RELEASE TO CLEAR
             Text(
                 text = if (isReleaseText) confirmedTitle.uppercase() else title.uppercase(),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.5.sp,
-                color = if (isArmed) Color.White.copy(alpha = 0.90f) else textColor,
+                style = AppTypography.sheetHeader.copy(
+                    letterSpacing = 1.5.sp,
+                    color = if (isArmed) Color.White.copy(alpha = 0.90f) else textColor
+                ),
                 modifier = Modifier.align(Alignment.Center)
             )
         }

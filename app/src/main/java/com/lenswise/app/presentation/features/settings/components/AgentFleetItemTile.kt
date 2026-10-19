@@ -45,6 +45,7 @@ import com.lenswise.app.features.ai.config.AiProviderConfig
 import com.lenswise.app.features.ai.config.ConfigField
 import com.lenswise.app.features.ai.domain.AiAgentType
 import com.lenswise.app.presentation.theme.AppColors
+import com.lenswise.app.presentation.theme.AppTypography
 import com.lenswise.app.presentation.theme.OutfitFontFamily
 
 /**
@@ -99,10 +100,7 @@ fun AgentFleetItemTile(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = agentType.displayName,
-                    fontFamily = OutfitFontFamily,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = textPrimaryColor
+                    style = AppTypography.tileTitle.copy(color = textPrimaryColor)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -115,11 +113,11 @@ fun AgentFleetItemTile(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = activeProvider.displayName.uppercase(),
-                        fontFamily = OutfitFontFamily,
-                        fontSize = 13.sp,
-                        letterSpacing = 0.5.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = textSecondaryColor
+                        style = AppTypography.heroSubtitle.copy(
+                            fontSize = 13.sp,
+                            letterSpacing = 0.5.sp,
+                            color = textSecondaryColor
+                        )
                     )
                 }
             }
@@ -157,10 +155,7 @@ fun AgentFleetItemTile(
                     Spacer(modifier = Modifier.width(16.dp))
                     Text(
                         text = activeProvider.displayName.uppercase(),
-                        fontFamily = OutfitFontFamily,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = textPrimaryColor,
+                        style = AppTypography.itemValue.copy(color = textPrimaryColor),
                         modifier = Modifier.weight(1f)
                     )
                     Icon(

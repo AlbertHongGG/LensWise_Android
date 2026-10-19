@@ -40,6 +40,7 @@ import com.lenswise.app.core.image.AppImageEntity
 import com.lenswise.app.domain.model.receipt.ReceiptScannerRecord
 import com.lenswise.app.presentation.components.ThinkingOrb
 import com.lenswise.app.presentation.theme.AppColors
+import com.lenswise.app.presentation.theme.AppTypography
 import com.lenswise.app.presentation.theme.OutfitFontFamily
 
 /**
@@ -119,11 +120,10 @@ fun ReceiptProcessingScreen(
 
                 Text(
                     text = "解析失敗",
-                    color = if (isDark) Color.White else Color(0xFF1A1A1A),
-                    fontFamily = OutfitFontFamily,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
+                    style = AppTypography.receiptStoreTitle.copy(
+                        color = if (isDark) Color.White else Color(0xFF1A1A1A),
+                        textAlign = TextAlign.Center
+                    )
                 )
 
                 Spacer(modifier = Modifier.height(14.dp))
@@ -159,10 +159,10 @@ fun ReceiptProcessingScreen(
                     Spacer(modifier = Modifier.size(8.dp))
                     Text(
                         text = "返回相機",
-                        fontFamily = OutfitFontFamily,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 1.sp
+                        style = AppTypography.tileTitle.copy(
+                            color = Color.White,
+                            letterSpacing = 1.sp
+                        )
                     )
                 }
             }
@@ -181,11 +181,10 @@ fun ReceiptProcessingScreen(
 
                 Text(
                     text = if (state.status == ReceiptScannerStatus.STREAMING) "收據辨識完成，載入中..." else "AI 收據萃取中...",
-                    color = AppColors.primary,
-                    fontFamily = OutfitFontFamily,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
+                    style = AppTypography.receiptStoreTitle.copy(
+                        color = AppColors.primary,
+                        textAlign = TextAlign.Center
+                    )
                 )
 
                 Spacer(modifier = Modifier.height(14.dp))

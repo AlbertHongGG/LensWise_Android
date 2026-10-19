@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lenswise.app.domain.scanner.ScannerMode
+import com.lenswise.app.presentation.theme.AppTypography
 import com.lenswise.app.presentation.theme.OutfitFontFamily
 
 /**
@@ -110,11 +111,10 @@ fun AnalysisActionButton(
 
                 Text(
                     text = label,
-                    color = Color.White,
-                    fontFamily = OutfitFontFamily,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 1.2.sp
+                    style = AppTypography.itemValue.copy(
+                        color = Color.White,
+                        letterSpacing = 1.2.sp
+                    )
                 )
             }
         }

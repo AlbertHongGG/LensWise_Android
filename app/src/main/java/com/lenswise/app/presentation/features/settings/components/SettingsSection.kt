@@ -13,9 +13,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.lenswise.app.presentation.theme.AppTypography
 
 @Composable
 fun SettingsSection(
@@ -33,10 +33,10 @@ fun SettingsSection(
         if (title != null) {
             Text(
                 text = title,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = if (isDark) Color.White.copy(alpha = 0.54f) else Color(0xFF64748B),
-                letterSpacing = 1.2.sp,
+                style = AppTypography.sectionHeader.copy(
+                    fontSize = 14.sp,
+                    color = if (isDark) Color.White.copy(alpha = 0.54f) else Color(0xFF64748B)
+                ),
                 modifier = Modifier.padding(start = 16.dp, bottom = 8.dp, top = 22.dp)
             )
         }

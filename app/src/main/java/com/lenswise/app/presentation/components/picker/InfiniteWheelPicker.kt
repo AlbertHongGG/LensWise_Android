@@ -31,6 +31,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.lenswise.app.presentation.theme.AppTypography
 import com.lenswise.app.presentation.theme.OutfitFontFamily
 import kotlinx.coroutines.launch
 
@@ -152,11 +153,11 @@ fun <T> InfiniteWheelPicker(
                 ) {
                     Text(
                         text = itemText(item),
-                        fontFamily = OutfitFontFamily,
-                        fontSize = if (isSelected) 24.sp else 18.sp,
-                        fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
-                        color = if (isSelected) selectedTextColor else unselectedTextColor,
-                        letterSpacing = 1.0.sp
+                        style = if (isSelected) {
+                            AppTypography.wheelSelected.copy(color = selectedTextColor)
+                        } else {
+                            AppTypography.wheelUnselected.copy(color = unselectedTextColor)
+                        }
                     )
                 }
             }

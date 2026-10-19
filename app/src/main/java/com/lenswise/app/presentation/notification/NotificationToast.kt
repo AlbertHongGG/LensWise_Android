@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.lenswise.app.presentation.theme.AppTypography
 import com.lenswise.app.presentation.theme.OutfitFontFamily
 
 /**
@@ -88,11 +89,9 @@ fun NotificationToast(
 
             Text(
                 text = notification.message,
-                color = if (isDark) Color.White.copy(alpha = 0.92f) else Color(0xDE000000),
-                fontFamily = OutfitFontFamily,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.5.sp,
+                style = AppTypography.toastMessage.copy(
+                    color = if (isDark) Color.White.copy(alpha = 0.92f) else Color(0xDE000000)
+                ),
                 modifier = Modifier.weight(1f)
             )
 

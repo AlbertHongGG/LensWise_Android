@@ -63,6 +63,7 @@ import com.lenswise.app.domain.model.log.ApiLogModel
 import com.lenswise.app.domain.model.log.DefaultAiLogConfigs
 import com.lenswise.app.features.ai.domain.AiAgentType
 import com.lenswise.app.presentation.components.PremiumEmptyState
+import com.lenswise.app.presentation.theme.AppTypography
 import com.lenswise.app.presentation.components.SwipeToConfirmDrawer
 import com.lenswise.app.presentation.features.log.components.DragDropTrashContainer
 import com.lenswise.app.presentation.features.log.components.draggableToTrash
@@ -312,9 +313,9 @@ private fun ApiLogCardContent(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = log.title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isDark) Color.White else Color(0xFF1E293B)
+                    style = AppTypography.cardTitle.copy(
+                        color = if (isDark) Color.White else Color(0xFF1E293B)
+                    )
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))

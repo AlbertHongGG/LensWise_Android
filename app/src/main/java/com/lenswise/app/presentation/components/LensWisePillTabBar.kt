@@ -24,19 +24,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.lenswise.app.presentation.theme.AppColors
+import com.lenswise.app.presentation.theme.AppTypography
 
 /**
  * LensWise 經典膠囊分頁欄元件 (LensWisePillTabBar)。
  * 100% 復刻 LensWise Flutter 版統一膠囊分頁規範：
  * - 圓角 16dp 槽體、4dp 內襯、半透明底槽。
  * - 橫向滑動列（horizontalScroll，間距 4dp）。
- * - 項目：高 38dp、圓角 12dp、圖標 16dp、間距 6dp、標題 14sp。
- * - 選中：淺色模式白底+4dp陰影、深色模式 15% 白透明底；主色或白高亮。
- * - 未選中：透明底、54% 次要文字灰。
+ * - 項目：高 38dp、圓角 12dp、圖標 16dp、間距 6dp。
+ * - 選中：淺色模式白底+4dp陰影、深色模式 15% 白透明底；主色或白高亮 (SemiBold w600)。
+ * - 未選中：透明底、54% 次要文字灰 (Normal w400)。
  */
 @Composable
 fun <T> LensWisePillTabBar(
@@ -104,9 +103,11 @@ fun <T> LensWisePillTabBar(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = itemTitle(item),
-                            fontSize = 14.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = tabTextColor
+                            style = if (isSelected) {
+                                AppTypography.tabSelected.copy(color = tabTextColor)
+                            } else {
+                                AppTypography.tabUnselected.copy(color = tabTextColor)
+                            }
                         )
                     }
                 }

@@ -39,6 +39,7 @@ import com.lenswise.app.features.ai.config.AiProviderConfig
 import com.lenswise.app.features.ai.config.AiProviderType
 import com.lenswise.app.features.ai.config.ConfigField
 import com.lenswise.app.presentation.theme.AppColors
+import com.lenswise.app.presentation.theme.AppTypography
 import com.lenswise.app.presentation.theme.OutfitFontFamily
 
 /**
@@ -64,11 +65,7 @@ fun GlobalProvidersCard(
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
             text = "GLOBAL PROVIDERS CONFIGURATION",
-            fontFamily = OutfitFontFamily,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = 1.2.sp,
-            color = textSecondaryColor,
+            style = AppTypography.sectionHeader.copy(color = textSecondaryColor),
             modifier = Modifier.padding(start = 16.dp, bottom = 10.dp)
         )
 
@@ -113,10 +110,7 @@ fun GlobalProvidersCard(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "全域供應商設定",
-                            fontFamily = OutfitFontFamily,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = textPrimaryColor
+                            style = AppTypography.tileTitle.copy(color = textPrimaryColor)
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -129,9 +123,11 @@ fun GlobalProvidersCard(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = editingType.displayName.uppercase(),
-                                fontFamily = OutfitFontFamily,
-                                fontSize = 13.sp,
-                                color = textSecondaryColor
+                                style = AppTypography.heroSubtitle.copy(
+                                    fontSize = 13.sp,
+                                    letterSpacing = 0.5.sp,
+                                    color = textSecondaryColor
+                                )
                             )
                         }
                     }
@@ -169,10 +165,7 @@ fun GlobalProvidersCard(
                             Spacer(modifier = Modifier.width(16.dp))
                             Text(
                                 text = editingType.displayName.uppercase(),
-                                fontFamily = OutfitFontFamily,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = textPrimaryColor,
+                                style = AppTypography.itemValue.copy(color = textPrimaryColor),
                                 modifier = Modifier.weight(1f)
                             )
                             Icon(

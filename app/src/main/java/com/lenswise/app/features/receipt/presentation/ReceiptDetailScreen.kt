@@ -41,6 +41,7 @@ import com.lenswise.app.features.ai.agents.receipt.ReceiptChatAgent
 import com.lenswise.app.features.receipt.presentation.components.ReceiptChatBottomSheet
 import com.lenswise.app.features.receipt.presentation.components.ReceiptPaperCard
 import com.lenswise.app.presentation.theme.AppColors
+import com.lenswise.app.presentation.theme.AppTypography
 import com.lenswise.app.presentation.theme.OutfitFontFamily
 
 /**
@@ -107,10 +108,10 @@ fun ReceiptDetailScreen(
 
                 Text(
                     text = "收據明細",
-                    fontFamily = OutfitFontFamily,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isDark) Color.White else Color.Black.copy(alpha = 0.85f),
+                    style = AppTypography.cardTitle.copy(
+                        fontSize = 17.sp,
+                        color = if (isDark) Color.White else Color.Black.copy(alpha = 0.85f)
+                    ),
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -166,10 +167,10 @@ fun ReceiptDetailScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "問 AI 顧問",
-                        fontFamily = OutfitFontFamily,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White
+                        style = AppTypography.tileTitle.copy(
+                            fontSize = 15.sp,
+                            color = Color.White
+                        )
                     )
                 }
             }

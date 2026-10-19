@@ -115,7 +115,7 @@ fun ScannerModeSwitcher(
                         color = textColor,
                         fontFamily = OutfitFontFamily,
                         fontSize = 15.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
                     )
                 }
             }

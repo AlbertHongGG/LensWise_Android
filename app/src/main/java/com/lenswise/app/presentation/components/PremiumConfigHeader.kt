@@ -23,6 +23,8 @@ import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lenswise.app.presentation.theme.AppColors
+import com.lenswise.app.presentation.theme.AppTypography
+import com.lenswise.app.presentation.theme.OutfitFontFamily
 
 /**
  * 頁面頂部配置標題區塊，包含主標題、副標題與背景裝飾 ThinkingOrb。
@@ -69,12 +71,8 @@ fun PremiumConfigHeader(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    style = TextStyle(
-                        fontSize = 34.sp,
-                        fontWeight = FontWeight.ExtraBold,
+                    style = AppTypography.heroTitle.copy(
                         color = if (isDark) Color.White else AppColors.textPrimaryLight,
-                        letterSpacing = (-0.5).sp,
-                        lineHeight = 36.sp,
                         platformStyle = PlatformTextStyle(includeFontPadding = false),
                         lineHeightStyle = LineHeightStyle(
                             alignment = LineHeightStyle.Alignment.Center,
@@ -85,12 +83,8 @@ fun PremiumConfigHeader(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = subtitle.uppercase(),
-                    style = TextStyle(
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
+                    style = AppTypography.heroSubtitle.copy(
                         color = if (isDark) Color.White.copy(alpha = 0.54f) else Color.Black.copy(alpha = 0.54f),
-                        letterSpacing = 1.5.sp,
-                        lineHeight = 14.sp,
                         platformStyle = PlatformTextStyle(includeFontPadding = false),
                         lineHeightStyle = LineHeightStyle(
                             alignment = LineHeightStyle.Alignment.Center,

@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import com.lenswise.app.domain.model.log.DeletableLog
 import com.lenswise.app.presentation.components.SwipeToConfirmDrawer
 import com.lenswise.app.presentation.theme.AppColors
+import com.lenswise.app.presentation.theme.AppTypography
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.haze
 import kotlinx.coroutines.launch
@@ -96,9 +97,10 @@ fun <T : DeletableLog> GenericLogViewerScaffold(
                     ) {
                         Text(
                             text = emptyMessage,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = if (isDark) Color.White.copy(alpha = 0.5f) else Color.Black.copy(alpha = 0.4f)
+                            style = AppTypography.itemValue.copy(
+                                fontWeight = FontWeight.Normal,
+                                color = if (isDark) Color.White.copy(alpha = 0.5f) else Color.Black.copy(alpha = 0.4f)
+                            )
                         )
                     }
                 } else {

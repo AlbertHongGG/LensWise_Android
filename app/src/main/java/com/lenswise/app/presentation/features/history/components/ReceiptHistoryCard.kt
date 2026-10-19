@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lenswise.app.domain.model.receipt.ReceiptScannerRecord
 import com.lenswise.app.presentation.theme.AppColors
+import com.lenswise.app.presentation.theme.AppTypography
 import com.lenswise.app.presentation.theme.OutfitFontFamily
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -110,10 +111,9 @@ fun ReceiptHistoryCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = if (record.storeName.isNotEmpty()) record.storeName else "未知商店",
-                    fontFamily = OutfitFontFamily,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isDark) Color.White else Color(0xFF1E293B),
+                    style = AppTypography.cardTitle.copy(
+                        color = if (isDark) Color.White else Color(0xFF1E293B)
+                    ),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -123,10 +123,10 @@ fun ReceiptHistoryCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = amountText,
-                        fontFamily = OutfitFontFamily,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = AppColors.primary
+                        style = AppTypography.itemValue.copy(
+                            fontSize = 14.sp,
+                            color = AppColors.primary
+                        )
                     )
 
                     Spacer(modifier = Modifier.width(10.dp))

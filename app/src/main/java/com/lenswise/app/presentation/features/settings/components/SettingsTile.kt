@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lenswise.app.presentation.theme.AppColors
+import com.lenswise.app.presentation.theme.AppTypography
 
 @Composable
 fun SettingsTile(
@@ -78,17 +79,22 @@ fun SettingsTile(
         ) {
             Text(
                 text = title,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                color = textColor
+                style = AppTypography.tileTitle.copy(
+                    fontSize = 16.sp,
+                    color = textColor
+                )
             )
             if (!subtitle.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = subtitle,
-                    fontSize = 12.sp,
-                    color = if (isDark) Color.White.copy(alpha = 0.45f) else Color.Black.copy(alpha = 0.45f),
-                    lineHeight = 16.sp,
+                    style = AppTypography.heroSubtitle.copy(
+                        fontSize = 12.sp,
+                        letterSpacing = 0.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = if (isDark) Color.White.copy(alpha = 0.45f) else Color.Black.copy(alpha = 0.45f),
+                        lineHeight = 16.sp
+                    ),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

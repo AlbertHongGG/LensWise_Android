@@ -109,7 +109,7 @@ fun CustomGalleryBottomSheet(
                         text = "選擇照片",
                         fontFamily = OutfitFontFamily,
                         fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.SemiBold,
                         letterSpacing = 2.sp,
                         color = if (isDark) Color.White.copy(alpha = 0.65f) else Color.Black.copy(alpha = 0.65f)
                     )
@@ -223,7 +223,7 @@ fun CustomGalleryBottomSheet(
                             text = currentMonthTitle,
                             fontFamily = OutfitFontFamily,
                             fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
                         )
                     }
@@ -246,7 +246,7 @@ private fun GalleryHeaderCell(
         text = header.bucket.displayTitle,
         fontFamily = OutfitFontFamily,
         fontSize = 17.sp,
-        fontWeight = FontWeight.ExtraBold,
+        fontWeight = FontWeight.Bold,
         color = if (isDark) Color.White else Color(0xFF1A1A1A),
         modifier = modifier.padding(start = 14.dp, top = 20.dp, bottom = 8.dp)
     )

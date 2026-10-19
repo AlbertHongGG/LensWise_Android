@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.lenswise.app.presentation.theme.AppTypography
 
 /**
  * 沉浸式下拉刪除抽屜容器 (SwipeToConfirmDrawer)。
@@ -73,10 +74,7 @@ fun SwipeToConfirmDrawer(
 
             Text(
                 text = title.uppercase(),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 2.0.sp,
-                color = titleColor
+                style = AppTypography.sheetHeader.copy(color = titleColor)
             )
 
             Spacer(modifier = Modifier.height(32.dp))
