@@ -7,6 +7,7 @@ import com.lenswise.app.domain.model.log.ApiLogModel
 import com.lenswise.app.domain.model.log.ApiLogRecord
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -44,7 +45,7 @@ class ApiLogManager(private val context: Context) : AiLogger {
         ignoreUnknownKeys = true
     }
 
-    private val scope = CoroutineScope(Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val _logsFlow = MutableStateFlow<List<ApiLogModel>>(emptyList())
     val logsFlow: StateFlow<List<ApiLogModel>> = _logsFlow.asStateFlow()
 
@@ -102,7 +103,9 @@ class ApiLogManager(private val context: Context) : AiLogger {
             try {
                 val fileName = file.name
                 val parts = fileName.split("_")
-                var title = if (parts.size >= 4) parts[2] else fileName.removeSuffix(".json")
+                val rawAgentName = if (parts.size >= 4) parts[2] else null
+                var agentType = rawAgentName?.let { com.lenswise.app.features.ai.domain.AiAgentType.fromId(it) }
+                var title = agentType?.displayName ?: rawAgentName ?: fileName.removeSuffix(".json")
                 var dtMillis = file.lastModified()
                 var displayTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(dtMillis))
                 var durationMs = 0L
@@ -128,7 +131,12 @@ class ApiLogManager(private val context: Context) : AiLogger {
                             val snippet = String(buffer, 0, readCount)
                             val agentMatch = """"agentName"\s*:\s*"([^"]+)"""".toRegex().find(snippet)
                             if (agentMatch != null) {
-                                title = agentMatch.groupValues[1]
+                                val matchedName = agentMatch.groupValues[1]
+                                val matchedType = com.lenswise.app.features.ai.domain.AiAgentType.fromId(matchedName)
+                                if (agentType == null) {
+                                    agentType = matchedType
+                                }
+                                title = matchedType?.displayName ?: matchedName
                             }
                             val durationMatch = """"durationMs"\s*:\s*(\d+)""".toRegex().find(snippet)
                             if (durationMatch != null) {
@@ -145,12 +153,27 @@ class ApiLogManager(private val context: Context) : AiLogger {
                     displayTime = displayTime,
                     durationMs = durationMs,
                     timestamp = dtMillis,
-                    source = "全部"
+                    agentType = agentType,
+                    source = agentType?.displayName ?: "其他"
                 )
             } catch (e: Exception) {
                 null
             }
         }.sortedByDescending { it.file.name }
+    }
+
+    suspend fun clearLog(model: ApiLogModel) = clearLog(model.file)
+
+    suspend fun clearLog(id: String) = withContext(Dispatchers.IO) {
+        val target = _logsFlow.value.find { it.id == id }
+        if (target != null) {
+            clearLog(target.file)
+        } else {
+            val file = File(logDir, id)
+            if (file.exists()) {
+                clearLog(file)
+            }
+        }
     }
 
     suspend fun clearLog(file: File) = withContext(Dispatchers.IO) {
@@ -165,6 +188,25 @@ class ApiLogManager(private val context: Context) : AiLogger {
             _logsFlow.value = entries
         } catch (e: Exception) {
             Log.e(TAG, "Failed to delete log file: ${e.message}", e)
+        }
+    }
+
+    suspend fun clearLogsByAgentType(agentType: com.lenswise.app.features.ai.domain.AiAgentType?) = withContext(Dispatchers.IO) {
+        if (agentType == null) {
+            clearAllLogs()
+        } else {
+            val targets = _logsFlow.value.filter { it.agentType == agentType }
+            targets.forEach { target ->
+                try {
+                    if (target.file.exists()) {
+                        target.file.delete()
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to delete ${target.file.name}: ${e.message}")
+                }
+            }
+            val entries = loadAllEntries()
+            _logsFlow.value = entries
         }
     }
 

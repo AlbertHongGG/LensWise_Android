@@ -1,6 +1,7 @@
 package com.lenswise.app
 
 import com.lenswise.app.core.storage.SettingsPreferencesDataSource
+import com.lenswise.app.domain.model.settings.TargetLanguage
 import com.lenswise.app.presentation.features.settings.SettingsViewModel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -13,7 +14,7 @@ class SettingsViewModelTest {
         private var dark: Boolean = true,
         private var notif: Boolean = true,
         private var api: Boolean = true,
-        private var lang: String = "繁體中文"
+        private var lang: TargetLanguage = TargetLanguage.TRADITIONAL_CHINESE
     ) : SettingsPreferencesDataSource {
         override fun isDarkMode(): Boolean = dark
         override fun setDarkMode(enabled: Boolean) { dark = enabled }
@@ -21,8 +22,53 @@ class SettingsViewModelTest {
         override fun setNotificationLogEnabled(enabled: Boolean) { notif = enabled }
         override fun isApiLogEnabled(): Boolean = api
         override fun setApiLogEnabled(enabled: Boolean) { api = enabled }
-        override fun getTargetLanguage(): String = lang
-        override fun setTargetLanguage(language: String) { lang = language }
+        override fun getTargetLanguage(): TargetLanguage = lang
+        override fun setTargetLanguage(language: TargetLanguage) { lang = language }
+    }
+
+    private class FakeAiConfigRepository(
+        initialEnabled: Boolean = true
+    ) : com.lenswise.app.features.ai.config.IAiConfigRepository {
+        private val _state = kotlinx.coroutines.flow.MutableStateFlow(
+            com.lenswise.app.features.ai.config.AiConfigState(isAiAgentEnabled = initialEnabled)
+        )
+        override val configState: kotlinx.coroutines.flow.StateFlow<com.lenswise.app.features.ai.config.AiConfigState> = _state
+        override fun getEffectiveConfigFor(agentType: com.lenswise.app.features.ai.domain.AiAgentType) =
+            _state.value.getEffectiveConfigFor(agentType)
+        override fun setAiAgentEnabled(enabled: Boolean) {
+            _state.value = _state.value.copy(isAiAgentEnabled = enabled)
+        }
+        override fun setEditingGlobalProvider(type: com.lenswise.app.features.ai.config.AiProviderType) {
+            _state.value = _state.value.copy(editingGlobalProviderType = type)
+        }
+        override fun saveGlobalProviderConfig(
+            type: com.lenswise.app.features.ai.config.AiProviderType,
+            config: com.lenswise.app.features.ai.config.AiProviderConfig,
+            setAsEditing: Boolean
+        ) {
+            val updated = _state.value.globalProviderConfigs.toMutableMap()
+            updated[type] = config
+            _state.value = _state.value.copy(
+                globalProviderConfigs = updated,
+                editingGlobalProviderType = if (setAsEditing) type else _state.value.editingGlobalProviderType
+            )
+        }
+        override fun saveAgentConfig(
+            agentType: com.lenswise.app.features.ai.domain.AiAgentType,
+            providerType: com.lenswise.app.features.ai.config.AiProviderType?,
+            config: com.lenswise.app.features.ai.config.AiProviderConfig?
+        ) {
+            val current = _state.value.getOverrideConfigFor(agentType)
+            val newProvider = providerType ?: current.activeProviderType
+            val localConfigs = current.providerConfigs.toMutableMap()
+            if (config != null) localConfigs[newProvider] = config
+            val updatedAgents = _state.value.agentConfigs.toMutableMap()
+            updatedAgents[agentType] = com.lenswise.app.features.ai.config.AgentAiConfig(
+                activeProviderType = newProvider,
+                providerConfigs = localConfigs
+            )
+            _state.value = _state.value.copy(agentConfigs = updatedAgents)
+        }
     }
 
     @Test
@@ -31,20 +77,24 @@ class SettingsViewModelTest {
             dark = false,
             notif = true,
             api = false,
-            lang = "English"
+            lang = TargetLanguage.ENGLISH
         )
-        val viewModel = SettingsViewModel(fakeSource)
+        val fakeAiRepo = FakeAiConfigRepository(initialEnabled = false)
+        val viewModel = SettingsViewModel(fakeSource, fakeAiRepo)
 
         assertFalse(viewModel.uiState.value.isDarkMode)
         assertTrue(viewModel.uiState.value.isNotificationLogEnabled)
         assertFalse(viewModel.uiState.value.isApiLogEnabled)
-        assertEquals("English", viewModel.uiState.value.targetLanguage)
+        assertFalse(viewModel.uiState.value.isAiAgentEnabled)
+        assertEquals(TargetLanguage.ENGLISH, viewModel.uiState.value.targetLanguage)
+        assertEquals("English", viewModel.uiState.value.targetLanguage.displayName)
     }
 
     @Test
     fun testSettingsToggleUpdatesStateAndPersistence() {
         val fakeSource = FakeSettingsPreferencesDataSource()
-        val viewModel = SettingsViewModel(fakeSource)
+        val fakeAiRepo = FakeAiConfigRepository(initialEnabled = true)
+        val viewModel = SettingsViewModel(fakeSource, fakeAiRepo)
 
         viewModel.setDarkMode(false)
         assertFalse(viewModel.uiState.value.isDarkMode)
@@ -58,8 +108,22 @@ class SettingsViewModelTest {
         assertFalse(viewModel.uiState.value.isApiLogEnabled)
         assertFalse(fakeSource.isApiLogEnabled())
 
-        viewModel.setTargetLanguage("日語")
-        assertEquals("日語", viewModel.uiState.value.targetLanguage)
-        assertEquals("日語", fakeSource.getTargetLanguage())
+        viewModel.setAiAgentEnabled(false)
+        assertFalse(viewModel.uiState.value.isAiAgentEnabled)
+        assertFalse(fakeAiRepo.configState.value.isAiAgentEnabled)
+
+        viewModel.setAiAgentEnabled(true)
+        assertTrue(viewModel.uiState.value.isAiAgentEnabled)
+        assertTrue(fakeAiRepo.configState.value.isAiAgentEnabled)
+
+        viewModel.setTargetLanguage(TargetLanguage.JAPANESE)
+        assertEquals(TargetLanguage.JAPANESE, viewModel.uiState.value.targetLanguage)
+        assertEquals("日本語", viewModel.uiState.value.targetLanguage.displayName)
+        assertEquals(TargetLanguage.JAPANESE, fakeSource.getTargetLanguage())
+
+        viewModel.setTargetLanguage(TargetLanguage.KOREAN)
+        assertEquals(TargetLanguage.KOREAN, viewModel.uiState.value.targetLanguage)
+        assertEquals("한국어", viewModel.uiState.value.targetLanguage.displayName)
+        assertEquals(TargetLanguage.KOREAN, fakeSource.getTargetLanguage())
     }
 }

@@ -28,10 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.lenswise.app.LensWiseApplication
-import com.lenswise.app.core.ai.provider.AiProviderFactory
 import com.lenswise.app.domain.model.receipt.ReceiptScannerRecord
 import com.lenswise.app.features.ai.agents.receipt.ReceiptChatAgent
 import com.lenswise.app.features.receipt.presentation.components.ReceiptChatBottomSheet
@@ -63,14 +60,7 @@ fun ReceiptDetailScreen(
 
     val isStreaming = isLiveSession && liveState.status == ReceiptScannerStatus.STREAMING
 
-    val context = LocalContext.current
-    val app = context.applicationContext as LensWiseApplication
-    val chatAgent = remember {
-        ReceiptChatAgent(
-            provider = AiProviderFactory.createDefaultProvider(),
-            logger = app.apiLogManager
-        )
-    }
+    var activeChatAgent by remember { mutableStateOf<ReceiptChatAgent?>(null) }
 
     Box(
         modifier = modifier
@@ -103,7 +93,13 @@ fun ReceiptDetailScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             FloatingActionButton(
-                onClick = { showChatSheet = true },
+                onClick = {
+                    val agent = viewModel?.createChatAgent()
+                    if (agent != null) {
+                        activeChatAgent = agent
+                        showChatSheet = true
+                    }
+                },
                 containerColor = AppColors.primary,
                 contentColor = Color.White,
                 shape = CircleShape
@@ -119,10 +115,11 @@ fun ReceiptDetailScreen(
             }
         }
 
-        if (showChatSheet) {
+        val currentChatAgent = activeChatAgent
+        if (showChatSheet && currentChatAgent != null) {
             ReceiptChatBottomSheet(
                 record = currentRecord,
-                chatAgent = chatAgent,
+                chatAgent = currentChatAgent,
                 onDismissRequest = { showChatSheet = false }
             )
         }

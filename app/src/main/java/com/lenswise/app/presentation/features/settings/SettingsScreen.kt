@@ -32,6 +32,11 @@ import com.lenswise.app.presentation.features.settings.components.SettingsTile
 import com.lenswise.app.presentation.notification.NotificationController
 import com.lenswise.app.presentation.theme.AppColors
 
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.lenswise.app.presentation.components.picker.LanguagePickerBottomSheet
+
 /**
  * LensWise 經典偏好設定頁面 (SettingsScreen)。
  * 1:1 還原原版 LensWise 排版與三大分組設計（系統、AI 解析與引擎設定、資料備份與還原），支援全手勢向右滑動返回。
@@ -48,6 +53,18 @@ fun SettingsScreen(
 ) {
     val isDark = isSystemInDarkTheme()
     val uiState by viewModel.uiState.collectAsState()
+    var showLanguagePicker by remember { mutableStateOf(false) }
+
+    if (showLanguagePicker) {
+        LanguagePickerBottomSheet(
+            currentLanguage = uiState.targetLanguage,
+            onConfirm = { selectedLang ->
+                viewModel.setTargetLanguage(selectedLang)
+                showLanguagePicker = false
+            },
+            onDismiss = { showLanguagePicker = false }
+        )
+    }
 
     Box(
         modifier = modifier
@@ -100,19 +117,22 @@ fun SettingsScreen(
                     icon = Icons.Default.Language,
                     iconColor = AppColors.primary,
                     title = "目標翻譯語言",
-                    subtitle = uiState.targetLanguage,
-                    onTap = {
-                        NotificationController.showInfo("目前預設語言為「${uiState.targetLanguage}」")
-                    }
+                    subtitle = uiState.targetLanguage.displayName,
+                    onTap = { showLanguagePicker = true }
                 )
                 SettingsDivider()
                 SettingsTile(
                     icon = Icons.Default.SmartToy,
                     iconColor = AppColors.primary,
-                    title = "API 與引擎設定",
-                    subtitle = "模型端點與金鑰配置",
+                    title = "AI 代理調度中心",
                     onTap = onConfigureAiEngine ?: {
-                        NotificationController.showInfo("AI 模組配置即將於下一階段推出")
+                        NotificationController.showInfo("AI 代理調度中心即將推出")
+                    },
+                    trailing = {
+                        AppSwitch(
+                            checked = uiState.isAiAgentEnabled,
+                            onCheckedChange = { viewModel.setAiAgentEnabled(it) }
+                        )
                     }
                 )
                 SettingsDivider()
@@ -120,7 +140,6 @@ fun SettingsScreen(
                     icon = Icons.Default.DataObject,
                     iconColor = AppColors.primary,
                     title = "AI 日誌",
-                    subtitle = "API 請求與模型推論紀錄",
                     onTap = onNavigateToAiLogs,
                     trailing = {
                         AppSwitch(

@@ -172,7 +172,13 @@ fun AppNavigation(
                 SettingsScreen(
                     viewModel = settingsViewModel,
                     onNavigateToNotificationLogs = { navigator.push(AppRoute.NotificationLog) },
-                    onNavigateToAiLogs = { navigator.push(AppRoute.ApiLog) }
+                    onNavigateToAiLogs = { navigator.push(AppRoute.ApiLog) },
+                    onConfigureAiEngine = { navigator.push(AppRoute.AiDispatchCenter) }
+                )
+            }
+            is AppRoute.AiDispatchCenter -> {
+                com.lenswise.app.presentation.features.settings.AiDispatchCenterScreen(
+                    onNavigateBack = { navigator.pop() }
                 )
             }
             is AppRoute.NotificationLog -> {
@@ -188,11 +194,17 @@ fun AppNavigation(
             }
             is AppRoute.ApiLogDetail -> {
                 ApiLogDetailScreen(
-                    rawJson = route.rawJson
+                    rawJson = route.rawJson,
+                    onNavigateBack = { navigator.pop() }
                 )
             }
             is AppRoute.History -> {
-                HistoryScreen(initialTab = route.initialTab)
+                HistoryScreen(
+                    initialTab = route.initialTab,
+                    onNavigateToReceiptDetail = { record ->
+                        navigator.push(AppRoute.ReceiptDetail(record = record, isLiveSession = false))
+                    }
+                )
             }
             is AppRoute.CapturedViewer -> {
                 CapturedImageViewerScreen(

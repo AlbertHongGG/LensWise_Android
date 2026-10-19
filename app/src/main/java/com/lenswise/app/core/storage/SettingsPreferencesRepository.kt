@@ -2,6 +2,7 @@ package com.lenswise.app.core.storage
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.lenswise.app.domain.model.settings.TargetLanguage
 
 /**
  * 偏好設定本地持久化倉庫 (SettingsPreferencesRepository)。
@@ -39,12 +40,13 @@ class SettingsPreferencesRepository(
         prefs.edit().putBoolean(KEY_API_LOG, enabled).apply()
     }
 
-    override fun getTargetLanguage(): String {
-        return prefs.getString(KEY_TARGET_LANGUAGE, "繁體中文") ?: "繁體中文"
+    override fun getTargetLanguage(): TargetLanguage {
+        val raw = prefs.getString(KEY_TARGET_LANGUAGE, null)
+        return if (raw != null) TargetLanguage.fromString(raw) else TargetLanguage.TRADITIONAL_CHINESE
     }
 
-    override fun setTargetLanguage(language: String) {
-        prefs.edit().putString(KEY_TARGET_LANGUAGE, language).apply()
+    override fun setTargetLanguage(language: TargetLanguage) {
+        prefs.edit().putString(KEY_TARGET_LANGUAGE, language.name).apply()
     }
 
     companion object {

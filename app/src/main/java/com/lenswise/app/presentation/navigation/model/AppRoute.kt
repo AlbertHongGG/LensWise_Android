@@ -82,4 +82,11 @@ sealed interface AppRoute : Parcelable {
         @IgnoredOnParcel
         override val key: String = "route_receipt_detail_${record.id}"
     }
+
+    /** AI 代理調度中心畫面 (AiDispatchCenterScreen) */
+    @Parcelize
+    data object AiDispatchCenter : AppRoute {
+        @IgnoredOnParcel
+        override val key: String = "route_ai_dispatch_center"
+    }
 }

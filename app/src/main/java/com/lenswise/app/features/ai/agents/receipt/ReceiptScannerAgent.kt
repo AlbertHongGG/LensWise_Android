@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 
+import com.lenswise.app.domain.model.settings.TargetLanguage
+
 /**
  * 收據萃取與分析專用 Agent (ReceiptScannerAgent)。
  * 實作業務契約 [IReceiptScannerAgent]，並繼承 [BaseAgent] 獲得計時與統一 API 日誌能力。
@@ -21,7 +23,7 @@ import kotlinx.serialization.json.jsonObject
 class ReceiptScannerAgent(
     provider: AiProvider,
     logger: AiLogger,
-    private val targetLanguage: String = "繁體中文"
+    private val targetLanguage: TargetLanguage = TargetLanguage.TRADITIONAL_CHINESE
 ) : BaseAgent<List<AppImageEntity>, ReceiptScannerRecord>(
     agentType = AiAgentType.RECEIPT_SCANNER.id,
     provider = provider,

@@ -50,7 +50,14 @@ class NotificationController {
         fun onNotificationPosted(type: NotificationType, message: String)
     }
 
-    private val scope = CoroutineScope(Dispatchers.Main.immediate)
+    private val dispatcher = try {
+        val d = Dispatchers.Main.immediate
+        d.isDispatchNeeded(kotlin.coroutines.EmptyCoroutineContext)
+        d
+    } catch (_: Throwable) {
+        Dispatchers.Default
+    }
+    private val scope = CoroutineScope(dispatcher)
     private var dismissJob: Job? = null
     private val listeners = mutableListOf<NotificationListener>()
 
@@ -69,10 +76,12 @@ class NotificationController {
             runCatching { it.onNotificationPosted(notification.type, notification.message) }
         }
 
-        dismissJob = scope.launch {
-            delay(notification.durationMs)
-            if (_currentNotification.value?.id == notification.id) {
-                _currentNotification.value = null
+        runCatching {
+            dismissJob = scope.launch {
+                delay(notification.durationMs)
+                if (_currentNotification.value?.id == notification.id) {
+                    _currentNotification.value = null
+                }
             }
         }
     }

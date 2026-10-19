@@ -1,5 +1,6 @@
 package com.lenswise.app.domain.model.log
 
+import com.lenswise.app.features.ai.domain.AiAgentType
 import java.io.File
 
 /**
@@ -18,7 +19,8 @@ data class ApiLogModel(
     val durationMs: Long,
     val timestamp: Long,
     val rawJson: String = "",
-    val source: String = "全部"
+    val agentType: AiAgentType? = null,
+    val source: String = agentType?.displayName ?: "其他"
 ) : DeletableLog {
     override val timestampMillis: Long get() = timestamp
 

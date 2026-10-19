@@ -45,12 +45,24 @@ data class ReceiptScannerUiState(
 }
 
 class ReceiptScannerViewModel(
-    private val agent: IReceiptScannerAgent,
-    private val service: ReceiptScannerService
+    private val agentFactory: () -> IReceiptScannerAgent,
+    private val service: ReceiptScannerService,
+    private val chatAgentFactory: (() -> com.lenswise.app.features.ai.agents.receipt.ReceiptChatAgent)? = null
 ) : ViewModel() {
+
+    // Secondary constructor for testing or static injection
+    constructor(agent: IReceiptScannerAgent, service: ReceiptScannerService) : this(
+        agentFactory = { agent },
+        service = service,
+        chatAgentFactory = null
+    )
 
     private val _uiState = MutableStateFlow(ReceiptScannerUiState())
     val uiState: StateFlow<ReceiptScannerUiState> = _uiState.asStateFlow()
+
+    fun createChatAgent(): com.lenswise.app.features.ai.agents.receipt.ReceiptChatAgent? {
+        return chatAgentFactory?.invoke()
+    }
 
     private var streamJob: Job? = null
 
@@ -69,6 +81,20 @@ class ReceiptScannerViewModel(
 
         streamJob?.cancel()
 
+        val activeAgent: IReceiptScannerAgent
+        try {
+            activeAgent = agentFactory()
+        } catch (e: Exception) {
+            Log.e("ReceiptScannerVM", "Failed to resolve AI Agent provider", e)
+            _uiState.update {
+                it.copy(
+                    status = ReceiptScannerStatus.ERROR,
+                    errorMessage = e.localizedMessage ?: "AI 配置無效"
+                )
+            }
+            return
+        }
+
         _uiState.update {
             ReceiptScannerUiState(
                 capturedImages = images,
@@ -80,7 +106,7 @@ class ReceiptScannerViewModel(
         }
 
         streamJob = viewModelScope.launch {
-            agent.executeStreamSnapshot(images)
+            activeAgent.executeStreamSnapshot(images)
                 .catch { error ->
                     Log.e("ReceiptScannerVM", "Receipt analysis failed", error)
                     _uiState.update {
@@ -118,16 +144,32 @@ class ReceiptScannerViewModel(
             initializer {
                 val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as LensWiseApplication
                 val settingsRepo = SettingsPreferencesRepository(app)
-                val targetLang = settingsRepo.getTargetLanguage()
-                val provider = AiProviderFactory.createDefaultProvider()
-                val agent = ReceiptScannerAgent(
-                    provider = provider,
-                    logger = app.apiLogManager,
-                    targetLanguage = targetLang
+                val service = ReceiptScannerService(app, app.receiptHistoryRepository)
+                ReceiptScannerViewModel(
+                    agentFactory = {
+                        val provider = AiProviderFactory.createProviderForAgent(
+                            agentType = com.lenswise.app.features.ai.domain.AiAgentType.RECEIPT_SCANNER,
+                            configRepo = app.aiConfigRepository
+                        )
+                        val targetLang = settingsRepo.getTargetLanguage()
+                        ReceiptScannerAgent(
+                            provider = provider,
+                            logger = app.apiLogManager,
+                            targetLanguage = targetLang
+                        )
+                    },
+                    service = service,
+                    chatAgentFactory = {
+                        val provider = AiProviderFactory.createProviderForAgent(
+                            agentType = com.lenswise.app.features.ai.domain.AiAgentType.RECEIPT_CHAT,
+                            configRepo = app.aiConfigRepository
+                        )
+                        com.lenswise.app.features.ai.agents.receipt.ReceiptChatAgent(
+                            provider = provider,
+                            logger = app.apiLogManager
+                        )
+                    }
                 )
-                val historyRepo = ReceiptHistoryRepository(app)
-                val service = ReceiptScannerService(app, historyRepo)
-                ReceiptScannerViewModel(agent, service)
             }
         }
     }

@@ -1,12 +1,14 @@
 package com.lenswise.app.features.ai.agents.receipt
 
+import com.lenswise.app.domain.model.settings.TargetLanguage
+
 /**
  * 收據萃取 Agent 提示詞工廠。
  * 內容完全嚴格對標參考專案 (LensWise)，維持鐵律規範。
  */
 object ReceiptScannerPrompts {
 
-    fun buildSystemPrompt(targetLanguage: String = "繁體中文"): String {
+    fun buildSystemPrompt(targetLanguage: TargetLanguage = TargetLanguage.TRADITIONAL_CHINESE): String {
         return """你是一個具備多模態視覺能力與深厚零售知識的「跨境智慧消費解析助理」。
 使用者會上傳一組「連續拍攝的收據照片（可能是多張局部截圖或連續畫面）」。
 你的任務是解析這組收據照片的內容，提取出重要的店家資訊、購買品項、各項稅金與折扣，將其翻譯為目標語言，並以結構化的 JSON 回傳。
@@ -26,7 +28,7 @@ object ReceiptScannerPrompts {
    - 所有折扣、扣抵項目，必須單獨抽離至 `discounts` 陣列中，其金額必須為負數（或代表扣減）。
    - 所有稅金名目（如消費稅等），必須單獨抽離至 `taxes` 陣列中，其金額為正數。
 4. **自動糾錯與正名 (Auto-Correction)**：若收據上的字體列印不清導致錯別字（例如「鮮奶荼」應為「鮮奶茶」），請根據上下文**自動糾正**。
-5. **目標語言翻譯 (Strict Translation)**：將收據原語言的所有品項與店鋪名稱，一律翻譯為目標語言：「$targetLanguage」。
+5. **目標語言翻譯 (Strict Translation)**：將收據原語言的所有品項與店鋪名稱，一律翻譯為目標語言：「${targetLanguage.displayName}」。
 6. **金額純數字化 (Amount Extraction)**：所有金額欄位必須是純數字，請剔除貨幣符號與逗號。
 
 【輸出 JSON 欄位定義】

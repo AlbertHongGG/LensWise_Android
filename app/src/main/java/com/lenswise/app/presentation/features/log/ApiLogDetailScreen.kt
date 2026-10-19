@@ -33,10 +33,14 @@ import com.lenswise.app.presentation.features.log.components.JsonTreeViewer
 import com.lenswise.app.presentation.theme.AppColors
 import org.json.JSONObject
 
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.IconButton
+
 @Composable
 fun ApiLogDetailScreen(
     rawJson: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNavigateBack: () -> Unit = {}
 ) {
     val isDark = isSystemInDarkTheme()
 
@@ -68,11 +72,25 @@ fun ApiLogDetailScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 18.dp)
+                    .padding(horizontal = 12.dp, vertical = 12.dp)
             ) {
+                IconButton(
+                    onClick = onNavigateBack,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "返回",
+                        tint = if (isDark) Color.White else Color(0xFF1E293B),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
                 Text(
                     text = agentName,
-                    fontSize = 24.sp,
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (isDark) Color.White else Color(0xFF1E293B)
                 )

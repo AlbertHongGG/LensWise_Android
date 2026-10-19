@@ -16,12 +16,18 @@ class LensWiseApplication : Application(), ImageLoaderFactory {
         private set
     lateinit var apiLogManager: com.lenswise.app.core.logging.ApiLogManager
         private set
+    lateinit var receiptHistoryRepository: com.lenswise.app.features.receipt.data.ReceiptHistoryRepository
+        private set
+    lateinit var aiConfigRepository: com.lenswise.app.features.ai.config.AiConfigRepository
+        private set
 
     override fun onCreate() {
         super.onCreate()
         instance = this
         notificationLogManager = com.lenswise.app.core.logging.NotificationLogManager(this)
         apiLogManager = com.lenswise.app.core.logging.ApiLogManager(this)
+        receiptHistoryRepository = com.lenswise.app.features.receipt.data.ReceiptHistoryRepository(this)
+        aiConfigRepository = com.lenswise.app.features.ai.config.AiConfigRepository(this)
 
         com.lenswise.app.presentation.notification.NotificationController.addListener { type, message ->
             notificationLogManager.logNotification(type, message)
