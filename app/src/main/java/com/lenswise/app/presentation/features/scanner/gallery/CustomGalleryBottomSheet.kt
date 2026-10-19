@@ -1,6 +1,10 @@
 package com.lenswise.app.presentation.features.scanner.gallery
 
 import android.net.Uri
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -29,122 +33,51 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.lenswise.app.core.media.GalleryUiItem
 import com.lenswise.app.core.media.MediaAsset
-import com.lenswise.app.core.media.MediaRepository
 import com.lenswise.app.presentation.components.IsolatedHandleBottomSheet
 import com.lenswise.app.presentation.theme.AppColors
 import com.lenswise.app.presentation.theme.OutfitFontFamily
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 /**
- * 高效能手勢隔離自製相簿選擇器底部彈窗 (CustomGalleryBottomSheet)。
+ * 現代化極速自製相簿挑選彈窗 (CustomGalleryBottomSheet)。
  *
  * 核心保證：
- * 1. 採用 IsolatedHandleBottomSheet：高度硬性鎖定 88%，永遠置底錨定，物理上不可能衝入狀態列。
- * 2. 徹底消除手勢衝突：僅頂部 Header 具備拖曳關閉能力，照片網格區域手勢 100% 隔離，滾動順暢無阻。
- * 3. 視口分頁預載：批次 48 筆載入，提前 24 筆背景預載下一頁。
- * 4. 系統級快取縮圖管線：透過 MediaStoreThumbnailFetcher 原生微縮圖解碼，零原圖 I/O 負擔。
- * 5. 精確選取 UI：選取時僅黑半透明遮罩與置中白打勾（無外框），右上角確認按鈕統一使用 AppColors.primary。
+ * 1. 零感加載 (Zero-Perceived-Loading)：全相簿元數據極速預載，時間軸一體成型，徹底告別分頁中斷與死鎖。
+ * 2. 展平清單 (Flattened Stream)：單一 LazyVerticalGrid 配合 GridItemSpan，完美達成 Compose 視圖複用。
+ * 3. 獨立手勢隔離：採用 IsolatedHandleBottomSheet，滾動 100% 獨立，大力滑動數月不卡頓。
+ * 4. 快速滑動月份浮動徽章 (Floating Fast-Scroll Date Pill)：滑動時即時指示當前年月，停滑淡出。
  */
 @Composable
 fun CustomGalleryBottomSheet(
     maxItems: Int = 10,
     onDismiss: () -> Unit,
-    onConfirmSelection: (List<Uri>) -> Unit
+    onConfirmSelection: (List<Uri>) -> Unit,
+    viewModel: GalleryPickerViewModel = viewModel()
 ) {
-    val context = LocalContext.current
     val isDark = isSystemInDarkTheme()
-    val repository = remember { MediaRepository(context) }
+    val state by viewModel.uiState.collectAsState()
 
-    var allAssets by remember { mutableStateOf<List<MediaAsset>>(emptyList()) }
-    var groupedAssets by remember { mutableStateOf<Map<String, List<MediaAsset>>>(emptyMap()) }
-    var groupKeys by remember { mutableStateOf<List<String>>(emptyList()) }
-
-    var currentOffset by remember { mutableIntStateOf(0) }
-    val pageSize = 48
-    var hasMore by remember { mutableStateOf(true) }
-    var isLoading by remember { mutableStateOf(true) }
-    var isLoadingMore by remember { mutableStateOf(false) }
-
-    val selectedUris = remember { mutableStateListOf<Uri>() }
-
-    // 穩定的選取切換回呼，避免每個 Cell 反覆分配 Lambda 破壞 Compose 重組跳過機制
-    val onToggleAsset: (Uri) -> Unit = remember(maxItems) {
-        { uri ->
-            if (selectedUris.contains(uri)) {
-                selectedUris.remove(uri)
-            } else {
-                if (selectedUris.size < maxItems) {
-                    selectedUris.add(uri)
-                }
-            }
-        }
-    }
-
-    // 載入分頁資料函式
-    suspend fun loadPage(isInitial: Boolean) {
-        if (isInitial) {
-            isLoading = true
-            currentOffset = 0
-        } else {
-            isLoadingMore = true
-        }
-
-        val assets = repository.getMediaPaged(offset = currentOffset, limit = pageSize)
-        if (assets.isEmpty()) {
-            hasMore = false
-            isLoading = false
-            isLoadingMore = false
-            return
-        }
-
-        val updatedAll = if (isInitial) assets else allAssets + assets
-        val (newGrouped, newKeys) = withContext(Dispatchers.Default) {
-            val map = linkedMapOf<String, MutableList<MediaAsset>>()
-            val keys = mutableListOf<String>()
-
-            for (asset in updatedAll) {
-                val list = map.getOrPut(asset.groupKey) {
-                    keys.add(asset.groupKey)
-                    mutableListOf()
-                }
-                list.add(asset)
-            }
-            Pair(map, keys)
-        }
-
-        allAssets = updatedAll
-        groupedAssets = newGrouped
-        groupKeys = newKeys
-        currentOffset += assets.size
-        hasMore = assets.size == pageSize
-        isLoading = false
-        isLoadingMore = false
-    }
-
-    // 初次載入
-    LaunchedEffect(Unit) {
-        loadPage(isInitial = true)
+    LaunchedEffect(maxItems) {
+        viewModel.setMaxSelection(maxItems)
     }
 
     IsolatedHandleBottomSheet(
@@ -176,33 +109,55 @@ fun CustomGalleryBottomSheet(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // 左側佔位 48dp 確保文字絕對置中
-                    Spacer(modifier = Modifier.width(48.dp))
+                    if (state.selectedIds.isNotEmpty()) {
+                        TextButton(
+                            onClick = { viewModel.clearSelection() },
+                            contentPadding = PaddingValues(horizontal = 8.dp),
+                            modifier = Modifier.height(36.dp)
+                        ) {
+                            Text(
+                                text = "清除",
+                                fontFamily = OutfitFontFamily,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isDark) Color.White.copy(alpha = 0.65f) else Color.Black.copy(alpha = 0.65f)
+                            )
+                        }
+                    } else {
+                        // 左側佔位 48dp 確保文字絕對置中
+                        Spacer(modifier = Modifier.width(48.dp))
+                    }
+
+                    val titleText = if (state.selectedIds.isNotEmpty()) {
+                        "已選擇 (${state.selectionCount}/${state.maxSelection})"
+                    } else {
+                        "選擇照片"
+                    }
 
                     Text(
-                        text = "選擇照片",
+                        text = titleText,
                         fontFamily = OutfitFontFamily,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 2.sp,
-                        color = if (isDark) Color.White.copy(alpha = 0.65f) else Color.Black.copy(alpha = 0.65f)
+                        letterSpacing = 1.5.sp,
+                        color = if (isDark) Color.White.copy(alpha = 0.75f) else Color.Black.copy(alpha = 0.75f)
                     )
 
-                    val canConfirm = selectedUris.isNotEmpty()
                     IconButton(
                         onClick = {
-                            if (canConfirm) {
-                                onConfirmSelection(selectedUris.toList())
+                            if (state.canConfirm) {
+                                onConfirmSelection(state.selectedUris)
+                                viewModel.clearSelection()
                                 onDismiss()
                             }
                         },
-                        enabled = canConfirm,
+                        enabled = state.canConfirm,
                         modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.CheckCircle,
                             contentDescription = "確認選擇",
-                            tint = if (canConfirm) AppColors.primary else (if (isDark) Color.White.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.15f)),
+                            tint = if (state.canConfirm) AppColors.primary else (if (isDark) Color.White.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.15f)),
                             modifier = Modifier.size(28.dp)
                         )
                     }
@@ -210,104 +165,96 @@ fun CustomGalleryBottomSheet(
             }
         }
     ) {
-        // 內容區域：手勢 100% 隔離，滾動完全不連動彈窗
-        if (isLoading && allAssets.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(
-                    color = AppColors.primary,
-                    strokeWidth = 2.5.dp
-                )
-            }
-        } else if (allAssets.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "相簿內查無照片",
-                    fontFamily = OutfitFontFamily,
-                    color = if (isDark) Color.White.copy(alpha = 0.5f) else Color.Black.copy(alpha = 0.5f)
-                )
-            }
-        } else {
-            val gridState = rememberLazyGridState()
-
-            // 監聽滾動至末端提早 24 筆預載
-            val shouldLoadMore by remember {
-                derivedStateOf {
-                    val total = gridState.layoutInfo.totalItemsCount
-                    val lastVisible = gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-                    total > 0 && lastVisible >= total - 24
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (state.isLoading && state.items.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        color = AppColors.primary,
+                        strokeWidth = 2.5.dp
+                    )
                 }
-            }
-
-            LaunchedEffect(shouldLoadMore) {
-                if (shouldLoadMore && hasMore && !isLoadingMore && !isLoading) {
-                    loadPage(isInitial = false)
+            } else if (state.isEmpty) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "相簿內查無照片",
+                        fontFamily = OutfitFontFamily,
+                        color = if (isDark) Color.White.copy(alpha = 0.5f) else Color.Black.copy(alpha = 0.5f)
+                    )
                 }
-            }
+            } else {
+                val gridState = rememberLazyGridState()
 
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                state = gridState,
-                contentPadding = PaddingValues(horizontal = 2.dp, vertical = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                groupKeys.forEach { monthKey ->
-                    val assetsInMonth = groupedAssets[monthKey].orEmpty()
+                // 當前可見月份 (用於快速滑動時浮動顯示)
+                val firstVisibleIndex by remember { derivedStateOf { gridState.firstVisibleItemIndex } }
+                val currentMonthTitle by remember {
+                    derivedStateOf {
+                        val item = state.items.getOrNull(firstVisibleIndex)
+                        when (item) {
+                            is GalleryUiItem.Header -> item.bucket.displayTitle
+                            is GalleryUiItem.Photo -> item.asset.bucket.displayTitle
+                            null -> ""
+                        }
+                    }
+                }
 
-                    // 月份標題 Header
-                    item(
-                        key = "header_$monthKey",
-                        span = { GridItemSpan(3) }
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    state = gridState,
+                    contentPadding = PaddingValues(horizontal = 2.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(
+                        items = state.items,
+                        key = { it.stableKey },
+                        span = { GridItemSpan(it.spanCount) }
+                    ) { item ->
+                        when (item) {
+                            is GalleryUiItem.Header -> {
+                                GalleryHeaderCell(
+                                    header = item,
+                                    isDark = isDark
+                                )
+                            }
+                            is GalleryUiItem.Photo -> {
+                                GalleryPhotoCell(
+                                    photo = item,
+                                    onToggle = { asset -> viewModel.togglePhotoSelection(asset) }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 快速滑動月份浮動徽章 (Fast-Scroll Floating Month Badge)
+                AnimatedVisibility(
+                    visible = gridState.isScrollInProgress && currentMonthTitle.isNotEmpty(),
+                    enter = fadeIn(tween(150)),
+                    exit = fadeOut(tween(300)),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 10.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (isDark) Color(0xFF2A2A2A).copy(alpha = 0.85f) else Color(0xFF202020).copy(alpha = 0.75f),
+                        contentColor = Color.White,
+                        shadowElevation = 4.dp
                     ) {
                         Text(
-                            text = monthKey,
+                            text = currentMonthTitle,
                             fontFamily = OutfitFontFamily,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = if (isDark) Color.White else Color(0xFF1A1A1A),
-                            modifier = Modifier.padding(start = 14.dp, top = 20.dp, bottom = 8.dp)
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
                         )
-                    }
-
-                    // 月份內照片單元格
-                    items(
-                        items = assetsInMonth,
-                        key = { it.id }
-                    ) { asset ->
-                        val isSelected = selectedUris.contains(asset.contentUri)
-
-                        GalleryPhotoThumbnailItem(
-                            asset = asset,
-                            isSelected = isSelected,
-                            onToggle = onToggleAsset
-                        )
-                    }
-                }
-
-                if (isLoadingMore) {
-                    item(
-                        key = "loading_indicator_footer",
-                        span = { GridItemSpan(3) }
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(
-                                color = AppColors.primary,
-                                strokeWidth = 2.dp,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
                     }
                 }
             }
@@ -316,35 +263,53 @@ fun CustomGalleryBottomSheet(
 }
 
 /**
- * 獨立高頻重組隔離的相簿縮圖單元格。
- * 1. 依靠全域 MediaStoreThumbnailFetcher，直接以微秒級讀取 OS 預建快取微縮圖。
- * 2. 勾選效果：無外框，僅套一層黑色半透明 layer (alpha 0.40f)，中心置放純白 CheckCircle 圖示。
- * 3. 嚴格穩定的參數簽名，保證未變更選取狀態的項目在重組時被 100% 跳過。
+ * 月份分類標題單元格。
  */
 @Composable
-private fun GalleryPhotoThumbnailItem(
-    asset: MediaAsset,
-    isSelected: Boolean,
-    onToggle: (Uri) -> Unit
+private fun GalleryHeaderCell(
+    header: GalleryUiItem.Header,
+    isDark: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Text(
+        text = header.bucket.displayTitle,
+        fontFamily = OutfitFontFamily,
+        fontSize = 17.sp,
+        fontWeight = FontWeight.ExtraBold,
+        color = if (isDark) Color.White else Color(0xFF1A1A1A),
+        modifier = modifier.padding(start = 14.dp, top = 20.dp, bottom = 8.dp)
+    )
+}
+
+/**
+ * 獨立高頻重組隔離的照片單元格。
+ * 1. 依靠 MediaStoreThumbnailFetcher v2 直接讀取系統快取微縮圖。
+ * 2. 精確選取遮罩：無外框，純黑半透明遮罩 (alpha = 0.40f) 與正中心白勾。
+ * 3. 嚴格穩定的參數簽名，保證未變更狀態的單元格在重組時被 100% 跳過。
+ */
+@Composable
+private fun GalleryPhotoCell(
+    photo: GalleryUiItem.Photo,
+    onToggle: (MediaAsset) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .aspectRatio(1f)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
-                onClick = { onToggle(asset.contentUri) }
+                onClick = { onToggle(photo.asset) }
             )
     ) {
         AsyncImage(
-            model = asset.contentUri,
+            model = photo.asset.contentUri,
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
         )
 
-        if (isSelected) {
-            // 選取層：無外框、純半透明黑層 (alpha = 0.40f) 與正中心白勾
+        if (photo.isSelected) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -353,7 +318,7 @@ private fun GalleryPhotoThumbnailItem(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.CheckCircle,
-                    contentDescription = null,
+                    contentDescription = "已選取",
                     tint = Color.White,
                     modifier = Modifier.size(28.dp)
                 )

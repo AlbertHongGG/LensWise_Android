@@ -5,6 +5,7 @@ import android.content.Context
 import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.os.Build
+import android.os.CancellationSignal
 import android.provider.MediaStore
 import android.util.Size
 import coil.ImageLoader
@@ -13,14 +14,18 @@ import coil.fetch.DrawableResult
 import coil.fetch.FetchResult
 import coil.fetch.Fetcher
 import coil.request.Options
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.job
 
 /**
- * 原生 MediaStore 系統硬體微縮圖 Fetcher。
+ * 原生 MediaStore 系統硬體微縮圖 Fetcher (v2 強化版)。
  *
  * 核心保證：
- * 1. 攔截相簿 MediaStore URI，全面改調用 Android 原生系統快取 loadThumbnail。
- * 2. 徹底阻絕 Coil 讀取 1200 萬畫素（3.7MB+）相機原圖的 I/O 風暴。
- * 3. 縮圖讀取耗時從 213ms 驟降至 <27ms（二次快取 <2ms），保證 120 FPS 流暢滾動。
+ * 1. 深度綁定協程生命週期與 Android 原生 CancellationSignal：
+ *    當使用者快速滑過視口時，被取消項目的協程立即向系統 ContentResolver 發出 signal.cancel()，
+ *    瞬間釋放底層 IPC 與圖片解碼線程池，杜絕滾動白塊與 Binder 塞車。
+ * 2. Android 10+ (API 29+) 採用 loadThumbnail 直接讀取系統 15KB 微縮圖快取，完全繞過原圖 I/O。
+ * 3. 完善的 API 26-28 降級相容機制。
  */
 class MediaStoreThumbnailFetcher(
     private val context: Context,
@@ -30,12 +35,20 @@ class MediaStoreThumbnailFetcher(
 
     override suspend fun fetch(): FetchResult? {
         val cr = context.contentResolver
+        val signal = CancellationSignal()
+
+        // 綁定協程 Job 取消監聽，快速滑動時立即中止 IPC
+        val job = currentCoroutineContext().job
+        job.invokeOnCompletion { cause ->
+            if (cause != null) {
+                signal.cancel()
+            }
+        }
+
         val bitmap = runCatching {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                // Android 10+ (API 29+) 系統原生硬體快取微縮圖 (約 15KB，免讀原圖)
-                cr.loadThumbnail(data, Size(360, 360), null)
+                cr.loadThumbnail(data, Size(360, 360), signal)
             } else {
-                // API 26-28 降級相容性 Thumbnails API
                 val id = data.lastPathSegment?.toLongOrNull() ?: return null
                 @Suppress("DEPRECATION")
                 MediaStore.Images.Thumbnails.getThumbnail(
