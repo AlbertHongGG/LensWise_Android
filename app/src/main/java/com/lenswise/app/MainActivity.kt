@@ -15,18 +15,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import com.lenswise.app.presentation.features.history.HistoryScreen
+import com.lenswise.app.presentation.features.log.AiLogViewerScreen
+import com.lenswise.app.presentation.features.log.ApiLogDetailScreen
+import com.lenswise.app.presentation.features.log.SystemNotificationLogScreen
 import com.lenswise.app.presentation.features.scanner.ScannerScreen
 import com.lenswise.app.presentation.features.scanner.ScannerViewModel
 import com.lenswise.app.presentation.features.scanner.viewer.CapturedImageViewerScreen
 import com.lenswise.app.presentation.features.settings.SettingsScreen
+import com.lenswise.app.presentation.features.settings.SettingsViewModel
 import com.lenswise.app.presentation.features.splash.SplashScreen
 import com.lenswise.app.presentation.navigation.components.CupertinoSwipeBackContainer
 import com.lenswise.app.presentation.navigation.contract.LocalCupertinoNavigator
@@ -37,6 +42,7 @@ import com.lenswise.app.presentation.theme.LensWiseTheme
 class MainActivity : ComponentActivity() {
 
     private val scannerViewModel: ScannerViewModel by viewModels { ScannerViewModel.Factory }
+    private val settingsViewModel: SettingsViewModel by viewModels { SettingsViewModel.Factory }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.Theme_LensWise)
@@ -47,7 +53,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            LensWiseTheme(darkTheme = true) {
+            val settingsUiState by settingsViewModel.uiState.collectAsState()
+
+            LensWiseTheme(darkTheme = settingsUiState.isDarkMode) {
                 var showSplash by rememberSaveable { mutableStateOf(true) }
 
                 AnimatedContent(
@@ -69,7 +77,8 @@ class MainActivity : ComponentActivity() {
                                 color = MaterialTheme.colorScheme.background
                             ) {
                                 AppNavigation(
-                                    scannerViewModel = scannerViewModel
+                                    scannerViewModel = scannerViewModel,
+                                    settingsViewModel = settingsViewModel
                                 )
                             }
                         }
@@ -80,33 +89,22 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-val AppRouteListSaver: Saver<List<AppRoute>, ArrayList<String>> = Saver(
-    save = { list ->
-        ArrayList(list.map { it.key })
-    },
-    restore = { list ->
-        list.mapNotNull { key ->
-            when {
-                key == AppRoute.Scanner.key -> AppRoute.Scanner
-                key == AppRoute.Settings.key -> AppRoute.Settings
-                key.startsWith("route_history_") -> {
-                    val tab = key.removePrefix("route_history_").toIntOrNull() ?: 0
-                    AppRoute.History(tab)
-                }
-                key == AppRoute.CapturedViewer.key -> AppRoute.CapturedViewer
-                else -> null
-            }
-        }.ifEmpty { listOf(AppRoute.Scanner) }
-    }
+val AppRouteListSaver: Saver<List<AppRoute>, ArrayList<AppRoute>> = Saver(
+    save = { list -> ArrayList(list) },
+    restore = { list -> list.ifEmpty { listOf(AppRoute.Scanner) } }
 )
 
 @Composable
 fun AppNavigation(
-    scannerViewModel: ScannerViewModel
+    scannerViewModel: ScannerViewModel,
+    settingsViewModel: SettingsViewModel
 ) {
     var backStack by rememberSaveable(stateSaver = AppRouteListSaver) {
         mutableStateOf(listOf(AppRoute.Scanner))
     }
+
+    val context = LocalContext.current
+    val app = context.applicationContext as LensWiseApplication
 
     CupertinoSwipeBackContainer(
         backStack = backStack,
@@ -129,7 +127,27 @@ fun AppNavigation(
                 )
             }
             is AppRoute.Settings -> {
-                SettingsScreen()
+                SettingsScreen(
+                    viewModel = settingsViewModel,
+                    onNavigateToNotificationLogs = { navigator.push(AppRoute.NotificationLog) },
+                    onNavigateToAiLogs = { navigator.push(AppRoute.ApiLog) }
+                )
+            }
+            is AppRoute.NotificationLog -> {
+                SystemNotificationLogScreen(
+                    logManager = app.notificationLogManager
+                )
+            }
+            is AppRoute.ApiLog -> {
+                AiLogViewerScreen(
+                    apiLogManager = app.apiLogManager,
+                    onNavigateToDetail = { rawJson -> navigator.push(AppRoute.ApiLogDetail(rawJson)) }
+                )
+            }
+            is AppRoute.ApiLogDetail -> {
+                ApiLogDetailScreen(
+                    rawJson = route.rawJson
+                )
             }
             is AppRoute.History -> {
                 HistoryScreen(initialTab = route.initialTab)

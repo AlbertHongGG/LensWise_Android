@@ -37,13 +37,26 @@ class NotificationController {
             instance.showInfo(message, durationMs)
         }
 
+        fun addListener(listener: NotificationListener) {
+            instance.addListener(listener)
+        }
+
         fun dismiss() {
             instance.dismiss()
         }
     }
 
+    fun interface NotificationListener {
+        fun onNotificationPosted(type: NotificationType, message: String)
+    }
+
     private val scope = CoroutineScope(Dispatchers.Main.immediate)
     private var dismissJob: Job? = null
+    private val listeners = mutableListOf<NotificationListener>()
+
+    fun addListener(listener: NotificationListener) {
+        listeners.add(listener)
+    }
 
     private val _currentNotification = MutableStateFlow<AppNotification?>(null)
     val currentNotification: StateFlow<AppNotification?> = _currentNotification.asStateFlow()
@@ -51,6 +64,10 @@ class NotificationController {
     private fun postNotification(notification: AppNotification) {
         dismissJob?.cancel()
         _currentNotification.value = notification
+
+        listeners.forEach {
+            runCatching { it.onNotificationPosted(notification.type, notification.message) }
+        }
 
         dismissJob = scope.launch {
             delay(notification.durationMs)

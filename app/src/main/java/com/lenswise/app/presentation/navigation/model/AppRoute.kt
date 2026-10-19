@@ -42,4 +42,25 @@ sealed interface AppRoute : Parcelable {
         @IgnoredOnParcel
         override val isSwipeBackEnabled: Boolean = false
     }
+
+    /** 系統通知日誌畫面 (SystemNotificationLogScreen) */
+    @Parcelize
+    data object NotificationLog : AppRoute {
+        @IgnoredOnParcel
+        override val key: String = "route_notification_log"
+    }
+
+    /** AI / API 請求日誌畫面 (AiLogViewerScreen) */
+    @Parcelize
+    data object ApiLog : AppRoute {
+        @IgnoredOnParcel
+        override val key: String = "route_api_log"
+    }
+
+    /** API 日誌詳細 JSON 檢視畫面 (ApiLogDetailScreen) */
+    @Parcelize
+    data class ApiLogDetail(val rawJson: String) : AppRoute {
+        @IgnoredOnParcel
+        override val key: String = "route_api_log_detail"
+    }
 }

@@ -12,9 +12,20 @@ class LensWiseApplication : Application(), ImageLoaderFactory {
             private set
     }
 
+    lateinit var notificationLogManager: com.lenswise.app.core.logging.NotificationLogManager
+        private set
+    lateinit var apiLogManager: com.lenswise.app.core.logging.ApiLogManager
+        private set
+
     override fun onCreate() {
         super.onCreate()
         instance = this
+        notificationLogManager = com.lenswise.app.core.logging.NotificationLogManager(this)
+        apiLogManager = com.lenswise.app.core.logging.ApiLogManager(this)
+
+        com.lenswise.app.presentation.notification.NotificationController.addListener { type, message ->
+            notificationLogManager.logNotification(type, message)
+        }
     }
 
     override fun newImageLoader(): ImageLoader {
