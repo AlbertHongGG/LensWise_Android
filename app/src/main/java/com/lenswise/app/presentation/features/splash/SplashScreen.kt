@@ -32,7 +32,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lenswise.app.R
-import com.lenswise.app.presentation.theme.OutfitFontFamily
+import com.lenswise.app.presentation.theme.SplashTypography
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
@@ -128,22 +128,14 @@ fun SplashScreen(
                 ) {
                     Text(
                         text = "LensWise",
-                        fontFamily = OutfitFontFamily,
-                        fontSize = 36.sp,
-                        fontWeight = FontWeight.ExtraBold, // w800
-                        color = Color(0xFF1D1D1F), // Deep iron grey
-                        letterSpacing = 2.0.sp
+                        style = SplashTypography.titleStyle
                     )
 
                     Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
                         text = "AI VISION ASSISTANT",
-                        fontFamily = OutfitFontFamily,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold, // w600
-                        color = Color(0xFF86868B), // Subtle secondary grey
-                        letterSpacing = 6.0.sp
+                        style = SplashTypography.subtitleStyle
                     )
                 }
             }
