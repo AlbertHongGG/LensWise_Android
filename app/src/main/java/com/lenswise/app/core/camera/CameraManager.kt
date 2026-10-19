@@ -30,7 +30,14 @@ class CameraManager(
 ) {
     private var camera: Camera? = null
     private var imageCapture: ImageCapture? = null
-    private val cameraExecutor = Executors.newSingleThreadExecutor()
+    private var cameraExecutor = Executors.newSingleThreadExecutor()
+
+    private fun getExecutor(): java.util.concurrent.ExecutorService {
+        if (cameraExecutor.isShutdown) {
+            cameraExecutor = Executors.newSingleThreadExecutor()
+        }
+        return cameraExecutor
+    }
 
     val cameraControl: CameraControl? get() = camera?.cameraControl
     val cameraInfo: CameraInfo? get() = camera?.cameraInfo
@@ -97,7 +104,7 @@ class CameraManager(
         }
 
         capture.takePicture(
-            cameraExecutor,
+            getExecutor(),
             object : ImageCapture.OnImageCapturedCallback() {
                 override fun onCaptureSuccess(image: ImageProxy) {
                     try {
@@ -126,7 +133,9 @@ class CameraManager(
     }
 
     fun release() {
-        cameraExecutor.shutdown()
+        if (!cameraExecutor.isShutdown) {
+            cameraExecutor.shutdown()
+        }
         camera = null
         imageCapture = null
     }

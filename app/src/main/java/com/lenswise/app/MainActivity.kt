@@ -15,8 +15,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -78,11 +80,33 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+val AppRouteListSaver: Saver<List<AppRoute>, ArrayList<String>> = Saver(
+    save = { list ->
+        ArrayList(list.map { it.key })
+    },
+    restore = { list ->
+        list.mapNotNull { key ->
+            when {
+                key == AppRoute.Scanner.key -> AppRoute.Scanner
+                key == AppRoute.Settings.key -> AppRoute.Settings
+                key.startsWith("route_history_") -> {
+                    val tab = key.removePrefix("route_history_").toIntOrNull() ?: 0
+                    AppRoute.History(tab)
+                }
+                key == AppRoute.CapturedViewer.key -> AppRoute.CapturedViewer
+                else -> null
+            }
+        }.ifEmpty { listOf(AppRoute.Scanner) }
+    }
+)
+
 @Composable
 fun AppNavigation(
     scannerViewModel: ScannerViewModel
 ) {
-    var backStack by rememberSaveable { mutableStateOf<List<AppRoute>>(listOf(AppRoute.Scanner)) }
+    var backStack by rememberSaveable(stateSaver = AppRouteListSaver) {
+        mutableStateOf(listOf(AppRoute.Scanner))
+    }
 
     CupertinoSwipeBackContainer(
         backStack = backStack,

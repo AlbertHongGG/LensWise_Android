@@ -1,31 +1,45 @@
 package com.lenswise.app.presentation.navigation.model
 
+import android.os.Parcelable
+import kotlinx.parcelize.IgnoredOnParcel
+import kotlinx.parcelize.Parcelize
+
 /**
  * LensWise 全域導航路由模型。
  * 遵循不可變資料結構與強型別契約，保證導航狀態的確定性。
+ * 繼承 Parcelable 確保 Android 系統生命週期切換 (onSaveInstanceState) 零崩潰。
  */
-sealed interface AppRoute {
+sealed interface AppRoute : Parcelable {
     val key: String
     val isSwipeBackEnabled: Boolean get() = true
 
     /** 主相機掃描核心主畫面 (ScannerScreen) */
+    @Parcelize
     data object Scanner : AppRoute {
+        @IgnoredOnParcel
         override val key: String = "route_scanner"
     }
 
     /** 設定畫面 (SettingsScreen) */
+    @Parcelize
     data object Settings : AppRoute {
+        @IgnoredOnParcel
         override val key: String = "route_settings"
     }
 
     /** 歷史紀錄畫面 (HistoryScreen) */
+    @Parcelize
     data class History(val initialTab: Int = 0) : AppRoute {
+        @IgnoredOnParcel
         override val key: String = "route_history_$initialTab"
     }
 
     /** 已捕獲/選取照片全螢幕檢視與刪除畫面 (CapturedImageViewerScreen) - 唯一禁用右滑返回介面 */
+    @Parcelize
     data object CapturedViewer : AppRoute {
+        @IgnoredOnParcel
         override val key: String = "route_captured_viewer"
+        @IgnoredOnParcel
         override val isSwipeBackEnabled: Boolean = false
     }
 }
