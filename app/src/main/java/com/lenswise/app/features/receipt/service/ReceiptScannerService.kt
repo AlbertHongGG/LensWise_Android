@@ -54,4 +54,11 @@ class ReceiptScannerService(
         historyRepository.save(finalRecord)
         finalRecord
     }
+
+    /**
+     * 原地編輯後直接更新保存歷史記錄。
+     */
+    suspend fun saveRecordOnly(record: ReceiptScannerRecord) = withContext(Dispatchers.IO) {
+        historyRepository.save(record)
+    }
 }

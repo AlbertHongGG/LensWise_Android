@@ -1,5 +1,8 @@
 package com.lenswise.app.features.receipt.presentation
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -8,7 +11,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -18,12 +20,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -32,22 +33,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.lenswise.app.domain.model.receipt.ReceiptScannerRecord
 import com.lenswise.app.features.ai.agents.receipt.ReceiptChatAgent
 import com.lenswise.app.features.receipt.presentation.components.ReceiptChatBottomSheet
+import com.lenswise.app.features.receipt.presentation.components.ReceiptImageSheet
 import com.lenswise.app.features.receipt.presentation.components.ReceiptPaperCard
-import com.lenswise.app.presentation.theme.AppColors
-import com.lenswise.app.presentation.theme.AppTypography
-import com.lenswise.app.presentation.theme.OutfitFontFamily
+import java.io.File
 
 /**
  * 收據萃取結果與串流漸進展開畫面 (ReceiptDetailScreen)。
- * 1:1 對齊 Flutter 原生設計：
- * 採用暖灰亮色背景 (#F5F5F5) 襯托純白立體擬真發票紙卡片，並提供懸浮 AI 顧問入口。
+ * 1:1 對齊 Flutter 的 receipt_result_page.dart 與實機截圖設計：
+ * 1. 沉浸式無頂部導航列佈局，背景色為淡灰底 (#F5F5F5)。
+ * 2. 發票卡片邊界留白 (horizontal = 16dp, vertical = 8dp)。
+ * 3. 底部懸浮雙圓形暗色按鈕組（相片檢視 + AI 顧問）。
+ * 4. 點擊相片開啟收據原圖輪播檢視抽屜 (ReceiptImageSheet)。
+ * 5. 點擊 AI 顧問開啟對話抽屜 (ReceiptChatBottomSheet)。
+ * 6. 原地修改發票內容雙向綁定至 ViewModel 與本地歷史倉儲。
  */
 @Composable
 fun ReceiptDetailScreen(
@@ -59,21 +63,50 @@ fun ReceiptDetailScreen(
 ) {
     val isDark = isSystemInDarkTheme()
     val scrollState = rememberScrollState()
+
     var showChatSheet by remember { mutableStateOf(false) }
+    var showImageSheet by remember { mutableStateOf(false) }
+    var activeChatAgent by remember { mutableStateOf<ReceiptChatAgent?>(null) }
 
     val liveState by viewModel?.uiState?.collectAsState()
         ?: remember { mutableStateOf(ReceiptScannerUiState(receiptRecord = record)) }
 
-    val currentRecord = if (isLiveSession && liveState.receiptRecord.storeName.isNotEmpty()) {
-        liveState.receiptRecord
+    var localRecord by remember(record) { mutableStateOf(record) }
+
+    val currentRecord = if (isLiveSession) {
+        if (liveState.receiptRecord.storeName.isNotEmpty() || liveState.receiptRecord.items.isNotEmpty()) {
+            liveState.receiptRecord
+        } else {
+            localRecord
+        }
     } else {
-        record
+        localRecord
     }
 
     val isStreaming = isLiveSession && liveState.status == ReceiptScannerStatus.STREAMING
-    var activeChatAgent by remember { mutableStateOf<ReceiptChatAgent?>(null) }
 
-    val backgroundColor = if (isDark) Color(0xFF121212) else Color(0xFFF5F5F5)
+    // 解析相片實體檔案
+    val imageFiles = remember(liveState.capturedImages, currentRecord.imagePaths) {
+        if (liveState.capturedImages.isNotEmpty()) {
+            liveState.capturedImages.map { it.file }
+        } else {
+            currentRecord.imagePaths.mapNotNull { path ->
+                val f = File(path)
+                if (f.exists()) f else null
+            }
+        }
+    }
+
+    // 攔截系統返回鍵
+    BackHandler(enabled = true) {
+        when {
+            showImageSheet -> showImageSheet = false
+            showChatSheet -> showChatSheet = false
+            else -> onNavigateBack?.invoke()
+        }
+    }
+
+    val backgroundColor = if (isDark) Color(0xFF0F111A) else Color(0xFFF5F5F5)
 
     Box(
         modifier = modifier
@@ -81,101 +114,95 @@ fun ReceiptDetailScreen(
             .background(backgroundColor)
             .statusBarsPadding()
     ) {
+        // 主要卡片滾動區 (1:1 對齊 Flutter 的 SingleChildScrollView)
         Column(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 頂部返回導航列 (透明背景)
+            ReceiptPaperCard(
+                record = currentRecord,
+                isStreaming = isStreaming,
+                onUpdate = { updated ->
+                    localRecord = updated
+                    viewModel?.updateAndPersistRecord(updated)
+                }
+            )
+
+            // 預留底部 FAB 空間 (100.dp)
+            Spacer(modifier = Modifier.height(100.dp))
+        }
+
+        // 底部懸浮雙圓形按鈕組 (1:1 對齊 Flutter 的 FloatingActionButton Row)
+        val isDrawerOpen = showImageSheet || showChatSheet
+        val fabAlpha by animateFloatAsState(
+            targetValue = if (isDrawerOpen) 0f else 1f,
+            animationSpec = tween(durationMillis = 200),
+            label = "fab_alpha"
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 16.dp)
+                .alpha(fabAlpha)
+        ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (onNavigateBack != null) {
-                    IconButton(
-                        onClick = onNavigateBack,
-                        modifier = Modifier.size(48.dp)
+                if (imageFiles.isNotEmpty()) {
+                    FloatingActionButton(
+                        onClick = { showImageSheet = true },
+                        containerColor = if (isDark) Color.White.copy(alpha = 0.24f) else Color.Black.copy(alpha = 0.87f),
+                        contentColor = Color.White,
+                        shape = CircleShape,
+                        elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp),
+                        modifier = Modifier.size(56.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "返回",
-                            tint = if (isDark) Color.White else Color.Black.copy(alpha = 0.8f)
+                            imageVector = Icons.Outlined.Image,
+                            contentDescription = "查看發票照片",
+                            modifier = Modifier.size(24.dp)
                         )
                     }
-                } else {
+
                     Spacer(modifier = Modifier.width(16.dp))
                 }
 
-                Text(
-                    text = "收據明細",
-                    style = AppTypography.cardTitle.copy(
-                        fontSize = 17.sp,
-                        color = if (isDark) Color.White else Color.Black.copy(alpha = 0.85f)
-                    ),
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            // 主要發票紙卡片滑動區域
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState)
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                ReceiptPaperCard(
-                    record = currentRecord,
-                    isStreaming = isStreaming
-                )
-
-                // 預留底部 FAB 空間
-                Spacer(modifier = Modifier.height(100.dp))
-            }
-        }
-
-        // 底部懸浮 AI 顧問入口
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 24.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            FloatingActionButton(
-                onClick = {
-                    val agent = viewModel?.createChatAgent()
-                    if (agent != null) {
-                        activeChatAgent = agent
-                        showChatSheet = true
-                    }
-                },
-                containerColor = AppColors.primary,
-                contentColor = Color.White,
-                shape = CircleShape
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                FloatingActionButton(
+                    onClick = {
+                        val agent = viewModel?.createChatAgent()
+                        if (agent != null) {
+                            activeChatAgent = agent
+                            showChatSheet = true
+                        }
+                    },
+                    containerColor = if (isDark) Color.White.copy(alpha = 0.24f) else Color.Black.copy(alpha = 0.87f),
+                    contentColor = Color.White,
+                    shape = CircleShape,
+                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp),
+                    modifier = Modifier.size(56.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.AutoAwesome,
-                        contentDescription = "AI 顧問",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "問 AI 顧問",
-                        style = AppTypography.tileTitle.copy(
-                            fontSize = 15.sp,
-                            color = Color.White
-                        )
+                        contentDescription = "問 AI 顧問",
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
         }
 
+        // 相片檢視抽屜
+        if (showImageSheet) {
+            ReceiptImageSheet(
+                imageFiles = imageFiles,
+                onDismissRequest = { showImageSheet = false }
+            )
+        }
+
+        // AI 顧問問答抽屜
         val currentChatAgent = activeChatAgent
         if (showChatSheet && currentChatAgent != null) {
             ReceiptChatBottomSheet(

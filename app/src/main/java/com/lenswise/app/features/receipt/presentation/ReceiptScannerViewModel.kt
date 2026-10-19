@@ -76,6 +76,17 @@ class ReceiptScannerViewModel(
         _uiState.update { it.copy(receiptRecord = updated) }
     }
 
+    fun updateAndPersistRecord(updated: ReceiptScannerRecord) {
+        _uiState.update { it.copy(receiptRecord = updated) }
+        viewModelScope.launch {
+            try {
+                service.saveRecordOnly(updated)
+            } catch (e: Exception) {
+                Log.e("ReceiptScannerVM", "Failed to persist updated record", e)
+            }
+        }
+    }
+
     fun analyzeReceipt(images: List<AppImageEntity>) {
         if (images.isEmpty()) return
 
