@@ -22,18 +22,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import com.lenswise.app.presentation.features.scanner.ScannerViewModel
 import com.lenswise.app.presentation.features.scanner.viewer.components.ViewerThumbnailFilmstrip
 import com.lenswise.app.presentation.features.scanner.viewer.components.ViewerTopBar
 import com.lenswise.app.presentation.features.scanner.viewer.components.ZoomableAsyncImage
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /**
  * 徹底重構之高質感照片檢視器 (CapturedImageViewerScreen)。
  *
  * 核心保證：
  * 1. 唯一禁用右滑返回介面：所有橫向滑動事件完整留給大圖翻頁與縮圖列表。
- * 2. 底部自由水平滑動縮圖膠捲列 (Filmstrip Carousel)：支援飛速滑動與點擊跳轉。
+ * 2. 底部自由水平滑動縮圖膠捲列 (Filmstrip Carousel)：支援飛速滑動與點擊跳轉，空間恆定無推擠。
  * 3. 雙向即時連動：滑動大圖時縮圖列自動捲動置中；點擊縮圖大圖流暢切換。
  * 4. 支援雙指縮放 (Pinch-to-zoom)、雙擊放大與單擊切換沉浸純淨模式。
  * 5. 權責切分純粹：專注於照片預覽與管理，無多餘分析按鈕干擾。
@@ -69,14 +73,19 @@ fun CapturedImageViewerScreen(
     )
     val lazyListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val screenWidth = LocalConfiguration.current.screenWidthDp.dp
 
     var isControlsVisible by remember { mutableStateOf(true) }
     var isCurrentPageZoomed by remember { mutableStateOf(false) }
 
-    // 當大圖切換時，自動將底部縮圖列平滑捲動至當前選中項
+    // 當大圖切換時，自動將底部縮圖列平滑捲動至當前選中項並水平置中
     LaunchedEffect(pagerState.currentPage) {
         if (images.isNotEmpty() && pagerState.currentPage in images.indices) {
-            lazyListState.animateScrollToItem(pagerState.currentPage)
+            val centerOffsetPx = with(density) {
+                -((screenWidth / 2) - 26.dp).toPx().roundToInt()
+            }
+            lazyListState.animateScrollToItem(pagerState.currentPage, scrollOffset = centerOffsetPx)
         }
     }
 

@@ -1,13 +1,16 @@
 package com.lenswise.app.presentation.features.scanner
 
+import android.app.Application
 import android.content.Context
 import android.net.Uri
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.lenswise.app.LensWiseApplication
 import com.lenswise.app.core.camera.CameraManager
 import com.lenswise.app.core.image.AppImageEntity
 import com.lenswise.app.core.image.ImageSource
 import com.lenswise.app.core.image.ImageStandardizer
+import com.lenswise.app.core.storage.ScannerPreferencesRepository
 import com.lenswise.app.domain.scanner.ScannerMode
 import com.lenswise.app.presentation.notification.NotificationController
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,14 +19,22 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class ScannerViewModel : ViewModel() {
+class ScannerViewModel(
+    application: Application = LensWiseApplication.instance,
+    private val preferencesRepository: ScannerPreferencesRepository? = runCatching {
+        ScannerPreferencesRepository(application)
+    }.getOrNull()
+) : AndroidViewModel(application) {
 
-    private val _uiState = MutableStateFlow(ScannerUiState())
+    private val _uiState = MutableStateFlow(
+        ScannerUiState(currentMode = preferencesRepository?.getSavedMode() ?: ScannerMode.PRODUCT)
+    )
     val uiState: StateFlow<ScannerUiState> = _uiState.asStateFlow()
 
     fun setMode(mode: ScannerMode) {
         if (_uiState.value.isLocked || _uiState.value.currentMode == mode) return
         _uiState.update { it.copy(currentMode = mode) }
+        preferencesRepository?.saveMode(mode)
     }
 
     fun takePicture(context: Context, cameraManager: CameraManager) {

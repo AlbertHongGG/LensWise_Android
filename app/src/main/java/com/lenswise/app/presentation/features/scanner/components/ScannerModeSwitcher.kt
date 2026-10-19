@@ -2,7 +2,7 @@ package com.lenswise.app.presentation.features.scanner.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -20,32 +20,24 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInParent
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lenswise.app.domain.scanner.ScannerMode
 import com.lenswise.app.presentation.theme.OutfitFontFamily
-import kotlin.math.roundToInt
 
 /**
  * 底部四大模式膠囊切換列 (收據 / 商品 / 比對 / 菜單)。
  *
  * 核心保證：
- * 1. 物理彈簧連續滑動膠囊底座 (Sliding Pill Indicator)，一改舊版原地閃現淡入淡出。
- * 2. 結合 onGloballyPositioned 動態精確量測各項目之水平偏移與寬度，支援任何語系與字型尺寸。
- * 3. 採用 Spring.StiffnessMediumLow 與 DampingRatio 0.82f，提供極致絲滑的果凍微彈滑動過渡。
+ * 1. 空間幾何恆定推導：四大模式槽位等寬 (68.dp)，排版期直接推導座標，杜絕任何非同步測量跳動。
+ * 2. 初始就位零延遲：進入 App 或畫面返回時 0ms 直接於目標就位，無任何多餘滑動抖動與閃爍。
+ * 3. 點選平滑彈簧過渡：僅在使用者主動點選時啟動果凍微彈滑動 (Spring.StiffnessMediumLow)。
  */
 @Composable
 fun ScannerModeSwitcher(
@@ -55,32 +47,22 @@ fun ScannerModeSwitcher(
 ) {
     val modes = remember { ScannerMode.entries }
     val selectedIndex = modes.indexOf(currentMode).coerceAtLeast(0)
-    val density = LocalDensity.current
 
-    // 紀錄各 Tab 在父容器內的座標 (X) 與寬度 (Width)
-    val tabPositions = remember { mutableStateMapOf<Int, Pair<Float, Float>>() }
-    var tabHeightPx by remember { mutableFloatStateOf(0f) }
+    val tabWidth = 68.dp
+    val tabHeight = 36.dp
+    val tabSpacing = 4.dp
+    val containerPadding = 4.dp
 
-    val currentPos = tabPositions[selectedIndex]
-    val targetX = currentPos?.first ?: 0f
-    val targetWidth = currentPos?.second ?: 0f
+    // 依據選中索引精確計算目標 X 座標，排版期即時已知，初次渲染即精確錨定
+    val targetOffset = (tabWidth + tabSpacing) * selectedIndex
 
-    val animatedX by animateFloatAsState(
-        targetValue = targetX,
+    val animatedOffset by animateDpAsState(
+        targetValue = targetOffset,
         animationSpec = spring(
             dampingRatio = 0.82f,
             stiffness = Spring.StiffnessMediumLow
         ),
-        label = "pillX"
-    )
-
-    val animatedWidth by animateFloatAsState(
-        targetValue = targetWidth,
-        animationSpec = spring(
-            dampingRatio = 0.82f,
-            stiffness = Spring.StiffnessMediumLow
-        ),
-        label = "pillWidth"
+        label = "modePillOffset"
     )
 
     Box(
@@ -89,24 +71,22 @@ fun ScannerModeSwitcher(
             .padding(bottom = 14.dp)
             .clip(RoundedCornerShape(30.dp))
             .background(Color.Black.copy(alpha = 0.70f))
-            .padding(4.dp),
+            .padding(containerPadding),
         contentAlignment = Alignment.CenterStart
     ) {
-        // 1. 物理彈簧滑動白底膠囊 (Sliding Pill)
-        if (targetWidth > 0f && tabHeightPx > 0f) {
-            Box(
-                modifier = Modifier
-                    .offset { IntOffset(animatedX.roundToInt(), 0) }
-                    .width(with(density) { animatedWidth.toDp() })
-                    .height(with(density) { tabHeightPx.toDp() })
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color.White)
-            )
-        }
+        // 1. 物理彈簧滑動白底膠囊 (Sliding Pill) - 恆定寬高與圓角，平滑滑動
+        Box(
+            modifier = Modifier
+                .offset(x = animatedOffset)
+                .width(tabWidth)
+                .height(tabHeight)
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color.White)
+        )
 
-        // 2. Tab 標籤列
+        // 2. Tab 標籤列 (等寬槽位，排版 100% 空間恆定)
         Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(tabSpacing),
             verticalAlignment = Alignment.CenterVertically
         ) {
             modes.forEachIndexed { index, mode ->
@@ -120,20 +100,14 @@ fun ScannerModeSwitcher(
 
                 Box(
                     modifier = Modifier
-                        .onGloballyPositioned { coordinates ->
-                            val posInParent = coordinates.positionInParent()
-                            tabPositions[index] = Pair(posInParent.x, coordinates.size.width.toFloat())
-                            if (tabHeightPx == 0f) {
-                                tabHeightPx = coordinates.size.height.toFloat()
-                            }
-                        }
+                        .width(tabWidth)
+                        .height(tabHeight)
                         .clip(RoundedCornerShape(20.dp))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
                             onClick = { onSelectMode(mode) }
-                        )
-                        .padding(horizontal = 18.dp, vertical = 8.dp),
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -141,7 +115,7 @@ fun ScannerModeSwitcher(
                         color = textColor,
                         fontFamily = OutfitFontFamily,
                         fontSize = 15.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold
                     )
                 }
             }

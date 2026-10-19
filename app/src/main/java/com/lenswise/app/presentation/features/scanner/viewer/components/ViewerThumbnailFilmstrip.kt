@@ -3,7 +3,6 @@ package com.lenswise.app.presentation.features.scanner.viewer.components
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -12,6 +11,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -30,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -38,12 +39,11 @@ import com.lenswise.app.core.image.AppImageEntity
 /**
  * 底部照片水平滑動膠捲縮圖列 (Filmstrip Carousel)。
  *
- * 核心特性：
- * 1. 支援水平自由滑動瀏覽所有照片，使用者可飛速切換定位。
- * 2. 選中項以純白 (Color.White) 2dp 外框聚焦放大，非選中項半透明淡化。
- * 3. 點擊任一縮圖瞬間連動切換大圖。
- * 4. 無多餘 idx 序號標記，純粹呈現照片細節。
- * 5. 底部貫穿至導航列下方全黑背景，杜絕白色底欄。
+ * 核心保證：
+ * 1. 空間恆定原則 (Invariant Layout Footprint)：單元格排版槽位硬性鎖定 52.dp × 68.dp，切換照片時相鄰選項 0% 受擠壓，杜絕整列抖動與閃爍。
+ * 2. GPU 硬體矩陣縮放：選中項採用 graphicsLayer 進行 GPU 層級微縮放 (1.0f vs 0.88f)，不引發 Compose 重排與測量震盪。
+ * 3. 純白高亮邊框與光暈：選中項賦予 2.5dp 純白聚焦外框與微白光陰影，非選中項半透明淡化。
+ * 4. 零黑塊瞬間載入：優先讀取記憶體中已預建之 thumbnailBitmap，零 I/O 延遲。
  */
 @Composable
 fun ViewerThumbnailFilmstrip(
@@ -53,6 +53,9 @@ fun ViewerThumbnailFilmstrip(
     onSelectImage: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val slotWidth = 52.dp
+    val slotHeight = 68.dp
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -74,7 +77,7 @@ fun ViewerThumbnailFilmstrip(
             state = lazyListState,
             modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             itemsIndexed(
@@ -83,68 +86,81 @@ fun ViewerThumbnailFilmstrip(
             ) { index, entity ->
                 val isSelected = index == selectedIndex
 
-                val cardWidth by animateDpAsState(
-                    targetValue = if (isSelected) 54.dp else 44.dp,
-                    animationSpec = spring(stiffness = 450f),
-                    label = "thumb_width"
-                )
-                val cardHeight by animateDpAsState(
-                    targetValue = if (isSelected) 72.dp else 60.dp,
-                    animationSpec = spring(stiffness = 450f),
-                    label = "thumb_height"
-                )
-                val cardAlpha by animateFloatAsState(
-                    targetValue = if (isSelected) 1.0f else 0.50f,
+                // 視覺縮放全部在 GPU 圖層進行，不改變排版槽位尺寸
+                val scale by animateFloatAsState(
+                    targetValue = if (isSelected) 1.0f else 0.88f,
                     animationSpec = tween(durationMillis = 180),
-                    label = "thumb_alpha"
+                    label = "thumb_scale_$index"
                 )
                 val borderColor by animateColorAsState(
                     targetValue = if (isSelected) Color.White else Color.White.copy(alpha = 0.20f),
                     animationSpec = tween(durationMillis = 180),
-                    label = "thumb_border"
+                    label = "thumb_border_$index"
                 )
-                val borderWidth = if (isSelected) 2.dp else 1.dp
-                val cornerRadius = if (isSelected) 10.dp else 8.dp
-                val shape = RoundedCornerShape(cornerRadius)
+                val borderWidth by animateDpAsState(
+                    targetValue = if (isSelected) 2.5.dp else 1.dp,
+                    animationSpec = tween(durationMillis = 180),
+                    label = "thumb_border_width_$index"
+                )
+                val overlayAlpha by animateFloatAsState(
+                    targetValue = if (isSelected) 0.0f else 0.40f,
+                    animationSpec = tween(durationMillis = 180),
+                    label = "thumb_overlay_$index"
+                )
 
+                val shape = RoundedCornerShape(10.dp)
+
+                // 外層容器：排版尺寸恆定不變，相鄰項目永遠不會被擠壓
                 Box(
                     modifier = Modifier
-                        .width(cardWidth)
-                        .height(cardHeight)
-                        .shadow(
-                            elevation = if (isSelected) 6.dp else 0.dp,
-                            shape = shape,
-                            ambientColor = Color.White.copy(alpha = 0.35f),
-                            spotColor = Color.White.copy(alpha = 0.35f)
-                        )
-                        .clip(shape)
-                        .border(
-                            width = borderWidth,
-                            color = borderColor,
-                            shape = shape
-                        )
+                        .width(slotWidth)
+                        .height(slotHeight)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
                             onClick = { onSelectImage(index) }
-                        )
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
-                    AsyncImage(
-                        model = entity.file,
-                        contentDescription = "照片縮圖 ${index + 1}",
-                        contentScale = ContentScale.Crop,
+                    // 內層視覺元件：GPU 矩陣縮放與選中外框
+                    Box(
                         modifier = Modifier
-                            .matchParentSize()
-                            .background(Color(0xFF1E2130))
-                    )
-
-                    // 非選中項目遮罩，強化視覺重心對比
-                    if (!isSelected) {
-                        Box(
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                            }
+                            .shadow(
+                                elevation = if (isSelected) 6.dp else 0.dp,
+                                shape = shape,
+                                ambientColor = Color.White.copy(alpha = 0.35f),
+                                spotColor = Color.White.copy(alpha = 0.35f)
+                            )
+                            .clip(shape)
+                            .border(
+                                width = borderWidth,
+                                color = borderColor,
+                                shape = shape
+                            )
+                    ) {
+                        // 優先取用記憶體預建縮圖，消除黑塊閃爍
+                        AsyncImage(
+                            model = entity.thumbnailBitmap ?: entity.file,
+                            contentDescription = "照片縮圖 ${index + 1}",
+                            contentScale = ContentScale.Crop,
                             modifier = Modifier
-                                .matchParentSize()
-                                .background(Color.Black.copy(alpha = 1f - cardAlpha))
+                                .fillMaxSize()
+                                .background(Color(0xFF1E2130))
                         )
+
+                        // 非選中項目微透明黑遮罩，強化視覺焦點
+                        if (overlayAlpha > 0.01f) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = overlayAlpha))
+                            )
+                        }
                     }
                 }
             }
