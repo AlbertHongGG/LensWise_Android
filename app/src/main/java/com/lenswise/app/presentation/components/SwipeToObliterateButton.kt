@@ -3,6 +3,7 @@ package com.lenswise.app.presentation.components
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -10,6 +11,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -49,10 +51,11 @@ import kotlin.math.roundToInt
 
 /**
  * 滑動抹除確認按鈕 (SwipeToObliterateButton)。
- * 1:1 復刻 GeminiFlowApp 的動態呈現與狀態機交互：
+ * 1:1 復刻 GeminiFlowApp 的動態呈現、擬物陰影層次與狀態機交互：
  * - 尺寸規格：維持 68dp 軌道高度、56dp 圓形滑塊、6dp 安全內距。
+ * - 按鈕本體陰影：採用與 GeminiFlowApp 一致的高擬真 spotColor / ambientColor 陰影與 1dp 精緻邊框，杜絕與抽屜底色融為一體。
  * - 動態文字反饋：拖曳進度達 80% 時，中央文字即時由「SLIDE TO WIPE」切換為「RELEASE TO CLEAR」。
- * - 刪除武裝門檻：拖曳進度達 85% 刪除閥值時，滑塊底色由純白翻轉為鮮紅、圖標切換為純白色垃圾桶 (DeleteForever)，並激發觸覺反饋。
+ * - 刪除武裝門檻：拖曳進度達 85% 刪除閥值時，滑塊底色由純白翻轉為鮮紅、圖標切換為純白色垃圾桶 (DeleteForever)，按鈕本體投射鮮紅環境光暈，並激發觸覺反饋。
  * - 零殘色外溢：靜止時揭示條寬度嚴格為 0，拖曳時實色鮮紅背景隨滑塊延伸，無任何粉紅溢色或生硬垂直切角。
  */
 @Composable
@@ -72,6 +75,7 @@ fun SwipeToObliterateButton(
     val trackHeight = 68.dp
     val thumbSize = 56.dp
     val thumbPadding = 6.dp
+    val trackShape = RoundedCornerShape(trackHeight / 2)
 
     val trackColor = if (isDark) Color(0xFF2C2C2E) else Color(0xFFE5E5EA)
     val textColor = if (isDark) Color.White.copy(alpha = 0.50f) else Color.Black.copy(alpha = 0.40f)
@@ -80,8 +84,6 @@ fun SwipeToObliterateButton(
         modifier = modifier
             .fillMaxWidth()
             .height(trackHeight)
-            .clip(RoundedCornerShape(trackHeight / 2))
-            .background(trackColor)
     ) {
         val maxDragPx = with(density) {
             (maxWidth - thumbSize - (thumbPadding * 2)).toPx().coerceAtLeast(0f)
@@ -108,33 +110,52 @@ fun SwipeToObliterateButton(
             wasArmed = isArmed
         }
 
-        // 鮮紅背景揭示條 (靜止時 dragOffsetX <= 0 不繪製，拖曳時實心背景平滑緊隨滑塊右緣延伸，絕無粉紅洩漏)
-        if (dragOffsetX.value > 0f) {
-            val revealWidthDp = with(density) {
-                (thumbSize.toPx() + (thumbPadding * 2).toPx() + dragOffsetX.value).toDp()
+        // 按鈕本體外軌道（具備高擬真層次陰影與精緻外邊框，避免與底色融為一體）
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .shadow(
+                    elevation = if (isArmed) 12.dp else 6.dp,
+                    shape = trackShape,
+                    ambientColor = if (isArmed) activeColor.copy(alpha = 0.35f) else Color.Black.copy(alpha = if (isDark) 0.30f else 0.08f),
+                    spotColor = if (isArmed) activeColor.copy(alpha = 0.55f) else Color.Black.copy(alpha = if (isDark) 0.45f else 0.16f)
+                )
+                .clip(trackShape)
+                .background(trackColor)
+                .border(
+                    width = 1.dp,
+                    color = if (isArmed) activeColor.copy(alpha = 0.35f) else if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f),
+                    shape = trackShape
+                )
+        ) {
+            // 鮮紅背景揭示條 (靜止時 dragOffsetX <= 0 不繪製，拖曳時實心背景平滑緊隨滑塊右緣延伸，絕無粉紅洩漏)
+            if (dragOffsetX.value > 0f) {
+                val revealWidthDp = with(density) {
+                    (thumbSize.toPx() + (thumbPadding * 2).toPx() + dragOffsetX.value).toDp()
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(revealWidthDp)
+                        .clip(trackShape)
+                        .background(activeColor.copy(alpha = 0.35f + (progress * 0.65f)))
+                )
             }
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .width(revealWidthDp)
-                    .clip(RoundedCornerShape(trackHeight / 2))
-                    .background(activeColor.copy(alpha = 0.35f + (progress * 0.65f)))
+
+            // 置中提示文字：小於 80% 為 SLIDE TO WIPE，大於 80% 動態切換為 RELEASE TO CLEAR
+            Text(
+                text = if (isReleaseText) confirmedTitle.uppercase() else title.uppercase(),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.5.sp,
+                color = if (isArmed) Color.White.copy(alpha = 0.90f) else textColor,
+                modifier = Modifier.align(Alignment.Center)
             )
         }
 
-        // 置中提示文字：小於 80% 為 SLIDE TO WIPE，大於 80% 動態切換為 RELEASE TO CLEAR
-        Text(
-            text = if (isReleaseText) confirmedTitle.uppercase() else title.uppercase(),
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.5.sp,
-            color = if (isArmed) Color.White.copy(alpha = 0.90f) else textColor,
-            modifier = Modifier.align(Alignment.Center)
-        )
-
         val currentMaxDragPx by rememberUpdatedState(maxDragPx)
 
-        // 滑塊本體 (Thumb)
+        // 滑塊本體 (Thumb) - 具有獨立立體陰影與精緻邊框
         Box(
             modifier = Modifier
                 .offset {
@@ -147,11 +168,16 @@ fun SwipeToObliterateButton(
                 .shadow(
                     elevation = if (isArmed) 10.dp else 6.dp,
                     shape = CircleShape,
-                    ambientColor = if (isArmed) activeColor.copy(alpha = 0.40f) else Color.Black.copy(alpha = if (isDark) 0.35f else 0.15f),
-                    spotColor = if (isArmed) activeColor.copy(alpha = 0.60f) else Color.Black.copy(alpha = if (isDark) 0.45f else 0.20f)
+                    ambientColor = if (isArmed) Color.Black.copy(alpha = 0.35f) else Color.Black.copy(alpha = if (isDark) 0.35f else 0.15f),
+                    spotColor = if (isArmed) Color.Black.copy(alpha = 0.50f) else Color.Black.copy(alpha = if (isDark) 0.45f else 0.20f)
                 )
                 .clip(CircleShape)
                 .background(if (isArmed) activeColor else Color.White)
+                .border(
+                    width = if (isArmed) 1.5.dp else 1.dp,
+                    color = if (isArmed) Color.White.copy(alpha = 0.45f) else if (isDark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.06f),
+                    shape = CircleShape
+                )
                 .draggable(
                     orientation = Orientation.Horizontal,
                     enabled = !isLoading,
