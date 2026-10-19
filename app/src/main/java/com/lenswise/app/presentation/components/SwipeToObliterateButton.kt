@@ -1,42 +1,43 @@
 package com.lenswise.app.presentation.components
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForwardIos
-import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -48,16 +49,18 @@ import kotlin.math.roundToInt
 
 /**
  * 滑動抹除確認按鈕 (SwipeToObliterateButton)。
- * 1:1 復刻 GeminiFlowApp / LensWise 核心抹除交互：
- * - 68dp 膠囊高度、56dp 圓形白滑塊、6dp 安全內距。
- * - 實色鮮紅圓形揭示條（靜止時寬度為 0，絕無粉紅外溢或垂直切邊瑕疵）。
- * - 拖曳時置中文字流暢淡出，95% 閥值切換打勾圖標並觸發觸覺震動。
+ * 1:1 復刻 GeminiFlowApp 的動態呈現與狀態機交互：
+ * - 尺寸規格：維持 68dp 軌道高度、56dp 圓形滑塊、6dp 安全內距。
+ * - 動態文字反饋：拖曳進度達 80% 時，中央文字即時由「SLIDE TO WIPE」切換為「RELEASE TO CLEAR」。
+ * - 刪除武裝門檻：拖曳進度達 85% 刪除閥值時，滑塊底色由純白翻轉為鮮紅、圖標切換為純白色垃圾桶 (DeleteForever)，並激發觸覺反饋。
+ * - 零殘色外溢：靜止時揭示條寬度嚴格為 0，拖曳時實色鮮紅背景隨滑塊延伸，無任何粉紅溢色或生硬垂直切角。
  */
 @Composable
 fun SwipeToObliterateButton(
     onConfirmed: () -> Unit,
     modifier: Modifier = Modifier,
     title: String = "SLIDE TO WIPE",
+    confirmedTitle: String = "RELEASE TO CLEAR",
     isLoading: Boolean = false,
     activeColor: Color = Color(0xFFEF4444)
 ) {
@@ -66,154 +69,142 @@ fun SwipeToObliterateButton(
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
 
+    val trackHeight = 68.dp
     val thumbSize = 56.dp
-    val padding = 6.dp
-    val trackHeight = thumbSize + (padding * 2) // 68.dp
+    val thumbPadding = 6.dp
 
     val trackColor = if (isDark) Color(0xFF2C2C2E) else Color(0xFFE5E5EA)
-    val textColor = if (isDark) Color.White.copy(alpha = 0.38f) else Color.Black.copy(alpha = 0.38f)
-    val thumbColor = Color.White
-
-    val animatableOffset = remember { Animatable(0f) }
-    var isConfirmed by remember { mutableStateOf(false) }
+    val textColor = if (isDark) Color.White.copy(alpha = 0.50f) else Color.Black.copy(alpha = 0.40f)
 
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
             .height(trackHeight)
-            .clip(CircleShape)
+            .clip(RoundedCornerShape(trackHeight / 2))
             .background(trackColor)
-            .border(
-                width = 1.dp,
-                color = if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.05f),
-                shape = CircleShape
-            )
     ) {
-        val maxWidthPx = with(density) { maxWidth.toPx() }
-        val thumbSizePx = with(density) { thumbSize.toPx() }
-        val paddingPx = with(density) { padding.toPx() }
-        val maxDragPx = (maxWidthPx - thumbSizePx - (paddingPx * 2)).coerceAtLeast(0f)
+        val maxDragPx = with(density) {
+            (maxWidth - thumbSize - (thumbPadding * 2)).toPx().coerceAtLeast(0f)
+        }
 
-        val currentDrag = animatableOffset.value
-        val progress = if (maxDragPx > 0f) (currentDrag / maxDragPx).coerceIn(0f, 1f) else 0f
+        val dragOffsetX = remember { Animatable(0f) }
 
-        // 鮮紅背景揭示條 (靜止時寬度為 0，拖曳時緊隨滑塊右緣延伸，絕不產生粉紅溢色或垂直平切面)
-        if (currentDrag > 0f) {
-            val revealWidthDp = with(density) { (thumbSizePx + (paddingPx * 2) + currentDrag).toDp() }
+        // 正確在 derivedStateOf 內部訂閱 dragOffsetX.value，確保進度即時響應手勢拖曳重組
+        val progress by remember(maxDragPx) {
+            derivedStateOf {
+                if (maxDragPx > 0f) (dragOffsetX.value / maxDragPx).coerceIn(0f, 1f) else 0f
+            }
+        }
+
+        val isReleaseText = progress > 0.80f
+        val isArmed = progress > 0.85f
+
+        // 跨越 85% 武裝門檻時觸發觸覺震動，讓使用者清晰感知放手即刪除
+        var wasArmed by remember { mutableStateOf(false) }
+        LaunchedEffect(isArmed) {
+            if (isArmed && !wasArmed) {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            }
+            wasArmed = isArmed
+        }
+
+        // 鮮紅背景揭示條 (靜止時 dragOffsetX <= 0 不繪製，拖曳時實心背景平滑緊隨滑塊右緣延伸，絕無粉紅洩漏)
+        if (dragOffsetX.value > 0f) {
+            val revealWidthDp = with(density) {
+                (thumbSize.toPx() + (thumbPadding * 2).toPx() + dragOffsetX.value).toDp()
+            }
             Box(
                 modifier = Modifier
-                    .width(revealWidthDp)
                     .fillMaxHeight()
-                    .clip(CircleShape)
-                    .background(activeColor)
+                    .width(revealWidthDp)
+                    .clip(RoundedCornerShape(trackHeight / 2))
+                    .background(activeColor.copy(alpha = 0.35f + (progress * 0.65f)))
             )
         }
 
-        // 置中提示文字（隨拖曳流暢漸隱）
-        val textAlpha = (1f - progress * 2.5f).coerceIn(0f, 1f)
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .alpha(textAlpha),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = title.uppercase(),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.5.sp,
-                color = textColor
-            )
-        }
+        // 置中提示文字：小於 80% 為 SLIDE TO WIPE，大於 80% 動態切換為 RELEASE TO CLEAR
+        Text(
+            text = if (isReleaseText) confirmedTitle.uppercase() else title.uppercase(),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.5.sp,
+            color = if (isArmed) Color.White.copy(alpha = 0.90f) else textColor,
+            modifier = Modifier.align(Alignment.Center)
+        )
 
-        // 白色滑塊 (Thumb)
+        val currentMaxDragPx by rememberUpdatedState(maxDragPx)
+
+        // 滑塊本體 (Thumb)
         Box(
             modifier = Modifier
                 .offset {
                     IntOffset(
-                        x = (paddingPx + currentDrag).roundToInt(),
-                        y = paddingPx.roundToInt()
+                        x = (thumbPadding.toPx() + dragOffsetX.value).roundToInt(),
+                        y = thumbPadding.toPx().roundToInt()
                     )
                 }
                 .size(thumbSize)
                 .shadow(
-                    elevation = 10.dp,
+                    elevation = if (isArmed) 10.dp else 6.dp,
                     shape = CircleShape,
-                    ambientColor = Color.Black.copy(alpha = if (isDark) 0.3f else 0.15f),
-                    spotColor = Color.Black.copy(alpha = if (isDark) 0.3f else 0.2f)
+                    ambientColor = if (isArmed) activeColor.copy(alpha = 0.40f) else Color.Black.copy(alpha = if (isDark) 0.35f else 0.15f),
+                    spotColor = if (isArmed) activeColor.copy(alpha = 0.60f) else Color.Black.copy(alpha = if (isDark) 0.45f else 0.20f)
                 )
                 .clip(CircleShape)
-                .background(thumbColor)
-                .pointerInput(isLoading, isConfirmed, maxDragPx) {
-                    if (isLoading || isConfirmed || maxDragPx <= 0f) return@pointerInput
-
-                    detectHorizontalDragGestures(
-                        onDragStart = {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        },
-                        onHorizontalDrag = { _, dragAmount ->
-                            scope.launch {
-                                val newOffset = (animatableOffset.value + dragAmount).coerceIn(0f, maxDragPx)
-                                animatableOffset.snapTo(newOffset)
-                            }
-                        },
-                        onDragEnd = {
-                            if (animatableOffset.value >= maxDragPx * 0.95f) {
-                                // 達成 95% 抹除門檻：確認執行
-                                isConfirmed = true
+                .background(if (isArmed) activeColor else Color.White)
+                .draggable(
+                    orientation = Orientation.Horizontal,
+                    enabled = !isLoading,
+                    state = rememberDraggableState { delta ->
+                        scope.launch {
+                            val newX = (dragOffsetX.value + delta).coerceIn(0f, currentMaxDragPx)
+                            dragOffsetX.snapTo(newX)
+                        }
+                    },
+                    onDragStarted = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    },
+                    onDragStopped = {
+                        scope.launch {
+                            val currentProgress = if (currentMaxDragPx > 0f) {
+                                (dragOffsetX.value / currentMaxDragPx).coerceIn(0f, 1f)
+                            } else 0f
+                            if (currentProgress >= 0.85f) {
+                                // 達成 85% 刪除閥值：觸發確認
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                scope.launch {
-                                    animatableOffset.animateTo(maxDragPx)
-                                    onConfirmed()
-                                }
+                                dragOffsetX.animateTo(currentMaxDragPx, spring())
+                                onConfirmed()
+                                dragOffsetX.animateTo(0f, spring())
                             } else {
                                 // 未達門檻：彈簧回彈至起點
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                scope.launch {
-                                    animatableOffset.animateTo(
-                                        targetValue = 0f,
-                                        animationSpec = spring(
-                                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                                            stiffness = Spring.StiffnessLow
-                                        )
-                                    )
-                                }
-                            }
-                        },
-                        onDragCancel = {
-                            scope.launch {
-                                animatableOffset.animateTo(
-                                    targetValue = 0f,
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessLow
-                                    )
-                                )
+                                dragOffsetX.animateTo(0f, spring())
                             }
                         }
-                    )
-                },
+                    }
+                ),
             contentAlignment = Alignment.Center
         ) {
             if (isLoading) {
                 CircularProgressIndicator(
                     strokeWidth = 2.5.dp,
-                    color = activeColor,
-                    modifier = Modifier.size(20.dp)
+                    color = if (isArmed) Color.White else activeColor,
+                    modifier = Modifier.size(22.dp)
                 )
-            } else if (isConfirmed) {
+            } else if (isArmed) {
+                // 超過 85% 刪除閥值：圖標切換為純白色垃圾桶
                 Icon(
-                    imageVector = Icons.Rounded.Check,
-                    contentDescription = "已確認",
-                    tint = activeColor,
-                    modifier = Modifier.size(24.dp)
+                    imageVector = Icons.Filled.DeleteForever,
+                    contentDescription = "釋放以確認刪除",
+                    tint = Color.White,
+                    modifier = Modifier.size(26.dp)
                 )
             } else {
+                // 平時狀態：向右前進箭頭
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.ArrowForwardIos,
                     contentDescription = "滑動以確認",
                     tint = activeColor,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
@@ -233,6 +224,7 @@ fun SwipeToConfirmButton(
 ) {
     SwipeToObliterateButton(
         title = title,
+        confirmedTitle = confirmedTitle,
         activeColor = activeColor,
         onConfirmed = onConfirmed,
         modifier = modifier

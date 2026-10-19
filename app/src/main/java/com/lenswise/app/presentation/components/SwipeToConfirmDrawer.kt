@@ -27,15 +27,16 @@ import androidx.compose.ui.unit.sp
 
 /**
  * 沉浸式下拉刪除抽屜容器 (SwipeToConfirmDrawer)。
- * 1:1 復刻 GeminiFlowApp / LensWise 規範：
+ * 1:1 復刻 GeminiFlowApp 規範：
  * 採用 24dp 頂部大圓角，頂部 40x4dp 指示條，置中 13sp Bold 標題，
- * 內嵌零溢色瑕疵的 SwipeToObliterateButton 滑動抹除組件。
+ * 內嵌具備「雙段文字反饋」與「垃圾桶圖標轉場」的 SwipeToObliterateButton。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SwipeToConfirmDrawer(
     title: String,
     sliderTitle: String = "SLIDE TO WIPE",
+    confirmedTitle: String = "RELEASE TO CLEAR",
     activeColor: Color = Color(0xFFEF4444),
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
@@ -82,6 +83,7 @@ fun SwipeToConfirmDrawer(
 
             SwipeToObliterateButton(
                 title = sliderTitle,
+                confirmedTitle = confirmedTitle,
                 activeColor = activeColor,
                 onConfirmed = onConfirm
             )
