@@ -3,15 +3,17 @@ package com.lenswise.app.core.image
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
 import android.graphics.Matrix
 import android.net.Uri
+import android.os.Build
 import androidx.exifinterface.media.ExifInterface
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileOutputStream
-import java.io.InputStream
+import java.nio.ByteBuffer
 import java.util.UUID
 import kotlin.math.max
 
@@ -19,8 +21,8 @@ import kotlin.math.max
  * 企業級統一圖片規格化處理器。
  *
  * 核心保證：
- * 1. 防 OOM 二階段採樣：先讀 Bounds，再以 inSampleSize 載入。
- * 2. EXIF 姿態自動校正：讀取旋轉角（90/180/270）並透過 Matrix 自動翻轉。
+ * 1. API 28+ 全面採用現代 ImageDecoder：硬體加速解碼、自動處理 EXIF 旋轉、消除串流關閉與採樣錯誤。
+ * 2. API 26-27 保留 FileDescriptor 雙階段安全解碼作為極端相容性保護。
  * 3. 尺寸限制：最大長邊限制為 1920 像素，等比縮放，杜絕記憶體暴漲。
  * 4. 輸出輕量 JPEG (品質 85%) 磁碟快取，並生成 160x160 輕量縮圖供 UI Badge 與預覽使用。
  */
@@ -36,33 +38,44 @@ object ImageStandardizer {
         source: ImageSource
     ): Result<AppImageEntity> = withContext(Dispatchers.IO) {
         runCatching {
-            val rotationDegrees = getExifOrientation(context, uri)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                // Android 9+ (API 28+) 官方推薦標準管道：ImageDecoder 自動處理 EXIF 與硬體降採樣
+                val decoderSource = ImageDecoder.createSource(context.contentResolver, uri)
+                val decodedBitmap = ImageDecoder.decodeBitmap(decoderSource) { decoder, info, _ ->
+                    decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                    val origWidth = info.size.width
+                    val origHeight = info.size.height
+                    val sampleSize = calculateInSampleSize(origWidth, origHeight, MAX_DIMENSION)
+                    if (sampleSize > 1) {
+                        decoder.setTargetSampleSize(sampleSize)
+                    }
+                }
+                // ImageDecoder 已自動校正 EXIF 旋轉，旋轉角度帶入 0
+                processAndSave(context, decodedBitmap, rotationDegrees = 0, source = source)
+            } else {
+                // API 26-27 舊版相容安全降級管道：使用可隨意 seek 的 FileDescriptor
+                val rotationDegrees = getExifOrientation(context, uri)
 
-            // 1. InJustDecodeBounds 獲取尺寸
-            val options = BitmapFactory.Options().apply {
-                inJustDecodeBounds = true
+                val sampledBitmap = context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
+                    val fd = pfd.fileDescriptor
+                    val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    BitmapFactory.decodeFileDescriptor(fd, null, boundsOptions)
+
+                    val origWidth = boundsOptions.outWidth
+                    val origHeight = boundsOptions.outHeight
+                    if (origWidth <= 0 || origHeight <= 0) {
+                        error("圖片尺寸解析失敗: $uri")
+                    }
+
+                    val decodeOptions = BitmapFactory.Options().apply {
+                        inSampleSize = calculateInSampleSize(origWidth, origHeight, MAX_DIMENSION)
+                        inPreferredConfig = Bitmap.Config.ARGB_8888
+                    }
+                    BitmapFactory.decodeFileDescriptor(fd, null, decodeOptions)
+                } ?: error("無法透過 FileDescriptor 解碼圖片: $uri")
+
+                processAndSave(context, sampledBitmap, rotationDegrees, source)
             }
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                BitmapFactory.decodeStream(input, null, options)
-            } ?: error("無法開啟圖片串流: $uri")
-
-            val origWidth = options.outWidth
-            val origHeight = options.outHeight
-            if (origWidth <= 0 || origHeight <= 0) {
-                error("圖片尺寸解析失敗")
-            }
-
-            // 2. 計算採樣率
-            options.inSampleSize = calculateInSampleSize(origWidth, origHeight, MAX_DIMENSION)
-            options.inJustDecodeBounds = false
-            options.inPreferredConfig = Bitmap.Config.ARGB_8888
-
-            // 3. 安全解碼點陣圖
-            val sampledBitmap = context.contentResolver.openInputStream(uri)?.use { input ->
-                BitmapFactory.decodeStream(input, null, options)
-            } ?: error("無法解碼圖片資料: $uri")
-
-            processAndSave(context, sampledBitmap, rotationDegrees, source)
         }
     }
 
@@ -72,27 +85,43 @@ object ImageStandardizer {
         source: ImageSource
     ): Result<AppImageEntity> = withContext(Dispatchers.IO) {
         runCatching {
-            val rotationDegrees = getExifOrientation(bytes)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val byteBuffer = ByteBuffer.wrap(bytes)
+                val decoderSource = ImageDecoder.createSource(byteBuffer)
+                val decodedBitmap = ImageDecoder.decodeBitmap(decoderSource) { decoder, info, _ ->
+                    decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                    val origWidth = info.size.width
+                    val origHeight = info.size.height
+                    val sampleSize = calculateInSampleSize(origWidth, origHeight, MAX_DIMENSION)
+                    if (sampleSize > 1) {
+                        decoder.setTargetSampleSize(sampleSize)
+                    }
+                }
+                processAndSave(context, decodedBitmap, rotationDegrees = 0, source = source)
+            } else {
+                val rotationDegrees = getExifOrientation(bytes)
 
-            val options = BitmapFactory.Options().apply {
-                inJustDecodeBounds = true
+                val boundsOptions = BitmapFactory.Options().apply {
+                    inJustDecodeBounds = true
+                }
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, boundsOptions)
+
+                val origWidth = boundsOptions.outWidth
+                val origHeight = boundsOptions.outHeight
+                if (origWidth <= 0 || origHeight <= 0) {
+                    error("圖片二進位尺寸解析失敗")
+                }
+
+                val decodeOptions = BitmapFactory.Options().apply {
+                    inSampleSize = calculateInSampleSize(origWidth, origHeight, MAX_DIMENSION)
+                    inPreferredConfig = Bitmap.Config.ARGB_8888
+                }
+
+                val sampledBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeOptions)
+                    ?: error("無法解碼二進位圖片點陣圖")
+
+                processAndSave(context, sampledBitmap, rotationDegrees, source)
             }
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
-
-            val origWidth = options.outWidth
-            val origHeight = options.outHeight
-            if (origWidth <= 0 || origHeight <= 0) {
-                error("圖片二進位尺寸解析失敗")
-            }
-
-            options.inSampleSize = calculateInSampleSize(origWidth, origHeight, MAX_DIMENSION)
-            options.inJustDecodeBounds = false
-            options.inPreferredConfig = Bitmap.Config.ARGB_8888
-
-            val sampledBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
-                ?: error("無法解碼二進位圖片點陣圖")
-
-            processAndSave(context, sampledBitmap, rotationDegrees, source)
         }
     }
 
@@ -102,7 +131,7 @@ object ImageStandardizer {
         rotationDegrees: Int,
         source: ImageSource
     ): AppImageEntity {
-        // 4. 矩陣變換：旋轉 + 縮放（若長邊仍超過 MAX_DIMENSION）
+        // 矩陣變換：旋轉 + 縮放（若長邊仍超過 MAX_DIMENSION）
         val matrix = Matrix()
         if (rotationDegrees != 0) {
             matrix.postRotate(rotationDegrees.toFloat())
@@ -135,7 +164,7 @@ object ImageStandardizer {
         val finalWidth = transformedBitmap.width
         val finalHeight = transformedBitmap.height
 
-        // 5. 生成輕量縮圖
+        // 生成 160x160 輕量縮圖
         val thumbnailBitmap = Bitmap.createScaledBitmap(
             transformedBitmap,
             THUMBNAIL_SIZE,
@@ -143,7 +172,7 @@ object ImageStandardizer {
             true
         )
 
-        // 6. 持久化寫入 App 專用暫存快取目錄
+        // 持久化寫入 App 專用暫存快取目錄
         val cacheDir = File(context.cacheDir, "standardized_images").apply {
             if (!exists()) mkdirs()
         }

@@ -2,7 +2,6 @@ package com.lenswise.app.presentation.features.scanner.gallery
 
 import android.net.Uri
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -42,7 +41,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -50,7 +48,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.lenswise.app.core.media.MediaAsset
 import com.lenswise.app.core.media.MediaRepository
 import com.lenswise.app.presentation.components.IsolatedHandleBottomSheet
@@ -66,7 +63,8 @@ import kotlinx.coroutines.withContext
  * 1. 採用 IsolatedHandleBottomSheet：高度硬性鎖定 88%，永遠置底錨定，物理上不可能衝入狀態列。
  * 2. 徹底消除手勢衝突：僅頂部 Header 具備拖曳關閉能力，照片網格區域手勢 100% 隔離，滾動順暢無阻。
  * 3. 視口分頁預載：批次 48 筆載入，提前 24 筆背景預載下一頁。
- * 4. 點陣圖請求優化：使用 remember(uri) 快取 ImageRequest，強制 360x360 降採樣並關閉 crossfade。
+ * 4. 系統級快取縮圖管線：透過 MediaStoreThumbnailFetcher 原生微縮圖解碼，零原圖 I/O 負擔。
+ * 5. 精確選取 UI：選取時僅黑半透明遮罩與置中白打勾（無外框），右上角確認按鈕統一使用 AppColors.primary。
  */
 @Composable
 fun CustomGalleryBottomSheet(
@@ -89,6 +87,19 @@ fun CustomGalleryBottomSheet(
     var isLoadingMore by remember { mutableStateOf(false) }
 
     val selectedUris = remember { mutableStateListOf<Uri>() }
+
+    // 穩定的選取切換回呼，避免每個 Cell 反覆分配 Lambda 破壞 Compose 重組跳過機制
+    val onToggleAsset: (Uri) -> Unit = remember(maxItems) {
+        { uri ->
+            if (selectedUris.contains(uri)) {
+                selectedUris.remove(uri)
+            } else {
+                if (selectedUris.size < maxItems) {
+                    selectedUris.add(uri)
+                }
+            }
+        }
+    }
 
     // 載入分頁資料函式
     suspend fun loadPage(isInitial: Boolean) {
@@ -165,7 +176,7 @@ fun CustomGalleryBottomSheet(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // 左側佔位 48dp
+                    // 左側佔位 48dp 確保文字絕對置中
                     Spacer(modifier = Modifier.width(48.dp))
 
                     Text(
@@ -191,7 +202,7 @@ fun CustomGalleryBottomSheet(
                         Icon(
                             imageVector = Icons.Rounded.CheckCircle,
                             contentDescription = "確認選擇",
-                            tint = if (canConfirm) AppColors.electricBlue else (if (isDark) Color.White.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.25f)),
+                            tint = if (canConfirm) AppColors.primary else (if (isDark) Color.White.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.15f)),
                             modifier = Modifier.size(28.dp)
                         )
                     }
@@ -206,7 +217,7 @@ fun CustomGalleryBottomSheet(
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator(
-                    color = AppColors.electricBlue,
+                    color = AppColors.primary,
                     strokeWidth = 2.5.dp
                 )
             }
@@ -275,15 +286,7 @@ fun CustomGalleryBottomSheet(
                         GalleryPhotoThumbnailItem(
                             asset = asset,
                             isSelected = isSelected,
-                            onToggle = {
-                                if (isSelected) {
-                                    selectedUris.remove(asset.contentUri)
-                                } else {
-                                    if (selectedUris.size < maxItems) {
-                                        selectedUris.add(asset.contentUri)
-                                    }
-                                }
-                            }
+                            onToggle = onToggleAsset
                         )
                     }
                 }
@@ -300,7 +303,7 @@ fun CustomGalleryBottomSheet(
                             contentAlignment = Alignment.Center
                         ) {
                             CircularProgressIndicator(
-                                color = AppColors.electricBlue,
+                                color = AppColors.primary,
                                 strokeWidth = 2.dp,
                                 modifier = Modifier.size(24.dp)
                             )
@@ -314,47 +317,38 @@ fun CustomGalleryBottomSheet(
 
 /**
  * 獨立高頻重組隔離的相簿縮圖單元格。
- * 1. 使用 remember(asset.contentUri) 杜絕反覆建構 ImageRequest 物件。
- * 2. 嚴格限定 360x360 視口縮圖與關閉 crossfade 動畫，消滅 GPU Alpha 堵塞與卡頓。
+ * 1. 依靠全域 MediaStoreThumbnailFetcher，直接以微秒級讀取 OS 預建快取微縮圖。
+ * 2. 勾選效果：無外框，僅套一層黑色半透明 layer (alpha 0.40f)，中心置放純白 CheckCircle 圖示。
+ * 3. 嚴格穩定的參數簽名，保證未變更選取狀態的項目在重組時被 100% 跳過。
  */
 @Composable
 private fun GalleryPhotoThumbnailItem(
     asset: MediaAsset,
     isSelected: Boolean,
-    onToggle: () -> Unit
+    onToggle: (Uri) -> Unit
 ) {
-    val context = LocalContext.current
-    val imageRequest = remember(asset.contentUri) {
-        ImageRequest.Builder(context)
-            .data(asset.contentUri)
-            .size(360, 360)
-            .crossfade(false)
-            .build()
-    }
-
     Box(
         modifier = Modifier
             .aspectRatio(1f)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
-                onClick = onToggle
+                onClick = { onToggle(asset.contentUri) }
             )
     ) {
         AsyncImage(
-            model = imageRequest,
+            model = asset.contentUri,
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
         )
 
         if (isSelected) {
-            // 勾選半透明遮罩與打勾圖示
+            // 選取層：無外框、純半透明黑層 (alpha = 0.40f) 與正中心白勾
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.40f))
-                    .border(width = 3.dp, color = AppColors.electricBlue),
+                    .background(Color.Black.copy(alpha = 0.40f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

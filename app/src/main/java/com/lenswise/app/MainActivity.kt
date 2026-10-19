@@ -6,6 +6,11 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -20,6 +25,7 @@ import com.lenswise.app.presentation.features.scanner.ScannerScreen
 import com.lenswise.app.presentation.features.scanner.ScannerViewModel
 import com.lenswise.app.presentation.features.scanner.viewer.CapturedImageViewerScreen
 import com.lenswise.app.presentation.features.settings.SettingsScreen
+import com.lenswise.app.presentation.features.splash.SplashScreen
 import com.lenswise.app.presentation.navigation.components.CupertinoSwipeBackContainer
 import com.lenswise.app.presentation.navigation.contract.LocalCupertinoNavigator
 import com.lenswise.app.presentation.navigation.model.AppRoute
@@ -40,14 +46,31 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             LensWiseTheme(darkTheme = true) {
-                GlobalNotificationOverlay {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.background
-                    ) {
-                        AppNavigation(
-                            scannerViewModel = scannerViewModel
+                var showSplash by rememberSaveable { mutableStateOf(true) }
+
+                AnimatedContent(
+                    targetState = showSplash,
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(400)) togetherWith
+                            fadeOut(animationSpec = tween(400))
+                    },
+                    label = "splashTransition"
+                ) { isSplash ->
+                    if (isSplash) {
+                        SplashScreen(
+                            onAnimationFinished = { showSplash = false }
                         )
+                    } else {
+                        GlobalNotificationOverlay {
+                            Surface(
+                                modifier = Modifier.fillMaxSize(),
+                                color = MaterialTheme.colorScheme.background
+                            ) {
+                                AppNavigation(
+                                    scannerViewModel = scannerViewModel
+                                )
+                            }
+                        }
                     }
                 }
             }

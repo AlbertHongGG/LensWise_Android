@@ -75,7 +75,10 @@ class ScannerViewModel : ViewModel() {
                     source = ImageSource.GALLERY
                 )
                 result.onSuccess { standardizedList.add(it) }
-                    .onFailure { failCount++ }
+                    .onFailure { error ->
+                        android.util.Log.e("ScannerViewModel", "相簿圖片規格化失敗: $uri", error)
+                        failCount++
+                    }
             }
 
             if (standardizedList.isNotEmpty()) {
