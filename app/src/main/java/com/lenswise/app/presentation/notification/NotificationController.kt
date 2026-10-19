@@ -7,67 +7,66 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.concurrent.ConcurrentHashMap
 
 /**
- * 全域通知控制器，負責管理浮動通知佇列（最多 3 筆，先進先出，自動計時關閉）。
+ * 全域單一通知控制器 (Single-Slot Notification Controller)。
+ *
+ * 核心保證：
+ * 1. 單一槽位 (Single-Slot)：同一時間螢幕上至多僅呈現一則通知，杜絕多則堆疊累積。
+ * 2. 即時搶佔覆蓋 (Instant Overwrite)：新通知發出時，立即取消舊通知倒數並無縫覆蓋。
+ * 3. 線程安全與自動清理：倒數結束自動重設為 null，支援手動立即關閉。
  */
 class NotificationController {
     companion object {
         val instance: NotificationController by lazy { NotificationController() }
 
-        fun showSuccess(message: String, durationMs: Long = 4000L) {
+        fun showSuccess(message: String, durationMs: Long = 3500L) {
             instance.showSuccess(message, durationMs)
         }
 
-        fun showError(message: String, durationMs: Long = 5000L) {
+        fun showError(message: String, durationMs: Long = 4500L) {
             instance.showError(message, durationMs)
         }
 
-        fun showWarning(message: String, durationMs: Long = 4000L) {
+        fun showWarning(message: String, durationMs: Long = 3500L) {
             instance.showWarning(message, durationMs)
         }
 
-        fun showInfo(message: String, durationMs: Long = 4000L) {
+        fun showInfo(message: String, durationMs: Long = 3500L) {
             instance.showInfo(message, durationMs)
+        }
+
+        fun dismiss() {
+            instance.dismiss()
         }
     }
 
     private val scope = CoroutineScope(Dispatchers.Main.immediate)
-    private val dismissJobs = ConcurrentHashMap<String, Job>()
+    private var dismissJob: Job? = null
 
-    private val _notifications = MutableStateFlow<List<AppNotification>>(emptyList())
-    val notifications: StateFlow<List<AppNotification>> = _notifications.asStateFlow()
+    private val _currentNotification = MutableStateFlow<AppNotification?>(null)
+    val currentNotification: StateFlow<AppNotification?> = _currentNotification.asStateFlow()
 
-    private fun addNotification(notification: AppNotification) {
-        _notifications.update { current ->
-            val list = current.toMutableList()
-            list.add(notification)
-            while (list.size > 3) {
-                val removed = list.removeAt(0)
-                dismissJobs.remove(removed.id)?.cancel()
-            }
-            list
-        }
+    private fun postNotification(notification: AppNotification) {
+        dismissJob?.cancel()
+        _currentNotification.value = notification
 
-        val job = scope.launch {
+        dismissJob = scope.launch {
             delay(notification.durationMs)
-            remove(notification.id)
-        }
-        dismissJobs[notification.id] = job
-    }
-
-    fun remove(id: String) {
-        dismissJobs.remove(id)?.cancel()
-        _notifications.update { current ->
-            current.filter { it.id != id }
+            if (_currentNotification.value?.id == notification.id) {
+                _currentNotification.value = null
+            }
         }
     }
 
-    fun showSuccess(message: String, durationMs: Long = 4000L) {
-        addNotification(
+    fun dismiss() {
+        dismissJob?.cancel()
+        _currentNotification.value = null
+    }
+
+    fun showSuccess(message: String, durationMs: Long = 3500L) {
+        postNotification(
             AppNotification(
                 type = NotificationType.SUCCESS,
                 message = message,
@@ -76,8 +75,8 @@ class NotificationController {
         )
     }
 
-    fun showError(message: String, durationMs: Long = 5000L) {
-        addNotification(
+    fun showError(message: String, durationMs: Long = 4500L) {
+        postNotification(
             AppNotification(
                 type = NotificationType.ERROR,
                 message = message,
@@ -86,8 +85,8 @@ class NotificationController {
         )
     }
 
-    fun showWarning(message: String, durationMs: Long = 4000L) {
-        addNotification(
+    fun showWarning(message: String, durationMs: Long = 3500L) {
+        postNotification(
             AppNotification(
                 type = NotificationType.WARNING,
                 message = message,
@@ -96,8 +95,8 @@ class NotificationController {
         )
     }
 
-    fun showInfo(message: String, durationMs: Long = 4000L) {
-        addNotification(
+    fun showInfo(message: String, durationMs: Long = 3500L) {
+        postNotification(
             AppNotification(
                 type = NotificationType.INFO,
                 message = message,
