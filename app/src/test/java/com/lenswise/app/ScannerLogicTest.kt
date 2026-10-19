@@ -2,8 +2,10 @@ package com.lenswise.app
 
 import com.lenswise.app.core.image.AppImageEntity
 import com.lenswise.app.core.image.ImageSource
+import com.lenswise.app.core.storage.ScannerPreferencesDataSource
 import com.lenswise.app.domain.scanner.ScannerMode
 import com.lenswise.app.presentation.features.scanner.ScannerUiState
+import com.lenswise.app.presentation.features.scanner.ScannerViewModel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -19,6 +21,15 @@ class ScannerLogicTest {
             height = 1080,
             source = ImageSource.CAMERA
         )
+    }
+
+    private class FakeScannerPreferencesDataSource(
+        private var currentMode: ScannerMode = ScannerMode.PRODUCT
+    ) : ScannerPreferencesDataSource {
+        override fun getSavedMode(): ScannerMode = currentMode
+        override fun saveMode(mode: ScannerMode) {
+            this.currentMode = mode
+        }
     }
 
     @Test
@@ -57,5 +68,24 @@ class ScannerLogicTest {
             capturedImages = listOf(createDummyImageEntity(), createDummyImageEntity())
         )
         assertTrue(twoImageCompareState.canTriggerAnalysis)
+    }
+
+    @Test
+    fun testScannerViewModelInitialModeRestoration() {
+        val fakeSource = FakeScannerPreferencesDataSource(currentMode = ScannerMode.COMPARISON)
+        val viewModel = ScannerViewModel(fakeSource)
+
+        assertEquals(ScannerMode.COMPARISON, viewModel.uiState.value.currentMode)
+    }
+
+    @Test
+    fun testScannerViewModelSetModeUpdatesStateAndPersistence() {
+        val fakeSource = FakeScannerPreferencesDataSource(currentMode = ScannerMode.RECEIPT)
+        val viewModel = ScannerViewModel(fakeSource)
+
+        viewModel.setMode(ScannerMode.MENU)
+
+        assertEquals(ScannerMode.MENU, viewModel.uiState.value.currentMode)
+        assertEquals(ScannerMode.MENU, fakeSource.getSavedMode())
     }
 }

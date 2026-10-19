@@ -36,7 +36,7 @@ import com.lenswise.app.presentation.theme.LensWiseTheme
 
 class MainActivity : ComponentActivity() {
 
-    private val scannerViewModel: ScannerViewModel by viewModels()
+    private val scannerViewModel: ScannerViewModel by viewModels { ScannerViewModel.Factory }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.Theme_LensWise)

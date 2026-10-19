@@ -3,13 +3,17 @@ package com.lenswise.app.presentation.features.scanner
 import android.app.Application
 import android.content.Context
 import android.net.Uri
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.lenswise.app.LensWiseApplication
 import com.lenswise.app.core.camera.CameraManager
 import com.lenswise.app.core.image.AppImageEntity
 import com.lenswise.app.core.image.ImageSource
 import com.lenswise.app.core.image.ImageStandardizer
+import com.lenswise.app.core.storage.ScannerPreferencesDataSource
 import com.lenswise.app.core.storage.ScannerPreferencesRepository
 import com.lenswise.app.domain.scanner.ScannerMode
 import com.lenswise.app.presentation.notification.NotificationController
@@ -19,22 +23,29 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+/**
+ * 掃描器核心視圖模型 (ScannerViewModel)。
+ *
+ * 遵循現代 Android 架構指南：
+ * 1. 繼承標準 [ViewModel]，徹底解耦 Android Framework Context 與反射依賴。
+ * 2. 透過 [ScannerPreferencesDataSource] 契約介面實現偏好持久化注入，支援 100% JVM 單元測試隔離。
+ * 3. 提供標準 [Factory] (基於 [viewModelFactory] DSL)，編譯期保證型別安全實例化。
+ */
 class ScannerViewModel(
-    application: Application = LensWiseApplication.instance,
-    private val preferencesRepository: ScannerPreferencesRepository? = runCatching {
-        ScannerPreferencesRepository(application)
-    }.getOrNull()
-) : AndroidViewModel(application) {
+    private val preferencesDataSource: ScannerPreferencesDataSource
+) : ViewModel() {
+
+    constructor() : this(createDefaultPreferencesDataSource())
 
     private val _uiState = MutableStateFlow(
-        ScannerUiState(currentMode = preferencesRepository?.getSavedMode() ?: ScannerMode.PRODUCT)
+        ScannerUiState(currentMode = preferencesDataSource.getSavedMode())
     )
     val uiState: StateFlow<ScannerUiState> = _uiState.asStateFlow()
 
     fun setMode(mode: ScannerMode) {
         if (_uiState.value.isLocked || _uiState.value.currentMode == mode) return
         _uiState.update { it.copy(currentMode = mode) }
-        preferencesRepository?.saveMode(mode)
+        preferencesDataSource.saveMode(mode)
     }
 
     fun takePicture(context: Context, cameraManager: CameraManager) {
@@ -136,4 +147,33 @@ class ScannerViewModel(
 
         NotificationController.showInfo("即將啟動「${state.currentMode.actionTitle}」分析流程 (${state.imageCount} 張照片)")
     }
+
+    companion object {
+        val Factory: ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                val application = (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as? Application)
+                    ?: LensWiseApplication.instance
+                val preferencesRepository = ScannerPreferencesRepository(application)
+                ScannerViewModel(preferencesRepository)
+            }
+        }
+    }
 }
+
+private object DefaultInMemoryPreferencesDataSource : ScannerPreferencesDataSource {
+    private var mode = ScannerMode.PRODUCT
+    override fun getSavedMode(): ScannerMode = mode
+    override fun saveMode(mode: ScannerMode) {
+        this.mode = mode
+    }
+}
+
+private fun createDefaultPreferencesDataSource(): ScannerPreferencesDataSource {
+    return try {
+        ScannerPreferencesRepository(LensWiseApplication.instance)
+    } catch (_: Throwable) {
+        DefaultInMemoryPreferencesDataSource
+    }
+}
+
+
