@@ -26,11 +26,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeChild
 
+/**
+ * 沉浸式毛玻璃懸浮垃圾桶按鈕 (GlassmorphicTrashControl)。
+ * 1:1 復刻 GeminiFlowApp / LensWise 規範：
+ * - 平時狀態：低調沉浸毛玻璃磨砂（深色 60% 黑 / 淺色 80% 白），細緻中性灰邊框，灰白細線刪除圖標。
+ * - 懸停狀態：彈簧流暢擴大至 64dp，亮起鮮紅漸層與紅色光暈，圖標切換為純白 DeleteForever。
+ */
 @Composable
 fun GlassmorphicTrashControl(
     onClick: () -> Unit,
@@ -52,12 +59,22 @@ fun GlassmorphicTrashControl(
             listOf(Color(0xFFFCA5A5), Color(0xFFB91C1C))
         )
     } else {
-        Brush.verticalGradient(
-            listOf(
-                Color(0xFFEF4444).copy(alpha = if (isDark) 0.50f else 0.40f),
-                Color(0xFFDC2626).copy(alpha = if (isDark) 0.25f else 0.20f)
-            )
+        SolidColor(
+            if (isDark) Color.White.copy(alpha = 0.12f)
+            else Color.Black.copy(alpha = 0.10f)
         )
+    }
+
+    val shadowAmbient = if (isHovering) {
+        Color(0xFFEF4444).copy(alpha = 0.50f)
+    } else {
+        Color.Black.copy(alpha = if (isDark) 0.35f else 0.08f)
+    }
+
+    val shadowSpot = if (isHovering) {
+        Color(0xFFEF4444).copy(alpha = 0.70f)
+    } else {
+        Color.Black.copy(alpha = if (isDark) 0.50f else 0.12f)
     }
 
     Box(
@@ -68,8 +85,8 @@ fun GlassmorphicTrashControl(
             .shadow(
                 elevation = if (isHovering) 20.dp else 10.dp,
                 shape = CircleShape,
-                ambientColor = Color(0xFFEF4444).copy(alpha = if (isHovering) 0.50f else 0.25f),
-                spotColor = Color(0xFFEF4444).copy(alpha = if (isHovering) 0.70f else 0.35f)
+                ambientColor = shadowAmbient,
+                spotColor = shadowSpot
             )
             .clip(CircleShape)
             .then(
@@ -83,12 +100,16 @@ fun GlassmorphicTrashControl(
                     Modifier.hazeChild(state = hazeState) {
                         blurRadius = 24.dp
                         noiseFactor = 0.08f
-                        backgroundColor = if (isDark) Color(0xFFEF4444).copy(alpha = 0.18f) else Color(0xFFFEE2E2).copy(alpha = 0.75f)
+                        backgroundColor = if (isDark) {
+                            Color.Black.copy(alpha = 0.60f)
+                        } else {
+                            Color.White.copy(alpha = 0.80f)
+                        }
                     }
                 } else {
                     Modifier.background(
-                        if (isDark) Color(0xFF3B1219).copy(alpha = 0.80f)
-                        else Color(0xFFFEE2E2).copy(alpha = 0.85f)
+                        if (isDark) Color(0xFF1E1E20).copy(alpha = 0.85f)
+                        else Color.White.copy(alpha = 0.90f)
                     )
                 }
             )
@@ -107,7 +128,13 @@ fun GlassmorphicTrashControl(
         Icon(
             imageVector = if (isHovering) Icons.Filled.DeleteForever else Icons.Outlined.DeleteOutline,
             contentDescription = "清空日誌",
-            tint = if (isHovering) Color.White else Color(0xFFEF4444),
+            tint = if (isHovering) {
+                Color.White
+            } else if (isDark) {
+                Color.White.copy(alpha = 0.70f)
+            } else {
+                Color.Black.copy(alpha = 0.54f)
+            },
             modifier = Modifier.size(if (isHovering) 28.dp else 24.dp)
         )
     }
