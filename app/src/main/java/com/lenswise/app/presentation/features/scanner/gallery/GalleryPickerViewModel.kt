@@ -7,7 +7,6 @@ import androidx.lifecycle.viewModelScope
 import com.lenswise.app.core.media.GalleryUiItem
 import com.lenswise.app.core.media.MediaAsset
 import com.lenswise.app.core.media.MediaRepository
-import com.lenswise.app.presentation.notification.NotificationController
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,7 +19,8 @@ import kotlinx.coroutines.launch
  * 核心保證：
  * 1. 單一真理來源 (Single Source of Truth)：集中管理全相簿元數據、選取清單與時間軸狀態。
  * 2. 毫秒級極速索引與一維展平項目流，杜絕重複計算與巢狀 Recomposition。
- * 3. 精確選取單元格更新：點選照片時僅拷貝變更單元格，其餘項目參考完全不變，Compose 100% 跳過重組。
+ * 3. 純粹無上限多選狀態機：點選即 Toggle，零殘留人為設限，代碼乾淨簡練。
+ * 4. 精確單元格更新：點選照片時僅拷貝被異動單元格，其餘項目參考完全不變，Compose 100% 跳過重組。
  */
 class GalleryPickerViewModel(
     application: Application
@@ -35,12 +35,6 @@ class GalleryPickerViewModel(
 
     init {
         loadGallery()
-    }
-
-    fun setMaxSelection(max: Int) {
-        if (_uiState.value.maxSelection != max) {
-            _uiState.update { it.copy(maxSelection = max) }
-        }
     }
 
     fun loadGallery() {
@@ -87,10 +81,6 @@ class GalleryPickerViewModel(
         if (isAlreadySelected) {
             selectedUriMap.remove(asset.id)
         } else {
-            if (selectedUriMap.size >= currentState.maxSelection) {
-                NotificationController.showWarning("最多只能選擇 ${currentState.maxSelection} 張照片")
-                return
-            }
             selectedUriMap[asset.id] = asset.contentUri
         }
 

@@ -35,9 +35,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -61,24 +59,19 @@ import com.lenswise.app.presentation.theme.OutfitFontFamily
  * 現代化極速自製相簿挑選彈窗 (CustomGalleryBottomSheet)。
  *
  * 核心保證：
- * 1. 零感加載 (Zero-Perceived-Loading)：全相簿元數據極速預載，時間軸一體成型，徹底告別分頁中斷與死鎖。
- * 2. 展平清單 (Flattened Stream)：單一 LazyVerticalGrid 配合 GridItemSpan，完美達成 Compose 視圖複用。
- * 3. 獨立手勢隔離：採用 IsolatedHandleBottomSheet，滾動 100% 獨立，大力滑動數月不卡頓。
+ * 1. 1:1 對齊 Flutter 原生設計：標題固定為「選擇照片」（不隨選取變更）、無左側清除按鈕、無張數人為限制。
+ * 2. 採用 In-Hierarchy GPU 渲染層彈窗：展開與收起 120 FPS 絲滑無阻。
+ * 3. 展平清單 (Flattened Stream)：單一 LazyVerticalGrid 配合 GridItemSpan，完美達成 Compose 視圖複用。
  * 4. 快速滑動月份浮動徽章 (Floating Fast-Scroll Date Pill)：滑動時即時指示當前年月，停滑淡出。
  */
 @Composable
 fun CustomGalleryBottomSheet(
-    maxItems: Int = 10,
     onDismiss: () -> Unit,
     onConfirmSelection: (List<Uri>) -> Unit,
     viewModel: GalleryPickerViewModel = viewModel()
 ) {
     val isDark = isSystemInDarkTheme()
     val state by viewModel.uiState.collectAsState()
-
-    LaunchedEffect(maxItems) {
-        viewModel.setMaxSelection(maxItems)
-    }
 
     IsolatedHandleBottomSheet(
         onDismiss = onDismiss,
@@ -103,44 +96,22 @@ fun CustomGalleryBottomSheet(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // 2. 標題與確認勾選按鈕 (標題絕對置中)
+                // 2. 標題與確認勾選按鈕 (標題絕對幾何置中)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (state.selectedIds.isNotEmpty()) {
-                        TextButton(
-                            onClick = { viewModel.clearSelection() },
-                            contentPadding = PaddingValues(horizontal = 8.dp),
-                            modifier = Modifier.height(36.dp)
-                        ) {
-                            Text(
-                                text = "清除",
-                                fontFamily = OutfitFontFamily,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (isDark) Color.White.copy(alpha = 0.65f) else Color.Black.copy(alpha = 0.65f)
-                            )
-                        }
-                    } else {
-                        // 左側佔位 48dp 確保文字絕對置中
-                        Spacer(modifier = Modifier.width(48.dp))
-                    }
-
-                    val titleText = if (state.selectedIds.isNotEmpty()) {
-                        "已選擇 (${state.selectionCount}/${state.maxSelection})"
-                    } else {
-                        "選擇照片"
-                    }
+                    // 左側佔位 48dp 確保文字絕對置中（不放清除按鈕，1:1 對齊 Flutter 規範）
+                    Spacer(modifier = Modifier.width(48.dp))
 
                     Text(
-                        text = titleText,
+                        text = "選擇照片",
                         fontFamily = OutfitFontFamily,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.5.sp,
-                        color = if (isDark) Color.White.copy(alpha = 0.75f) else Color.Black.copy(alpha = 0.75f)
+                        letterSpacing = 2.sp,
+                        color = if (isDark) Color.White.copy(alpha = 0.65f) else Color.Black.copy(alpha = 0.65f)
                     )
 
                     IconButton(

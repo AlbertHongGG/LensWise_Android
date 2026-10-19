@@ -119,7 +119,6 @@ fun ScannerScreen(
         // 4. 高效能自製相簿選擇器底部彈窗 (零卡頓、日期分組、多選勾選遮罩)
         if (showCustomGallery) {
             CustomGalleryBottomSheet(
-                maxItems = 10,
                 onDismiss = { showCustomGallery = false },
                 onConfirmSelection = { uris ->
                     viewModel.onImagesPicked(context, uris)

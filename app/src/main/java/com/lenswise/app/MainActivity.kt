@@ -165,7 +165,8 @@ fun AppNavigation(
                 ReceiptDetailScreen(
                     record = route.record,
                     isLiveSession = route.isLiveSession,
-                    viewModel = receiptScannerViewModel
+                    viewModel = receiptScannerViewModel,
+                    onNavigateBack = { navigator.pop() }
                 )
             }
             is AppRoute.Settings -> {
