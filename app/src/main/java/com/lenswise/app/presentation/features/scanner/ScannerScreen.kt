@@ -33,6 +33,7 @@ fun ScannerScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToViewer: () -> Unit,
+    onStartAnalysis: (com.lenswise.app.domain.scanner.ScannerMode, List<com.lenswise.app.core.image.AppImageEntity>) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -110,7 +111,7 @@ fun ScannerScreen(
                 }
             },
             onOpenViewer = onNavigateToViewer,
-            onTriggerAnalysis = { viewModel.triggerAnalysis() },
+            onTriggerAnalysis = { viewModel.triggerAnalysis(onStartAnalysis) },
             onSelectMode = { viewModel.setMode(it) },
             modifier = Modifier.align(Alignment.BottomCenter)
         )

@@ -93,6 +93,10 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
 
+    // Networking & SSE for AI Streaming
+    implementation(libs.okhttp.client)
+    implementation(libs.okhttp.sse)
+
     // Frosted Glass & Backdrop Blur
     implementation(libs.haze)
 

@@ -134,7 +134,7 @@ class ScannerViewModel(
         _uiState.update { it.copy(capturedImages = emptyList()) }
     }
 
-    fun triggerAnalysis() {
+    fun triggerAnalysis(onProceed: ((ScannerMode, List<AppImageEntity>) -> Unit)? = null) {
         val state = _uiState.value
         if (!state.canTriggerAnalysis) {
             if (state.currentMode == ScannerMode.COMPARISON) {
@@ -145,7 +145,11 @@ class ScannerViewModel(
             return
         }
 
-        NotificationController.showInfo("即將啟動「${state.currentMode.actionTitle}」分析流程 (${state.imageCount} 張照片)")
+        if (onProceed != null) {
+            onProceed(state.currentMode, state.capturedImages)
+        } else {
+            NotificationController.showInfo("即將啟動「${state.currentMode.actionTitle}」分析流程 (${state.imageCount} 張照片)")
+        }
     }
 
     companion object {

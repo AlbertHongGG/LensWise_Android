@@ -63,4 +63,23 @@ sealed interface AppRoute : Parcelable {
         @IgnoredOnParcel
         override val key: String = "route_api_log_detail"
     }
+
+    /** 收據 AI 萃取等待處理畫面 (ReceiptProcessingScreen) */
+    @Parcelize
+    data class ReceiptProcessing(
+        val images: List<com.lenswise.app.core.image.AppImageEntity>
+    ) : AppRoute {
+        @IgnoredOnParcel
+        override val key: String = "route_receipt_processing"
+    }
+
+    /** 收據結果與串流漸進展開畫面 (ReceiptDetailScreen) */
+    @Parcelize
+    data class ReceiptDetail(
+        val record: com.lenswise.app.domain.model.receipt.ReceiptScannerRecord,
+        val isLiveSession: Boolean = false
+    ) : AppRoute {
+        @IgnoredOnParcel
+        override val key: String = "route_receipt_detail_${record.id}"
+    }
 }

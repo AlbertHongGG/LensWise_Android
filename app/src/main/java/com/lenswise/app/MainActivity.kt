@@ -23,6 +23,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import com.lenswise.app.domain.scanner.ScannerMode
+import com.lenswise.app.features.receipt.presentation.ReceiptDetailScreen
+import com.lenswise.app.features.receipt.presentation.ReceiptProcessingScreen
+import com.lenswise.app.features.receipt.presentation.ReceiptScannerViewModel
 import com.lenswise.app.presentation.features.history.HistoryScreen
 import com.lenswise.app.presentation.features.log.AiLogViewerScreen
 import com.lenswise.app.presentation.features.log.ApiLogDetailScreen
@@ -37,12 +41,14 @@ import com.lenswise.app.presentation.navigation.components.CupertinoSwipeBackCon
 import com.lenswise.app.presentation.navigation.contract.LocalCupertinoNavigator
 import com.lenswise.app.presentation.navigation.model.AppRoute
 import com.lenswise.app.presentation.notification.GlobalNotificationOverlay
+import com.lenswise.app.presentation.notification.NotificationController
 import com.lenswise.app.presentation.theme.LensWiseTheme
 
 class MainActivity : ComponentActivity() {
 
     private val scannerViewModel: ScannerViewModel by viewModels { ScannerViewModel.Factory }
     private val settingsViewModel: SettingsViewModel by viewModels { SettingsViewModel.Factory }
+    private val receiptScannerViewModel: ReceiptScannerViewModel by viewModels { ReceiptScannerViewModel.Factory }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.Theme_LensWise)
@@ -78,7 +84,8 @@ class MainActivity : ComponentActivity() {
                             ) {
                                 AppNavigation(
                                     scannerViewModel = scannerViewModel,
-                                    settingsViewModel = settingsViewModel
+                                    settingsViewModel = settingsViewModel,
+                                    receiptScannerViewModel = receiptScannerViewModel
                                 )
                             }
                         }
@@ -97,7 +104,8 @@ val AppRouteListSaver: Saver<List<AppRoute>, ArrayList<AppRoute>> = Saver(
 @Composable
 fun AppNavigation(
     scannerViewModel: ScannerViewModel,
-    settingsViewModel: SettingsViewModel
+    settingsViewModel: SettingsViewModel,
+    receiptScannerViewModel: ReceiptScannerViewModel
 ) {
     var backStack by rememberSaveable(stateSaver = AppRouteListSaver) {
         mutableStateOf(listOf(AppRoute.Scanner))
@@ -113,6 +121,13 @@ fun AppNavigation(
             if (backStack.size > 1) {
                 backStack = backStack.dropLast(1)
             }
+        },
+        onReplaceRoute = { route ->
+            backStack = if (backStack.isNotEmpty()) {
+                backStack.dropLast(1) + route
+            } else {
+                listOf(route)
+            }
         }
     ) { route ->
         val navigator = LocalCupertinoNavigator.current
@@ -123,7 +138,34 @@ fun AppNavigation(
                     viewModel = scannerViewModel,
                     onNavigateToSettings = { navigator.push(AppRoute.Settings) },
                     onNavigateToHistory = { navigator.push(AppRoute.History()) },
-                    onNavigateToViewer = { navigator.push(AppRoute.CapturedViewer) }
+                    onNavigateToViewer = { navigator.push(AppRoute.CapturedViewer) },
+                    onStartAnalysis = { mode, images ->
+                        when (mode) {
+                            ScannerMode.RECEIPT -> {
+                                navigator.push(AppRoute.ReceiptProcessing(images))
+                            }
+                            else -> {
+                                NotificationController.showInfo("「${mode.title}」分析模組即將上線")
+                            }
+                        }
+                    }
+                )
+            }
+            is AppRoute.ReceiptProcessing -> {
+                ReceiptProcessingScreen(
+                    images = route.images,
+                    viewModel = receiptScannerViewModel,
+                    onTransitionToDetail = { record ->
+                        navigator.replace(AppRoute.ReceiptDetail(record, isLiveSession = true))
+                    },
+                    onNavigateBack = { navigator.pop() }
+                )
+            }
+            is AppRoute.ReceiptDetail -> {
+                ReceiptDetailScreen(
+                    record = route.record,
+                    isLiveSession = route.isLiveSession,
+                    viewModel = receiptScannerViewModel
                 )
             }
             is AppRoute.Settings -> {

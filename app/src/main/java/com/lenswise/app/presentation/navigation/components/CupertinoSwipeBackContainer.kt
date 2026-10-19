@@ -54,6 +54,7 @@ fun CupertinoSwipeBackContainer(
     backStack: List<AppRoute>,
     onPushRoute: (AppRoute) -> Unit,
     onPopRoute: () -> Unit,
+    onReplaceRoute: (AppRoute) -> Unit = { onPushRoute(it) },
     modifier: Modifier = Modifier,
     content: @Composable (route: AppRoute) -> Unit
 ) {
@@ -80,6 +81,15 @@ fun CupertinoSwipeBackContainer(
                             if (popped != null) {
                                 saveableStateHolder.removeState(popped.key)
                             }
+                        }
+                    }
+                }
+                override fun replace(route: AppRoute) {
+                    scope.launch {
+                        val popped = backStack.lastOrNull()
+                        onReplaceRoute(route)
+                        if (popped != null) {
+                            saveableStateHolder.removeState(popped.key)
                         }
                     }
                 }
