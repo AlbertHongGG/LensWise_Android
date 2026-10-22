@@ -6,8 +6,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -71,18 +73,20 @@ fun AiDispatchDialogs(
             ModalBottomSheet(
                 onDismissRequest = onDismissRequest,
                 sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
                 containerColor = sheetBgColor,
                 dragHandle = null
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .defaultMinSize(minHeight = 440.dp)
                         .padding(horizontal = 24.dp, vertical = 20.dp)
+                        .navigationBarsPadding()
                 ) {
                     BottomSheetHandleBar(isDark = isDark)
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
                     Text(
                         text = "選擇全域 AI 引擎",
@@ -93,16 +97,23 @@ fun AiDispatchDialogs(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
                     AiProviderType.entries.forEach { providerType ->
                         val isSelected = currentGlobalProvider == providerType
+                        val rowBgColor = if (isSelected) {
+                            if (isDark) Color.White.copy(alpha = 0.08f) else AppColors.primary.copy(alpha = 0.08f)
+                        } else {
+                            Color.Transparent
+                        }
+
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(rowBgColor)
                                 .clickable { onSelectGlobalProvider(providerType) }
-                                .padding(horizontal = 8.dp, vertical = 10.dp),
+                                .padding(horizontal = 16.dp, vertical = 16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
@@ -130,8 +141,9 @@ fun AiDispatchDialogs(
                                 )
                             }
                         }
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
                 }
             }
         }
@@ -142,18 +154,20 @@ fun AiDispatchDialogs(
             ModalBottomSheet(
                 onDismissRequest = onDismissRequest,
                 sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
                 containerColor = sheetBgColor,
                 dragHandle = null
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .defaultMinSize(minHeight = 440.dp)
                         .padding(horizontal = 24.dp, vertical = 20.dp)
+                        .navigationBarsPadding()
                 ) {
                     BottomSheetHandleBar(isDark = isDark)
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
                     Text(
                         text = "選擇 AI 引擎",
@@ -164,16 +178,23 @@ fun AiDispatchDialogs(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
                     AiProviderType.entries.forEach { providerType ->
                         val isSelected = agentConfig.activeProviderType == providerType
+                        val rowBgColor = if (isSelected) {
+                            if (isDark) Color.White.copy(alpha = 0.08f) else AppColors.primary.copy(alpha = 0.08f)
+                        } else {
+                            Color.Transparent
+                        }
+
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(rowBgColor)
                                 .clickable { onSelectAgentProvider(agentType, providerType) }
-                                .padding(horizontal = 8.dp, vertical = 10.dp),
+                                .padding(horizontal = 16.dp, vertical = 16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
@@ -201,8 +222,9 @@ fun AiDispatchDialogs(
                                 )
                             }
                         }
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
                 }
             }
         }
@@ -297,11 +319,13 @@ private fun OptionBottomSheetContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .defaultMinSize(minHeight = 440.dp)
             .padding(horizontal = 24.dp, vertical = 20.dp)
+            .navigationBarsPadding()
     ) {
         BottomSheetHandleBar(isDark = isDark)
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Text(
             text = title,
@@ -312,7 +336,7 @@ private fun OptionBottomSheetContent(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         options.forEach { option ->
             val isSelected = option.value.equals(selectedValue, ignoreCase = true)
@@ -320,12 +344,19 @@ private fun OptionBottomSheetContent(
             val itemIcon = if (isEmptyOption) Icons.Default.RemoveCircleOutline else defaultIcon
             val itemIconTint = if (isEmptyOption) textSecondaryColor else AppColors.primary
 
+            val rowBgColor = if (isSelected) {
+                if (isDark) Color.White.copy(alpha = 0.08f) else AppColors.primary.copy(alpha = 0.08f)
+            } else {
+                Color.Transparent
+            }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(rowBgColor)
                     .clickable { onSelect(option) }
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
@@ -366,9 +397,10 @@ private fun OptionBottomSheetContent(
                     )
                 }
             }
+            Spacer(modifier = Modifier.height(8.dp))
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 

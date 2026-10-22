@@ -187,6 +187,7 @@ fun GlobalProvidersCard(
                             ConfigFieldTile(
                                 field = field,
                                 isDark = isDark,
+                                isGlobal = true,
                                 onSelectOptionClick = onOpenSelectFieldOption,
                                 onTextChanged = { newVal -> onFieldTextChanged(field.key, newVal) }
                             )

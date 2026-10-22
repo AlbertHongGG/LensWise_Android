@@ -177,6 +177,7 @@ fun AgentFleetItemTile(
                     ConfigFieldTile(
                         field = field,
                         isDark = isDark,
+                        isGlobal = false,
                         onSelectOptionClick = onOpenSelectFieldOption,
                         onTextChanged = { newVal -> onFieldTextChanged(field.key, newVal) }
                     )

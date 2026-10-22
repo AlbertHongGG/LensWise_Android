@@ -184,7 +184,7 @@ data class GeminiFlowConfig(
                 key = "baseUrl",
                 label = "Base URL",
                 value = baseUrl,
-                hintValue = fb?.baseUrl ?: "http://127.0.0.1:5000"
+                hintValue = fb?.baseUrl
             ),
             ConfigField.Select(
                 key = "thinkingLevel",
@@ -241,13 +241,13 @@ data class OllamaConfig(
                 key = "baseUrl",
                 label = "ENDPOINT URL",
                 value = baseUrl,
-                hintValue = fb?.baseUrl ?: "http://127.0.0.1:11434"
+                hintValue = fb?.baseUrl
             ),
             ConfigField.Text(
                 key = "modelName",
                 label = "MODEL TAG",
                 value = modelName,
-                hintValue = fb?.modelName ?: "llama3.2-vision:latest"
+                hintValue = fb?.modelName
             )
         )
     }
@@ -306,24 +306,30 @@ data class VertexAiConfig(
             SelectOption("gemini-2.5-pro", "Gemini 2.5 Pro")
         )
 
+        val apiKeyHint = if (fallback != null) {
+            if (!fb?.apiKey.isNullOrEmpty()) "••••••••" else null
+        } else {
+            null
+        }
+
         return listOf(
             ConfigField.Text(
                 key = "projectId",
                 label = "PROJECT ID",
                 value = projectId,
-                hintValue = fb?.projectId ?: "my-gcp-project"
+                hintValue = fb?.projectId
             ),
             ConfigField.Text(
                 key = "location",
                 label = "LOCATION",
                 value = location,
-                hintValue = fb?.location ?: "us-central1"
+                hintValue = fb?.location
             ),
             ConfigField.Text(
                 key = "apiKey",
                 label = "API KEY / TOKEN",
                 value = apiKey,
-                hintValue = if (!fb?.apiKey.isNullOrEmpty()) "••••••••" else "AIzaSy...",
+                hintValue = apiKeyHint,
                 isSecret = true
             ),
             ConfigField.Select(
@@ -443,12 +449,18 @@ data class GoogleAiStudioConfig(
             )
         }
 
+        val apiKeyHint = if (fallback != null) {
+            if (!fb?.apiKey.isNullOrEmpty()) "••••••••" else null
+        } else {
+            null
+        }
+
         return listOf(
             ConfigField.Text(
                 key = "apiKey",
                 label = "API KEY",
                 value = apiKey,
-                hintValue = if (!fb?.apiKey.isNullOrEmpty()) "••••••••" else "AIzaSy...",
+                hintValue = apiKeyHint,
                 isSecret = true
             ),
             ConfigField.Select(

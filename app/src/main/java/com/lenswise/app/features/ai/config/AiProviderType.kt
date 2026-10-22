@@ -2,8 +2,8 @@ package com.lenswise.app.features.ai.config
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CloudDone
-import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -19,7 +19,7 @@ enum class AiProviderType(val displayName: String, val identifier: String) {
     val icon: ImageVector
         get() = when (this) {
             GEMINIFLOW -> Icons.Default.AutoAwesome
-            GOOGLE_AI_STUDIO -> Icons.Default.Key
+            GOOGLE_AI_STUDIO -> Icons.Default.Bolt
             OLLAMA -> Icons.Default.Memory
             VERTEX_AI -> Icons.Default.CloudDone
         }
