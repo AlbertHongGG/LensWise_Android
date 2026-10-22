@@ -88,4 +88,32 @@ class ScannerLogicTest {
         assertEquals(ScannerMode.MENU, viewModel.uiState.value.currentMode)
         assertEquals(ScannerMode.MENU, fakeSource.getSavedMode())
     }
+
+    @Test
+    fun testScannerViewModel_imagesPersistAcrossModeSwitching() {
+        val fakeSource = FakeScannerPreferencesDataSource(currentMode = ScannerMode.RECEIPT)
+        val img1 = createDummyImageEntity()
+        val img2 = createDummyImageEntity()
+        val fakeRepo = com.lenswise.app.core.image.DefaultCapturedImageRepository(listOf(img1, img2))
+        val viewModel = ScannerViewModel(fakeSource, fakeRepo)
+
+        // 初始狀態下包含 2 張照片
+        assertEquals(2, viewModel.uiState.value.imageCount)
+        assertEquals(ScannerMode.RECEIPT, viewModel.uiState.value.currentMode)
+
+        // 切換至「商品」模式
+        viewModel.setMode(ScannerMode.PRODUCT)
+        assertEquals(ScannerMode.PRODUCT, viewModel.uiState.value.currentMode)
+        assertEquals(2, viewModel.uiState.value.imageCount) // 照片依然保持存在！
+
+        // 切換至「比對」模式
+        viewModel.setMode(ScannerMode.COMPARISON)
+        assertEquals(ScannerMode.COMPARISON, viewModel.uiState.value.currentMode)
+        assertEquals(2, viewModel.uiState.value.imageCount) // 照片依然保持存在！
+
+        // 切換至「菜單」模式
+        viewModel.setMode(ScannerMode.MENU)
+        assertEquals(ScannerMode.MENU, viewModel.uiState.value.currentMode)
+        assertEquals(2, viewModel.uiState.value.imageCount) // 照片依然保持存在！
+    }
 }

@@ -10,6 +10,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.lenswise.app.LensWiseApplication
 import com.lenswise.app.core.ai.provider.AiProviderFactory
 import com.lenswise.app.core.image.AppImageEntity
+import com.lenswise.app.core.image.CapturedImageRepository
 import com.lenswise.app.core.storage.SettingsPreferencesRepository
 import com.lenswise.app.domain.model.receipt.ReceiptScannerRecord
 import com.lenswise.app.features.ai.agents.receipt.ReceiptScannerAgent
@@ -17,6 +18,8 @@ import com.lenswise.app.features.receipt.data.ReceiptHistoryRepository
 import com.lenswise.app.features.receipt.domain.IReceiptScannerAgent
 import com.lenswise.app.features.receipt.service.ReceiptScannerService
 import com.lenswise.app.presentation.notification.NotificationController
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -47,15 +50,30 @@ data class ReceiptScannerUiState(
 class ReceiptScannerViewModel(
     private val agentFactory: () -> IReceiptScannerAgent,
     private val service: ReceiptScannerService,
-    private val chatAgentFactory: (() -> com.lenswise.app.features.ai.agents.receipt.ReceiptChatAgent)? = null
+    private val chatAgentFactory: (() -> com.lenswise.app.features.ai.agents.receipt.ReceiptChatAgent)? = null,
+    private val capturedImageRepository: CapturedImageRepository? = null,
+    scope: CoroutineScope? = null
 ) : ViewModel() {
 
     // Secondary constructor for testing or static injection
-    constructor(agent: IReceiptScannerAgent, service: ReceiptScannerService) : this(
+    constructor(
+        agent: IReceiptScannerAgent,
+        service: ReceiptScannerService,
+        capturedImageRepository: CapturedImageRepository? = null,
+        scope: CoroutineScope? = null
+    ) : this(
         agentFactory = { agent },
         service = service,
-        chatAgentFactory = null
+        chatAgentFactory = null,
+        capturedImageRepository = capturedImageRepository,
+        scope = scope
     )
+
+    private val vmScope = scope ?: runCatching {
+        val s = viewModelScope
+        Dispatchers.Main.immediate.isDispatchNeeded(kotlin.coroutines.EmptyCoroutineContext)
+        s
+    }.getOrElse { CoroutineScope(Dispatchers.Default) }
 
     private val _uiState = MutableStateFlow(ReceiptScannerUiState())
     val uiState: StateFlow<ReceiptScannerUiState> = _uiState.asStateFlow()
@@ -78,7 +96,7 @@ class ReceiptScannerViewModel(
 
     fun updateAndPersistRecord(updated: ReceiptScannerRecord) {
         _uiState.update { it.copy(receiptRecord = updated) }
-        viewModelScope.launch {
+        vmScope.launch {
             try {
                 service.saveRecordOnly(updated)
             } catch (e: Exception) {
@@ -116,7 +134,7 @@ class ReceiptScannerViewModel(
             )
         }
 
-        streamJob = viewModelScope.launch {
+        streamJob = vmScope.launch {
             activeAgent.executeStreamSnapshot(images)
                 .catch { error ->
                     Log.e("ReceiptScannerVM", "Receipt analysis failed", error)
@@ -146,6 +164,8 @@ class ReceiptScannerViewModel(
                         try {
                             val saved = service.saveCompletedRecord(snapshot.data, images)
                             _uiState.update { it.copy(receiptRecord = saved) }
+                            // 成功執行完成且持久化落地後，安全精確清除已消費之相片
+                            capturedImageRepository?.clearConsumed(images)
                         } catch (e: Exception) {
                             Log.e("ReceiptScannerVM", "Failed to save completed record", e)
                         }
@@ -183,7 +203,8 @@ class ReceiptScannerViewModel(
                             provider = provider,
                             logger = app.apiLogManager
                         )
-                    }
+                    },
+                    capturedImageRepository = app.capturedImageRepository
                 )
             }
         }

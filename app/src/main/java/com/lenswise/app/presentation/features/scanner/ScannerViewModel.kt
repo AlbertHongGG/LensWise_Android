@@ -11,12 +11,16 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.lenswise.app.LensWiseApplication
 import com.lenswise.app.core.camera.CameraManager
 import com.lenswise.app.core.image.AppImageEntity
+import com.lenswise.app.core.image.CapturedImageRepository
+import com.lenswise.app.core.image.DefaultCapturedImageRepository
 import com.lenswise.app.core.image.ImageSource
 import com.lenswise.app.core.image.ImageStandardizer
 import com.lenswise.app.core.storage.ScannerPreferencesDataSource
 import com.lenswise.app.core.storage.ScannerPreferencesRepository
 import com.lenswise.app.domain.scanner.ScannerMode
 import com.lenswise.app.presentation.notification.NotificationController
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,19 +32,39 @@ import kotlinx.coroutines.launch
  *
  * 遵循現代 Android 架構指南：
  * 1. 繼承標準 [ViewModel]，徹底解耦 Android Framework Context 與反射依賴。
- * 2. 透過 [ScannerPreferencesDataSource] 契約介面實現偏好持久化注入，支援 100% JVM 單元測試隔離。
- * 3. 提供標準 [Factory] (基於 [viewModelFactory] DSL)，編譯期保證型別安全實例化。
+ * 2. 透過 [ScannerPreferencesDataSource] 與 [CapturedImageRepository] 實現依賴注入，支援 100% JVM 單元測試隔離。
+ * 3. 響應式綁定待分析相片暫存池，保證跨模式切換時狀態完整保持，並支援成功執行後的消費清除。
+ * 4. 提供標準 [Factory] (基於 [viewModelFactory] DSL)，編譯期保證型別安全實例化。
  */
 class ScannerViewModel(
-    private val preferencesDataSource: ScannerPreferencesDataSource
+    private val preferencesDataSource: ScannerPreferencesDataSource,
+    private val capturedImageRepository: CapturedImageRepository = DefaultCapturedImageRepository(),
+    scope: CoroutineScope? = null
 ) : ViewModel() {
 
-    constructor() : this(createDefaultPreferencesDataSource())
+    constructor() : this(createDefaultPreferencesDataSource(), DefaultCapturedImageRepository())
+
+    private val vmScope = scope ?: runCatching {
+        val s = viewModelScope
+        Dispatchers.Main.immediate.isDispatchNeeded(kotlin.coroutines.EmptyCoroutineContext)
+        s
+    }.getOrElse { CoroutineScope(Dispatchers.Default) }
 
     private val _uiState = MutableStateFlow(
-        ScannerUiState(currentMode = preferencesDataSource.getSavedMode())
+        ScannerUiState(
+            currentMode = preferencesDataSource.getSavedMode(),
+            capturedImages = capturedImageRepository.images.value
+        )
     )
     val uiState: StateFlow<ScannerUiState> = _uiState.asStateFlow()
+
+    init {
+        vmScope.launch {
+            capturedImageRepository.images.collect { images ->
+                _uiState.update { it.copy(capturedImages = images) }
+            }
+        }
+    }
 
     fun setMode(mode: ScannerMode) {
         if (_uiState.value.isLocked || _uiState.value.currentMode == mode) return
@@ -51,7 +75,7 @@ class ScannerViewModel(
     fun takePicture(context: Context, cameraManager: CameraManager) {
         if (_uiState.value.isLocked) return
 
-        viewModelScope.launch {
+        vmScope.launch {
             _uiState.update { it.copy(isCapturing = true) }
 
             val captureResult = cameraManager.capturePhoto()
@@ -63,12 +87,8 @@ class ScannerViewModel(
                 )
 
                 standardizeResult.onSuccess { entity ->
-                    _uiState.update { state ->
-                        state.copy(
-                            capturedImages = state.capturedImages + entity,
-                            isCapturing = false
-                        )
-                    }
+                    capturedImageRepository.addImages(listOf(entity))
+                    _uiState.update { it.copy(isCapturing = false) }
                     NotificationController.showSuccess("照片拍攝成功，共 ${_uiState.value.imageCount} 張")
                 }.onFailure { error ->
                     _uiState.update { it.copy(isCapturing = false) }
@@ -84,7 +104,7 @@ class ScannerViewModel(
     fun onImagesPicked(context: Context, uris: List<Uri>) {
         if (uris.isEmpty() || _uiState.value.isLocked) return
 
-        viewModelScope.launch {
+        vmScope.launch {
             _uiState.update { it.copy(isPickingGallery = true) }
 
             val standardizedList = mutableListOf<AppImageEntity>()
@@ -104,12 +124,8 @@ class ScannerViewModel(
             }
 
             if (standardizedList.isNotEmpty()) {
-                _uiState.update { state ->
-                    state.copy(
-                        capturedImages = state.capturedImages + standardizedList,
-                        isPickingGallery = false
-                    )
-                }
+                capturedImageRepository.addImages(standardizedList)
+                _uiState.update { it.copy(isPickingGallery = false) }
                 NotificationController.showSuccess("已新增 ${standardizedList.size} 張照片，目前共 ${_uiState.value.imageCount} 張")
             } else {
                 _uiState.update { it.copy(isPickingGallery = false) }
@@ -122,16 +138,14 @@ class ScannerViewModel(
     }
 
     fun removeImage(index: Int) {
-        val currentImages = _uiState.value.capturedImages
-        if (index in currentImages.indices) {
-            val updated = currentImages.toMutableList().apply { removeAt(index) }
-            _uiState.update { it.copy(capturedImages = updated) }
-            NotificationController.showInfo("已刪除照片，剩餘 ${updated.size} 張")
-        }
+        val countBefore = _uiState.value.capturedImages.size
+        capturedImageRepository.removeImage(index)
+        val remaining = maxOf(0, countBefore - 1)
+        NotificationController.showInfo("已刪除照片，剩餘 $remaining 張")
     }
 
     fun clearImages() {
-        _uiState.update { it.copy(capturedImages = emptyList()) }
+        capturedImageRepository.clear()
     }
 
     fun triggerAnalysis(onProceed: ((ScannerMode, List<AppImageEntity>) -> Unit)? = null) {
@@ -158,7 +172,9 @@ class ScannerViewModel(
                 val application = (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as? Application)
                     ?: LensWiseApplication.instance
                 val preferencesRepository = ScannerPreferencesRepository(application)
-                ScannerViewModel(preferencesRepository)
+                val imageRepo = (application as? LensWiseApplication)?.capturedImageRepository
+                    ?: DefaultCapturedImageRepository()
+                ScannerViewModel(preferencesRepository, imageRepo)
             }
         }
     }
