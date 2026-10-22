@@ -37,10 +37,10 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.lenswise.app.domain.model.receipt.ReceiptScannerRecord
-import com.lenswise.app.features.ai.agents.receipt.ReceiptChatAgent
-import com.lenswise.app.features.receipt.presentation.components.ReceiptChatBottomSheet
+import com.lenswise.app.features.receipt.agent.ReceiptChatPrompts
 import com.lenswise.app.features.receipt.presentation.components.ReceiptImageSheet
 import com.lenswise.app.features.receipt.presentation.components.ReceiptPaperCard
+import com.lenswise.app.presentation.components.chat.AiChatBottomSheet
 import java.io.File
 
 /**
@@ -66,7 +66,6 @@ fun ReceiptDetailScreen(
 
     var showChatSheet by remember { mutableStateOf(false) }
     var showImageSheet by remember { mutableStateOf(false) }
-    var activeChatAgent by remember { mutableStateOf<ReceiptChatAgent?>(null) }
 
     val liveState by viewModel?.uiState?.collectAsState()
         ?: remember { mutableStateOf(ReceiptScannerUiState(receiptRecord = record)) }
@@ -173,11 +172,7 @@ fun ReceiptDetailScreen(
 
                 FloatingActionButton(
                     onClick = {
-                        val agent = viewModel?.createChatAgent()
-                        if (agent != null) {
-                            activeChatAgent = agent
-                            showChatSheet = true
-                        }
+                        showChatSheet = true
                     },
                     containerColor = if (isDark) Color.White.copy(alpha = 0.24f) else Color.Black.copy(alpha = 0.87f),
                     contentColor = Color.White,
@@ -203,13 +198,19 @@ fun ReceiptDetailScreen(
         }
 
         // AI 顧問問答抽屜
-        val currentChatAgent = activeChatAgent
-        if (showChatSheet && currentChatAgent != null) {
-            ReceiptChatBottomSheet(
-                record = currentRecord,
-                chatAgent = currentChatAgent,
+        if (showChatSheet) {
+            val chatAgent = viewModel?.createChatAgent()
+            AiChatBottomSheet(
+                title = "發票 · 消費顧問對話",
+                initialMessage = ReceiptChatPrompts.getInitialMessage(),
+                systemContextPrompt = ReceiptChatPrompts.buildSystemPrompt(currentRecord),
+                onSendMessage = { request ->
+                    chatAgent?.executeStream(request)
+                        ?: kotlinx.coroutines.flow.flowOf("AI 顧問暫未就緒，請稍後重試。")
+                },
                 onDismissRequest = { showChatSheet = false }
             )
         }
     }
 }
+

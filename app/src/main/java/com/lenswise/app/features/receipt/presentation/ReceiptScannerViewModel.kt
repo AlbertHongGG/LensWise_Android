@@ -1,4 +1,4 @@
-package com.lenswise.app.features.receipt.presentation
+﻿package com.lenswise.app.features.receipt.presentation
 
 import android.app.Application
 import android.util.Log
@@ -8,12 +8,13 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.lenswise.app.LensWiseApplication
+import com.lenswise.app.core.ai.agent.UniversalChatAgent
 import com.lenswise.app.core.ai.provider.AiProviderFactory
 import com.lenswise.app.core.image.AppImageEntity
 import com.lenswise.app.core.image.CapturedImageRepository
 import com.lenswise.app.core.storage.SettingsPreferencesRepository
 import com.lenswise.app.domain.model.receipt.ReceiptScannerRecord
-import com.lenswise.app.features.ai.agents.receipt.ReceiptScannerAgent
+import com.lenswise.app.features.receipt.agent.ReceiptScannerAgent
 import com.lenswise.app.features.receipt.data.ReceiptHistoryRepository
 import com.lenswise.app.features.receipt.domain.IReceiptScannerAgent
 import com.lenswise.app.features.receipt.service.ReceiptScannerService
@@ -50,7 +51,7 @@ data class ReceiptScannerUiState(
 class ReceiptScannerViewModel(
     private val agentFactory: () -> IReceiptScannerAgent,
     private val service: ReceiptScannerService,
-    private val chatAgentFactory: (() -> com.lenswise.app.features.ai.agents.receipt.ReceiptChatAgent)? = null,
+    private val chatAgentFactory: (() -> UniversalChatAgent)? = null,
     private val capturedImageRepository: CapturedImageRepository? = null,
     scope: CoroutineScope? = null
 ) : ViewModel() {
@@ -78,7 +79,7 @@ class ReceiptScannerViewModel(
     private val _uiState = MutableStateFlow(ReceiptScannerUiState())
     val uiState: StateFlow<ReceiptScannerUiState> = _uiState.asStateFlow()
 
-    fun createChatAgent(): com.lenswise.app.features.ai.agents.receipt.ReceiptChatAgent? {
+    fun createChatAgent(): UniversalChatAgent? {
         return chatAgentFactory?.invoke()
     }
 
@@ -196,12 +197,13 @@ class ReceiptScannerViewModel(
                     service = service,
                     chatAgentFactory = {
                         val provider = AiProviderFactory.createProviderForAgent(
-                            agentType = com.lenswise.app.features.ai.domain.AiAgentType.RECEIPT_CHAT,
+                            agentType = com.lenswise.app.features.ai.domain.AiAgentType.AI_CHAT,
                             configRepo = app.aiConfigRepository
                         )
-                        com.lenswise.app.features.ai.agents.receipt.ReceiptChatAgent(
+                        UniversalChatAgent(
                             provider = provider,
-                            logger = app.apiLogManager
+                            logger = app.apiLogManager,
+                            defaultSystemPrompt = "你是一個頂級消費與發票分析顧問 AI，請根據提供的發票內容，簡潔、專業、精確地回答問題。"
                         )
                     },
                     capturedImageRepository = app.capturedImageRepository
@@ -210,3 +212,4 @@ class ReceiptScannerViewModel(
         }
     }
 }
+

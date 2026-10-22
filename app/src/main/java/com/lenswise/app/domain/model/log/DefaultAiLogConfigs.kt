@@ -13,7 +13,8 @@ import com.lenswise.app.features.ai.domain.AiAgentType
 
 /**
  * 系統預設 AI 日誌分頁型錄 (DefaultAiLogConfigs)。
- * 預先定義不可變的 8 大代理人固定分頁與專屬空狀態，保證版面在任何資料狀態下均具備絕對確定性。
+ * 預先定義不可變的 7 大固定分頁與專屬空狀態，保證版面在任何資料狀態下均具備絕對確定性。
+ * 完全對標 Flutter 參考專案 (全部、收據掃描、菜單掃描、菜單翻譯、商品比對、商品分析、深度探討)。
  */
 object DefaultAiLogConfigs {
     val allTabs: List<AiLogTabConfig> = listOf(
@@ -34,15 +35,6 @@ object DefaultAiLogConfigs {
             emptyStateTitle = "尚無收據掃描日誌",
             emptyStateDescription = "所有發票與收據之 OCR 辨識與結構化請求，\n都會有條理地記錄在此。",
             emptyStateIcon = Icons.AutoMirrored.Filled.ReceiptLong
-        ),
-        AiLogTabConfig(
-            id = "receipt_chat",
-            tabName = "消費顧問",
-            tabIcon = Icons.Default.ChatBubble,
-            agentType = AiAgentType.RECEIPT_CHAT,
-            emptyStateTitle = "尚無消費顧問日誌",
-            emptyStateDescription = "與收據消費分析顧問之對話模型互動歷程，\n都會有條理地記錄在此。",
-            emptyStateIcon = Icons.Default.ChatBubble
         ),
         AiLogTabConfig(
             id = "menu_scanner",

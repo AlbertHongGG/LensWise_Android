@@ -83,6 +83,63 @@ sealed interface AppRoute : Parcelable {
         override val key: String = "route_receipt_detail_${record.id}"
     }
 
+    /** 商品深度分析等待處理畫面 (ProductProcessingScreen) */
+    @Parcelize
+    data class ProductProcessing(
+        val images: List<com.lenswise.app.core.image.AppImageEntity>
+    ) : AppRoute {
+        @IgnoredOnParcel
+        override val key: String = "route_product_processing"
+    }
+
+    /** 商品深度分析詳情與結果畫面 (ProductDetailScreen) */
+    @Parcelize
+    data class ProductDetail(
+        val record: com.lenswise.app.domain.model.product.ProductLensRecord,
+        val isLiveSession: Boolean = false
+    ) : AppRoute {
+        @IgnoredOnParcel
+        override val key: String = "route_product_detail_${record.id}"
+    }
+
+    /** 商品比對等待處理畫面 (ComparisonProcessingScreen) */
+    @Parcelize
+    data class ComparisonProcessing(
+        val images: List<com.lenswise.app.core.image.AppImageEntity>
+    ) : AppRoute {
+        @IgnoredOnParcel
+        override val key: String = "route_comparison_processing"
+    }
+
+    /** 商品比對結果與矩陣看板畫面 (ComparisonResultScreen) */
+    @Parcelize
+    data class ComparisonResult(
+        val record: com.lenswise.app.domain.model.comparison.ProductComparisonRecord,
+        val isLiveSession: Boolean = false
+    ) : AppRoute {
+        @IgnoredOnParcel
+        override val key: String = "route_comparison_result_${record.id}"
+    }
+
+    /** 菜單掃描等待處理畫面 (MenuProcessingScreen) */
+    @Parcelize
+    data class MenuProcessing(
+        val images: List<com.lenswise.app.core.image.AppImageEntity>
+    ) : AppRoute {
+        @IgnoredOnParcel
+        override val key: String = "route_menu_processing"
+    }
+
+    /** 菜單掃描與翻譯結果畫面 (MenuResultScreen) */
+    @Parcelize
+    data class MenuResult(
+        val record: com.lenswise.app.domain.model.menu.MenuScannerRecord,
+        val isLiveSession: Boolean = false
+    ) : AppRoute {
+        @IgnoredOnParcel
+        override val key: String = "route_menu_result_${record.id}"
+    }
+
     /** AI 代理調度中心畫面 (AiDispatchCenterScreen) */
     @Parcelize
     data object AiDispatchCenter : AppRoute {

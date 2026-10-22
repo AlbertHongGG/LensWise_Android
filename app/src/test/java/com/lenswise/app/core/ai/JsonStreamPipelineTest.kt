@@ -1,9 +1,9 @@
-package com.lenswise.app.core.ai
+﻿package com.lenswise.app.core.ai
 
 import com.lenswise.app.core.ai.streaming.JsonStreamPipeline
-import com.lenswise.app.features.ai.agents.receipt.ReceiptFeeItemDto
-import com.lenswise.app.features.ai.agents.receipt.ReceiptItemDto
-import com.lenswise.app.features.ai.agents.receipt.ReceiptScannerPayloadParser
+import com.lenswise.app.features.receipt.agent.ReceiptFeeItemDto
+import com.lenswise.app.features.receipt.agent.ReceiptItemDto
+import com.lenswise.app.features.receipt.agent.ReceiptScannerPayloadParser
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
@@ -212,3 +212,4 @@ class JsonStreamPipelineTest {
         assertEquals(40.0, record.items[0].price, 0.001)
     }
 }
+

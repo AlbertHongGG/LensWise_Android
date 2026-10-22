@@ -9,7 +9,6 @@ enum class AiAgentType(
     val displayName: String
 ) {
     RECEIPT_SCANNER("ReceiptScanner", "收據掃描"),
-    RECEIPT_CHAT("ReceiptChat", "收據消費顧問"),
     MENU_SCANNER("MenuScanner", "菜單掃描"),
     MENU_TRANSLATION("MenuTranslation", "菜單翻譯"),
     PRODUCT_COMPARISON("ProductComparison", "商品比對"),

@@ -1,4 +1,4 @@
-package com.lenswise.app.features.receipt.presentation.components
+﻿package com.lenswise.app.features.receipt.presentation.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -34,7 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.lenswise.app.presentation.features.scanner.viewer.components.ZoomableAsyncImage
+import com.lenswise.app.features.scanner.viewer.components.ZoomableAsyncImage
 import com.lenswise.app.presentation.theme.OutfitFontFamily
 import java.io.File
 
@@ -148,3 +148,4 @@ fun ReceiptImageSheet(
         }
     }
 }
+

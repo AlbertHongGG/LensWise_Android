@@ -18,6 +18,12 @@ class LensWiseApplication : Application(), ImageLoaderFactory {
         private set
     lateinit var receiptHistoryRepository: com.lenswise.app.features.receipt.data.ReceiptHistoryRepository
         private set
+    lateinit var productHistoryRepository: com.lenswise.app.features.product.data.ProductHistoryRepository
+        private set
+    lateinit var comparisonHistoryRepository: com.lenswise.app.features.comparison.data.ComparisonHistoryRepository
+        private set
+    lateinit var menuHistoryRepository: com.lenswise.app.features.menu.data.MenuHistoryRepository
+        private set
     lateinit var aiConfigRepository: com.lenswise.app.features.ai.config.AiConfigRepository
         private set
     lateinit var capturedImageRepository: com.lenswise.app.core.image.CapturedImageRepository
@@ -29,6 +35,9 @@ class LensWiseApplication : Application(), ImageLoaderFactory {
         notificationLogManager = com.lenswise.app.core.logging.NotificationLogManager(this)
         apiLogManager = com.lenswise.app.core.logging.ApiLogManager(this)
         receiptHistoryRepository = com.lenswise.app.features.receipt.data.ReceiptHistoryRepository(this)
+        productHistoryRepository = com.lenswise.app.features.product.data.ProductHistoryRepository(this)
+        comparisonHistoryRepository = com.lenswise.app.features.comparison.data.ComparisonHistoryRepository(this)
+        menuHistoryRepository = com.lenswise.app.features.menu.data.MenuHistoryRepository(this)
         aiConfigRepository = com.lenswise.app.features.ai.config.AiConfigRepository(this)
         capturedImageRepository = com.lenswise.app.core.image.DefaultCapturedImageRepository()
 

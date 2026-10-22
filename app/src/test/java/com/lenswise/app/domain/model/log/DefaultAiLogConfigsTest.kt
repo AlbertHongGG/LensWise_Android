@@ -9,18 +9,18 @@ import org.junit.Test
 class DefaultAiLogConfigsTest {
 
     @Test
-    fun testAllTabs_containsEightFixedTabsWithAllAsFirst() {
+    fun testAllTabs_containsSevenFixedTabsWithAllAsFirst() {
         val tabs = DefaultAiLogConfigs.allTabs
 
-        assertEquals(8, tabs.size)
+        assertEquals(7, tabs.size)
         assertEquals("all", tabs[0].id)
         assertEquals("全部", tabs[0].tabName)
         assertNull(tabs[0].agentType)
 
         val agentTabs = tabs.drop(1)
-        assertEquals(7, agentTabs.size)
+        assertEquals(6, agentTabs.size)
 
-        // 確保涵蓋所有現有的 AiAgentType
+        // 確保涵蓋所有現有的 6 大 AiAgentType
         val configuredTypes = agentTabs.mapNotNull { it.agentType }.toSet()
         val expectedTypes = AiAgentType.entries.toSet()
         assertEquals(expectedTypes, configuredTypes)

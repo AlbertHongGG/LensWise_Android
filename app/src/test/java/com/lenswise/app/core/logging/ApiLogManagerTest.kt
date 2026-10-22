@@ -22,15 +22,15 @@ class ApiLogManagerTest {
     }
 
     @Test
-    fun testFileNameAgentTypeParsing_resolvesReceiptChatAgent() {
-        val fileName = "20261019_201500_ReceiptChat_987654.json"
+    fun testFileNameAgentTypeParsing_resolvesAiChatAgent() {
+        val fileName = "20261019_201500_AiChat_987654.json"
         val parts = fileName.split("_")
         val rawAgentName = if (parts.size >= 4) parts[2] else null
         val agentType = rawAgentName?.let { AiAgentType.fromId(it) }
 
         assertNotNull(agentType)
-        assertEquals(AiAgentType.RECEIPT_CHAT, agentType)
-        assertEquals("收據消費顧問", agentType?.displayName)
+        assertEquals(AiAgentType.AI_CHAT, agentType)
+        assertEquals("AI 深度探討", agentType?.displayName)
     }
 
     @Test
