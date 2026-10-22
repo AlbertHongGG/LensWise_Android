@@ -28,32 +28,37 @@ class AiDispatchViewModel(
     }
 
     fun setEditingGlobalProvider(type: AiProviderType) {
-        configRepository.setGlobalProvider(type)
+        configRepository.setEditingGlobalProfile(type)
     }
 
     fun setGlobalProvider(type: AiProviderType) {
-        configRepository.setGlobalProvider(type)
+        configRepository.setEditingGlobalProfile(type)
     }
 
     fun saveGlobalProviderConfig(type: AiProviderType, config: AiProviderConfig, setAsEditing: Boolean = false) {
-        configRepository.saveGlobalProviderConfig(type, config, setAsEditing)
+        configRepository.saveGlobalProfileConfig(type, config)
     }
 
     fun updateGlobalField(key: String, value: String) {
         val currentState = uiState.value
         val updated = currentState.editingGlobalConfig.copyWithField(key, value)
-        configRepository.saveGlobalProviderConfig(currentState.globalActiveProviderType, updated)
+        configRepository.saveGlobalProfileConfig(currentState.editingGlobalProfileType, updated)
     }
 
-    fun saveAgentProvider(agentType: AiAgentType, providerType: AiProviderType?) {
-        configRepository.saveAgentProvider(agentType = agentType, customProviderType = providerType)
+    fun saveAgentProvider(agentType: AiAgentType, providerType: AiProviderType) {
+        configRepository.saveAgentProvider(agentType = agentType, providerType = providerType)
     }
 
     fun updateAgentField(agentType: AiAgentType, key: String, value: String) {
         val currentState = uiState.value
-        val effective = currentState.getEffectiveConfigFor(agentType)
-        val updated = effective.activeConfig.copyWithField(key, value)
-        configRepository.saveAgentFieldConfig(agentType = agentType, providerType = effective.effectiveProviderType, config = updated)
+        val agentConfig = currentState.getAgentConfig(agentType)
+        val currentLocal = agentConfig.getLocalConfig(agentConfig.providerType)
+        val updatedLocal = currentLocal.copyWithField(key, value)
+        configRepository.saveAgentFieldConfig(
+            agentType = agentType,
+            providerType = agentConfig.providerType,
+            config = updatedLocal
+        )
     }
 
     companion object {

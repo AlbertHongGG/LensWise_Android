@@ -57,7 +57,7 @@ fun AiDispatchDialogs(
     agentConfigs: Map<AiAgentType, AgentAiConfig>,
     onDismissRequest: () -> Unit,
     onSelectGlobalProvider: (AiProviderType) -> Unit,
-    onSelectAgentProvider: (AiAgentType, AiProviderType?) -> Unit,
+    onSelectAgentProvider: (AiAgentType, AiProviderType) -> Unit,
     onSelectGlobalFieldOption: (fieldKey: String, optionValue: String) -> Unit,
     onSelectAgentFieldOption: (agentType: AiAgentType, fieldKey: String, optionValue: String) -> Unit
 ) {
@@ -180,61 +180,9 @@ fun AiDispatchDialogs(
 
                     Spacer(modifier = Modifier.height(18.dp))
 
-                    // 第一項：跟隨全域設定
-                    val isFollowGlobal = agentConfig.isFollowingGlobal
-                    val followGlobalBgColor = if (isFollowGlobal) {
-                        if (isDark) Color.White.copy(alpha = 0.08f) else AppColors.primary.copy(alpha = 0.08f)
-                    } else {
-                        Color.Transparent
-                    }
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(followGlobalBgColor)
-                            .clickable { onSelectAgentProvider(agentType, null) }
-                            .padding(horizontal = 16.dp, vertical = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Public,
-                            contentDescription = null,
-                            tint = AppColors.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "跟隨全域設定",
-                                style = if (isFollowGlobal) {
-                                    AppTypography.listItemSelected.copy(color = textPrimaryColor)
-                                } else {
-                                    AppTypography.listItemUnselected.copy(color = textPrimaryColor)
-                                }
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "目前繼承：${currentGlobalProvider.displayName.uppercase()}",
-                                fontFamily = OutfitFontFamily,
-                                fontSize = 12.sp,
-                                color = textSecondaryColor
-                            )
-                        }
-                        if (isFollowGlobal) {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = "已選擇",
-                                tint = AppColors.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-
                     val entries = AiProviderType.entries
                     entries.forEachIndexed { index, providerType ->
-                        val isSelected = agentConfig.customProviderType == providerType
+                        val isSelected = agentConfig.providerType == providerType
                         val rowBgColor = if (isSelected) {
                             if (isDark) Color.White.copy(alpha = 0.08f) else AppColors.primary.copy(alpha = 0.08f)
                         } else {

@@ -72,8 +72,7 @@ fun AgentFleetItemTile(
 ) {
     var isExpanded by remember { mutableStateOf(false) }
 
-    val effectiveProvider = effectiveConfig.effectiveProviderType
-    val isFollowing = agentConfig.isFollowingGlobal
+    val currentProvider = agentConfig.providerType
 
     Column(modifier = modifier.fillMaxWidth()) {
         // 卡片主列
@@ -109,19 +108,14 @@ fun AgentFleetItemTile(
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = if (isFollowing) Icons.Default.Public else effectiveProvider.icon,
+                        imageVector = currentProvider.icon,
                         contentDescription = null,
                         tint = textSecondaryColor,
                         modifier = Modifier.size(12.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    val providerDesc = if (isFollowing) {
-                        "${effectiveProvider.displayName.uppercase()} · 跟隨全域"
-                    } else {
-                        "${effectiveProvider.displayName.uppercase()} · 個別覆蓋"
-                    }
                     Text(
-                        text = providerDesc,
+                        text = currentProvider.displayName.uppercase(),
                         style = AppTypography.heroSubtitle.copy(
                             fontSize = 13.sp,
                             letterSpacing = 0.5.sp,
@@ -147,7 +141,7 @@ fun AgentFleetItemTile(
                     .border(width = 0.5.dp, color = cardBorderColor)
                     .padding(vertical = 8.dp)
             ) {
-                // 1. 代理引擎切換列
+                // 1. 代理引擎切換列 (強制親自選擇 Provider，無跟隨全域)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -156,19 +150,14 @@ fun AgentFleetItemTile(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = if (isFollowing) Icons.Default.Public else effectiveProvider.icon,
+                        imageVector = currentProvider.icon,
                         contentDescription = null,
                         tint = textSecondaryColor,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(16.dp))
-                    val dropdownLabel = if (isFollowing) {
-                        "跟隨全域 · ${effectiveProvider.displayName.uppercase()}"
-                    } else {
-                        effectiveProvider.displayName.uppercase()
-                    }
                     Text(
-                        text = dropdownLabel,
+                        text = currentProvider.displayName.uppercase(),
                         style = AppTypography.itemValue.copy(color = textPrimaryColor),
                         modifier = Modifier.weight(1f)
                     )
@@ -185,8 +174,9 @@ fun AgentFleetItemTile(
                     color = cardBorderColor
                 )
 
-                // 2. 代理專屬動態欄位 (支援 fallback 至全域設定)
-                val fields = effectiveConfig.activeConfig.getFormFields(globalFallbackConfig)
+                // 2. 代理專屬動態欄位 (以 Agent 本機配置為準，空白欄位傳入 globalFallbackConfig 供提示與繼承)
+                val localConfig = agentConfig.getLocalConfig(currentProvider)
+                val fields = localConfig.getFormFields(globalFallbackConfig)
                 fields.forEachIndexed { index, field ->
                     ConfigFieldTile(
                         field = field,

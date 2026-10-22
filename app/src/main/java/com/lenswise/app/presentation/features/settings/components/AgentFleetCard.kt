@@ -31,7 +31,6 @@ import com.lenswise.app.presentation.theme.AppTypography
 fun AgentFleetCard(
     isAiAgentEnabled: Boolean,
     agentConfigs: Map<AiAgentType, AgentAiConfig>,
-    globalActiveProvider: AiProviderType,
     globalConfigs: Map<AiProviderType, AiProviderConfig>,
     isDark: Boolean,
     onOpenAgentProviderSelector: (AiAgentType) -> Unit,
@@ -68,8 +67,8 @@ fun AgentFleetCard(
                 val agents = AiAgentType.entries
                 agents.forEachIndexed { index, agentType ->
                     val agentConfig = agentConfigs[agentType] ?: AgentAiConfig.defaultConfig()
-                    val effectiveConfig = agentConfig.resolveEffective(globalActiveProvider, globalConfigs)
-                    val globalFallback = globalConfigs[effectiveConfig.effectiveProviderType]
+                    val effectiveConfig = agentConfig.resolveEffective(globalConfigs)
+                    val globalFallback = globalConfigs[agentConfig.providerType]
 
                     AgentFleetItemTile(
                         agentType = agentType,

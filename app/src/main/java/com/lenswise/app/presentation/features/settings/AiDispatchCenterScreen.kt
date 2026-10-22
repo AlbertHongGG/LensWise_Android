@@ -60,7 +60,7 @@ fun AiDispatchCenterContent(
     state: AiConfigState,
     onUpdateGlobalField: (key: String, value: String) -> Unit,
     onSelectGlobalProvider: (AiProviderType) -> Unit,
-    onSelectAgentProvider: (AiAgentType, AiProviderType?) -> Unit,
+    onSelectAgentProvider: (AiAgentType, AiProviderType) -> Unit,
     onUpdateAgentField: (AiAgentType, key: String, value: String) -> Unit,
     modifier: Modifier = Modifier,
     onNavigateBack: () -> Unit = {}
@@ -109,7 +109,6 @@ fun AiDispatchCenterContent(
                 AgentFleetCard(
                     isAiAgentEnabled = state.isAiAgentEnabled,
                     agentConfigs = state.agentConfigs,
-                    globalActiveProvider = state.globalActiveProviderType,
                     globalConfigs = state.globalProviderConfigs,
                     isDark = isDark,
                     onOpenAgentProviderSelector = { agentType ->

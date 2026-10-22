@@ -68,12 +68,19 @@ data class ConfigProperty(
 
 /**
  * AI 配置缺失領域異常。
- * 當 Agent 與 Global 皆未指定必要參數時拋出，包含 Agent 型別與具體缺失屬性描述器。
+ * 當 Agent 與 Global 皆未指定必要參數時拋出，包含 Agent 型別、具體缺失屬性與供應商描述。
  */
 class MissingAiConfigException(
     val agentType: AiAgentType,
-    val property: ConfigProperty
-) : IllegalStateException("「${agentType.displayName}」執行失敗：未指定 ${property.label}，請至 AI 代理調度中心設定全域或個別參數。") {
+    val property: ConfigProperty,
+    val providerType: AiProviderType? = null
+) : IllegalStateException(
+    if (providerType != null) {
+        "「${agentType.displayName}」執行失敗：未指定 ${property.label}，且全域 ${providerType.displayName} 設定檔亦未提供，請至 AI 代理調度中心設定。"
+    } else {
+        "「${agentType.displayName}」執行失敗：未指定 ${property.label}，且全域設定檔亦未提供，請至 AI 代理調度中心設定。"
+    }
+) {
     val fieldKey: String get() = property.key
     val fieldLabel: String get() = property.label
 }
@@ -217,7 +224,7 @@ sealed class AiProviderConfig {
     abstract fun getFormFields(fallback: AiProviderConfig? = null): List<ConfigField>
     abstract fun copyWithField(key: String, value: String): AiProviderConfig
     abstract fun fallbackTo(fallback: AiProviderConfig): AiProviderConfig
-    abstract fun validateRequiredFields(agentType: AiAgentType)
+    abstract fun validateRequiredFields(agentType: AiAgentType, providerType: AiProviderType = AiProviderType.GOOGLE_AI_STUDIO)
 }
 
 @Serializable
@@ -227,43 +234,47 @@ data class GeminiFlowConfig(
     val thinkingLevel: String = GeminiThinkingLevel.LOW.value
 ) : AiProviderConfig() {
 
-    override fun validateRequiredFields(agentType: AiAgentType) {
+    override fun validateRequiredFields(agentType: AiAgentType, providerType: AiProviderType) {
         if (baseUrl.isBlank()) {
-            throw MissingAiConfigException(agentType, ConfigProperty.BASE_URL)
+            throw MissingAiConfigException(agentType, ConfigProperty.BASE_URL, providerType)
         }
         if (modelName.isBlank()) {
-            throw MissingAiConfigException(agentType, ConfigProperty.MODEL)
+            throw MissingAiConfigException(agentType, ConfigProperty.MODEL, providerType)
         }
     }
 
     override fun getFormFields(fallback: AiProviderConfig?): List<ConfigField> {
         val fb = fallback as? GeminiFlowConfig
 
-        val modelEmptyDesc = if (fallback != null) "跟隨全域設定" else "未指定"
-
-        val modelOptions = listOf(SelectOption.empty(modelEmptyDesc)) + GeminiFlowModel.ITEMS.map {
-            SelectOption(
-                value = it.id,
-                label = it.displayName,
-                description = it.description
-            )
+        val modelOptions = if (fallback != null) {
+            val globalModelDisplay = fb?.modelName?.takeIf { it.isNotBlank() }?.let { GeminiFlowModel.getDisplayName(it) } ?: "未設定"
+            listOf(SelectOption(value = "", label = "跟隨全域設定檔 (目前：$globalModelDisplay)", description = "繼承全域設定")) +
+                GeminiFlowModel.ITEMS.map {
+                    SelectOption(value = it.id, label = it.displayName, description = it.description)
+                }
+        } else {
+            GeminiFlowModel.ITEMS.map {
+                SelectOption(value = it.id, label = it.displayName, description = it.description)
+            }
         }
 
-        val thinkingEmptyDesc = if (fallback != null) "跟隨全域設定" else "未指定"
-
-        val thinkingOptions = listOf(SelectOption.empty(thinkingEmptyDesc)) + GeminiThinkingLevel.entries.map {
-            SelectOption(
-                value = it.value,
-                label = it.label,
-                description = it.description
-            )
+        val thinkingOptions = if (fallback != null) {
+            val globalThinkingDisplay = fb?.thinkingLevel?.takeIf { it.isNotBlank() }?.let { GeminiThinkingLevel.fromValue(it).label } ?: "未設定"
+            listOf(SelectOption(value = "", label = "跟隨全域設定檔 (目前：$globalThinkingDisplay)", description = "繼承全域設定")) +
+                GeminiThinkingLevel.entries.map {
+                    SelectOption(value = it.value, label = it.label, description = it.description)
+                }
+        } else {
+            GeminiThinkingLevel.entries.map {
+                SelectOption(value = it.value, label = it.label, description = it.description)
+            }
         }
 
         return listOf(
             ConfigField.Select(
                 property = ConfigProperty.MODEL,
                 value = modelName,
-                hintValue = fb?.modelName,
+                hintValue = fb?.modelName?.let { GeminiFlowModel.getDisplayName(it) },
                 options = modelOptions
             ),
             ConfigField.Text(
@@ -309,12 +320,12 @@ data class OllamaConfig(
     val baseUrl: String = "http://127.0.0.1:11434"
 ) : AiProviderConfig() {
 
-    override fun validateRequiredFields(agentType: AiAgentType) {
+    override fun validateRequiredFields(agentType: AiAgentType, providerType: AiProviderType) {
         if (baseUrl.isBlank()) {
-            throw MissingAiConfigException(agentType, ConfigProperty.ENDPOINT_URL)
+            throw MissingAiConfigException(agentType, ConfigProperty.ENDPOINT_URL, providerType)
         }
         if (modelName.isBlank()) {
-            throw MissingAiConfigException(agentType, ConfigProperty.MODEL_TAG)
+            throw MissingAiConfigException(agentType, ConfigProperty.MODEL_TAG, providerType)
         }
     }
 
@@ -363,30 +374,34 @@ data class VertexAiConfig(
     val apiKey: String = ""
 ) : AiProviderConfig() {
 
-    override fun validateRequiredFields(agentType: AiAgentType) {
+    override fun validateRequiredFields(agentType: AiAgentType, providerType: AiProviderType) {
         if (projectId.isBlank()) {
-            throw MissingAiConfigException(agentType, ConfigProperty.PROJECT_ID)
+            throw MissingAiConfigException(agentType, ConfigProperty.PROJECT_ID, providerType)
         }
         if (location.isBlank()) {
-            throw MissingAiConfigException(agentType, ConfigProperty.LOCATION)
+            throw MissingAiConfigException(agentType, ConfigProperty.LOCATION, providerType)
         }
         if (apiKey.isBlank()) {
-            throw MissingAiConfigException(agentType, ConfigProperty.API_KEY_OR_TOKEN)
+            throw MissingAiConfigException(agentType, ConfigProperty.API_KEY_OR_TOKEN, providerType)
         }
         if (modelName.isBlank()) {
-            throw MissingAiConfigException(agentType, ConfigProperty.MODEL)
+            throw MissingAiConfigException(agentType, ConfigProperty.MODEL, providerType)
         }
     }
 
     override fun getFormFields(fallback: AiProviderConfig?): List<ConfigField> {
         val fb = fallback as? VertexAiConfig
 
-        val modelEmptyDesc = if (fallback != null) "跟隨全域設定" else "未指定"
-
-        val modelOptions = listOf(SelectOption.empty(modelEmptyDesc)) + listOf(
+        val defaultVertexModels = listOf(
             SelectOption("gemini-2.5-flash", "Gemini 2.5 Flash"),
             SelectOption("gemini-2.5-pro", "Gemini 2.5 Pro")
         )
+        val modelOptions = if (fallback != null) {
+            val globalModelDisplay = fb?.modelName?.takeIf { it.isNotBlank() } ?: "未設定"
+            listOf(SelectOption(value = "", label = "跟隨全域設定檔 (目前：$globalModelDisplay)", description = "繼承全域設定")) + defaultVertexModels
+        } else {
+            defaultVertexModels
+        }
 
         val apiKeyHint = if (fallback != null) {
             if (!fb?.apiKey.isNullOrEmpty()) "••••••••" else null
@@ -496,34 +511,40 @@ data class GoogleAiStudioConfig(
     val thinkingLevel: String = GeminiThinkingLevel.LOW.value
 ) : AiProviderConfig() {
 
-    override fun validateRequiredFields(agentType: AiAgentType) {
+    override fun validateRequiredFields(agentType: AiAgentType, providerType: AiProviderType) {
         if (apiKey.isBlank()) {
-            throw MissingAiConfigException(agentType, ConfigProperty.API_KEY)
+            throw MissingAiConfigException(agentType, ConfigProperty.API_KEY, providerType)
         }
         if (modelName.isBlank()) {
-            throw MissingAiConfigException(agentType, ConfigProperty.MODEL)
+            throw MissingAiConfigException(agentType, ConfigProperty.MODEL, providerType)
         }
     }
 
     override fun getFormFields(fallback: AiProviderConfig?): List<ConfigField> {
         val fb = fallback as? GoogleAiStudioConfig
 
-        val modelEmptyDesc = if (fallback != null) "跟隨全域設定" else "未指定"
-        val modelOptions = listOf(SelectOption.empty(modelEmptyDesc)) + GoogleAiStudioModel.ITEMS.map {
-            SelectOption(
-                value = it.id,
-                label = it.displayName,
-                description = it.description
-            )
+        val modelOptions = if (fallback != null) {
+            val globalModelDisplay = fb?.modelName?.takeIf { it.isNotBlank() }?.let { GoogleAiStudioModel.getDisplayName(it) } ?: "未設定"
+            listOf(SelectOption(value = "", label = "跟隨全域設定檔 (目前：$globalModelDisplay)", description = "繼承全域設定")) +
+                GoogleAiStudioModel.ITEMS.map {
+                    SelectOption(value = it.id, label = it.displayName, description = it.description)
+                }
+        } else {
+            GoogleAiStudioModel.ITEMS.map {
+                SelectOption(value = it.id, label = it.displayName, description = it.description)
+            }
         }
 
-        val thinkingEmptyDesc = if (fallback != null) "跟隨全域設定" else "未指定"
-        val thinkingOptions = listOf(SelectOption.empty(thinkingEmptyDesc)) + GeminiThinkingLevel.entries.map {
-            SelectOption(
-                value = it.value,
-                label = it.label,
-                description = it.description
-            )
+        val thinkingOptions = if (fallback != null) {
+            val globalThinkingDisplay = fb?.thinkingLevel?.takeIf { it.isNotBlank() }?.let { GeminiThinkingLevel.fromValue(it).label } ?: "未設定"
+            listOf(SelectOption(value = "", label = "跟隨全域設定檔 (目前：$globalThinkingDisplay)", description = "繼承全域設定")) +
+                GeminiThinkingLevel.entries.map {
+                    SelectOption(value = it.value, label = it.label, description = it.description)
+                }
+        } else {
+            GeminiThinkingLevel.entries.map {
+                SelectOption(value = it.value, label = it.label, description = it.description)
+            }
         }
 
         val apiKeyHint = if (fallback != null) {

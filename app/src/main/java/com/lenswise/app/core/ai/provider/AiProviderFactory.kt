@@ -33,7 +33,7 @@ object AiProviderFactory {
         val effective = configRepo.getEffectiveConfigFor(agentType)
 
         try {
-            effective.activeConfig.validateRequiredFields(agentType)
+            effective.activeConfig.validateRequiredFields(agentType, effective.effectiveProviderType)
         } catch (e: MissingAiConfigException) {
             NotificationController.showError(e.message ?: "未指定必要 AI 參數")
             throw e

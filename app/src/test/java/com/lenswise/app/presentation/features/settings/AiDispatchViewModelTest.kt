@@ -7,6 +7,7 @@ import com.lenswise.app.features.ai.config.AiProviderType
 import com.lenswise.app.features.ai.config.EffectiveAgentAiConfig
 import com.lenswise.app.features.ai.config.GeminiFlowConfig
 import com.lenswise.app.features.ai.config.GoogleAiStudioConfig
+import com.lenswise.app.features.ai.config.GoogleAiStudioModel
 import com.lenswise.app.features.ai.config.IAiConfigRepository
 import com.lenswise.app.features.ai.config.OllamaConfig
 import com.lenswise.app.features.ai.config.VertexAiConfig
@@ -43,19 +44,16 @@ class AiDispatchViewModelTest {
     }
 
     @Test
-    fun `change global provider updates state and affects following agents`() {
-        assertEquals(AiProviderType.GOOGLE_AI_STUDIO, viewModel.uiState.value.globalActiveProviderType)
+    fun `switch editing global profile updates editing profile in state`() {
+        assertEquals(AiProviderType.GOOGLE_AI_STUDIO, viewModel.uiState.value.editingGlobalProfileType)
 
-        viewModel.setGlobalProvider(AiProviderType.OLLAMA)
-        assertEquals(AiProviderType.OLLAMA, viewModel.uiState.value.globalActiveProviderType)
-        val effective = viewModel.uiState.value.getEffectiveConfigFor(AiAgentType.RECEIPT_SCANNER)
-        assertEquals(AiProviderType.OLLAMA, effective.effectiveProviderType)
-        assertTrue(effective.isFollowingGlobal)
+        viewModel.setEditingGlobalProvider(AiProviderType.OLLAMA)
+        assertEquals(AiProviderType.OLLAMA, viewModel.uiState.value.editingGlobalProfileType)
     }
 
     @Test
-    fun `update global field updates config correctly`() {
-        viewModel.setGlobalProvider(AiProviderType.OLLAMA)
+    fun `update global field updates global profile correctly`() {
+        viewModel.setEditingGlobalProvider(AiProviderType.OLLAMA)
         viewModel.updateGlobalField("baseUrl", "http://192.168.1.100:11434")
 
         val currentConfig = viewModel.uiState.value.globalProviderConfigs[AiProviderType.OLLAMA] as OllamaConfig
@@ -63,89 +61,106 @@ class AiDispatchViewModelTest {
     }
 
     @Test
-    fun `save agent provider switches agent target provider and supports follow global`() {
+    fun `save agent provider explicitly switches agent target provider`() {
         val targetAgent = AiAgentType.RECEIPT_SCANNER
         assertEquals(AiProviderType.GOOGLE_AI_STUDIO, viewModel.uiState.value.getEffectiveConfigFor(targetAgent).effectiveProviderType)
-        assertTrue(viewModel.uiState.value.getEffectiveConfigFor(targetAgent).isFollowingGlobal)
 
         viewModel.saveAgentProvider(targetAgent, AiProviderType.VERTEX_AI)
         assertEquals(AiProviderType.VERTEX_AI, viewModel.uiState.value.getEffectiveConfigFor(targetAgent).effectiveProviderType)
-        assertFalse(viewModel.uiState.value.getEffectiveConfigFor(targetAgent).isFollowingGlobal)
-
-        viewModel.saveAgentProvider(targetAgent, null)
-        assertEquals(AiProviderType.GOOGLE_AI_STUDIO, viewModel.uiState.value.getEffectiveConfigFor(targetAgent).effectiveProviderType)
-        assertTrue(viewModel.uiState.value.getEffectiveConfigFor(targetAgent).isFollowingGlobal)
     }
 
     @Test
-    fun `update agent field updates local agent override`() {
+    fun `update agent field updates local agent parameter without pinning`() {
         val targetAgent = AiAgentType.RECEIPT_SCANNER
-        viewModel.saveAgentProvider(targetAgent, AiProviderType.GEMINIFLOW)
-        viewModel.updateAgentField(targetAgent, "modelName", "custom-model-2.5")
+        viewModel.saveAgentProvider(targetAgent, AiProviderType.GOOGLE_AI_STUDIO)
+
+        // 1. 覆寫 Model 為 3.6 Flash
+        viewModel.updateAgentField(targetAgent, "modelName", GoogleAiStudioModel.FLASH_3_6)
+        val agentConfig = viewModel.uiState.value.getAgentConfig(targetAgent)
+        val localConfig = agentConfig.getLocalConfig(AiProviderType.GOOGLE_AI_STUDIO) as GoogleAiStudioConfig
+        assertEquals(GoogleAiStudioModel.FLASH_3_6, localConfig.modelName)
 
         val effective = viewModel.uiState.value.getEffectiveConfigFor(targetAgent)
-        val config = effective.activeConfig as GeminiFlowConfig
-        assertEquals("custom-model-2.5", config.modelName)
+        val active = effective.activeConfig as GoogleAiStudioConfig
+        assertEquals(GoogleAiStudioModel.FLASH_3_6, active.modelName)
+
+        // 2. 切換為空字串，應順利還原為繼承全域 Profile，絕對不被釘住
+        viewModel.updateAgentField(targetAgent, "modelName", "")
+        val localReverted = viewModel.uiState.value.getAgentConfig(targetAgent).getLocalConfig(AiProviderType.GOOGLE_AI_STUDIO) as GoogleAiStudioConfig
+        assertEquals("", localReverted.modelName)
+
+        val effectiveReverted = viewModel.uiState.value.getEffectiveConfigFor(targetAgent)
+        val activeReverted = effectiveReverted.activeConfig as GoogleAiStudioConfig
+        assertEquals(GoogleAiStudioModel.FLASH_3_8, activeReverted.modelName) // 成功繼承全域預設 3.8
     }
 }
 
 private class FakeAiConfigRepository : IAiConfigRepository {
     private val _state = MutableStateFlow(
         AiConfigState(
-            globalActiveProviderType = AiProviderType.GOOGLE_AI_STUDIO,
+            editingGlobalProfileType = AiProviderType.GOOGLE_AI_STUDIO,
             globalProviderConfigs = mapOf(
                 AiProviderType.GEMINIFLOW to GeminiFlowConfig(),
-                AiProviderType.GOOGLE_AI_STUDIO to GoogleAiStudioConfig(),
+                AiProviderType.GOOGLE_AI_STUDIO to GoogleAiStudioConfig(modelName = GoogleAiStudioModel.FLASH_3_8),
                 AiProviderType.OLLAMA to OllamaConfig(),
                 AiProviderType.VERTEX_AI to VertexAiConfig()
             ),
-            agentConfigs = AiAgentType.entries.associateWith { AgentAiConfig() },
-            isAiAgentEnabled = true
+            agentConfigs = AiAgentType.entries.associateWith {
+                AgentAiConfig(providerType = AiProviderType.GOOGLE_AI_STUDIO)
+            }
         )
     )
+
     override val configState: StateFlow<AiConfigState> = _state.asStateFlow()
 
-    override fun getEffectiveConfigFor(agentType: AiAgentType): EffectiveAgentAiConfig =
-        _state.value.getEffectiveConfigFor(agentType)
+    override fun getEffectiveConfigFor(agentType: AiAgentType): EffectiveAgentAiConfig {
+        return _state.value.getEffectiveConfigFor(agentType)
+    }
 
     override fun setAiAgentEnabled(enabled: Boolean) {
         _state.value = _state.value.copy(isAiAgentEnabled = enabled)
     }
 
-    override fun setGlobalProvider(type: AiProviderType) {
-        _state.value = _state.value.copy(globalActiveProviderType = type)
+    override fun setEditingGlobalProfile(type: AiProviderType) {
+        _state.value = _state.value.copy(editingGlobalProfileType = type)
     }
 
-    override fun saveGlobalProviderConfig(type: AiProviderType, config: AiProviderConfig, setAsActive: Boolean) {
+    override fun saveGlobalProfileConfig(type: AiProviderType, config: AiProviderConfig) {
         val updated = _state.value.globalProviderConfigs.toMutableMap()
         updated[type] = config
-        _state.value = _state.value.copy(
-            globalProviderConfigs = updated,
-            globalActiveProviderType = if (setAsActive) type else _state.value.globalActiveProviderType
-        )
+        _state.value = _state.value.copy(globalProviderConfigs = updated)
     }
 
-    override fun saveAgentProvider(agentType: AiAgentType, customProviderType: AiProviderType?) {
-        val current = _state.value.getOverrideConfigFor(agentType)
-        val updatedAgents = _state.value.agentConfigs.toMutableMap()
-        updatedAgents[agentType] = current.copy(customProviderType = customProviderType)
-        _state.value = _state.value.copy(agentConfigs = updatedAgents)
+    override fun saveAgentProvider(agentType: AiAgentType, providerType: AiProviderType) {
+        val current = _state.value.getAgentConfig(agentType)
+        val updated = _state.value.agentConfigs.toMutableMap()
+        updated[agentType] = current.copy(providerType = providerType)
+        _state.value = _state.value.copy(agentConfigs = updated)
     }
 
-    override fun saveAgentFieldConfig(agentType: AiAgentType, providerType: AiProviderType, config: AiProviderConfig) {
-        val current = _state.value.getOverrideConfigFor(agentType)
-        val localConfigs = current.providerConfigs.toMutableMap()
-        localConfigs[providerType] = config
-        val updatedAgents = _state.value.agentConfigs.toMutableMap()
-        updatedAgents[agentType] = current.copy(providerConfigs = localConfigs)
-        _state.value = _state.value.copy(agentConfigs = updatedAgents)
+    override fun saveAgentFieldConfig(
+        agentType: AiAgentType,
+        providerType: AiProviderType,
+        config: AiProviderConfig
+    ) {
+        val current = _state.value.getAgentConfig(agentType)
+        val local = current.providerConfigs.toMutableMap()
+        local[providerType] = config
+        val updated = _state.value.agentConfigs.toMutableMap()
+        updated[agentType] = current.copy(providerConfigs = local)
+        _state.value = _state.value.copy(agentConfigs = updated)
     }
 
-    override fun saveAgentConfig(agentType: AiAgentType, providerType: AiProviderType?, config: AiProviderConfig?) {
-        if (providerType != null && config == null) {
+    override fun saveAgentConfig(
+        agentType: AiAgentType,
+        providerType: AiProviderType?,
+        config: AiProviderConfig?
+    ) {
+        if (providerType != null) {
             saveAgentProvider(agentType, providerType)
-        } else if (config != null) {
-            val target = providerType ?: _state.value.getEffectiveConfigFor(agentType).effectiveProviderType
+        }
+        if (config != null) {
+            val target = providerType ?: _state.value.getAgentConfig(agentType).providerType
             saveAgentFieldConfig(agentType, target, config)
         }
     }

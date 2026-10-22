@@ -38,28 +38,24 @@ class SettingsViewModelTest {
         override fun setAiAgentEnabled(enabled: Boolean) {
             _state.value = _state.value.copy(isAiAgentEnabled = enabled)
         }
-        override fun setGlobalProvider(type: com.lenswise.app.features.ai.config.AiProviderType) {
-            _state.value = _state.value.copy(globalActiveProviderType = type)
+        override fun setEditingGlobalProfile(type: com.lenswise.app.features.ai.config.AiProviderType) {
+            _state.value = _state.value.copy(editingGlobalProfileType = type)
         }
-        override fun saveGlobalProviderConfig(
+        override fun saveGlobalProfileConfig(
             type: com.lenswise.app.features.ai.config.AiProviderType,
-            config: com.lenswise.app.features.ai.config.AiProviderConfig,
-            setAsActive: Boolean
+            config: com.lenswise.app.features.ai.config.AiProviderConfig
         ) {
             val updated = _state.value.globalProviderConfigs.toMutableMap()
             updated[type] = config
-            _state.value = _state.value.copy(
-                globalProviderConfigs = updated,
-                globalActiveProviderType = if (setAsActive) type else _state.value.globalActiveProviderType
-            )
+            _state.value = _state.value.copy(globalProviderConfigs = updated)
         }
         override fun saveAgentProvider(
             agentType: com.lenswise.app.features.ai.domain.AiAgentType,
-            customProviderType: com.lenswise.app.features.ai.config.AiProviderType?
+            providerType: com.lenswise.app.features.ai.config.AiProviderType
         ) {
-            val current = _state.value.agentConfigs[agentType] ?: com.lenswise.app.features.ai.config.AgentAiConfig()
+            val current = _state.value.getAgentConfig(agentType)
             val updatedAgents = _state.value.agentConfigs.toMutableMap()
-            updatedAgents[agentType] = current.copy(customProviderType = customProviderType)
+            updatedAgents[agentType] = current.copy(providerType = providerType)
             _state.value = _state.value.copy(agentConfigs = updatedAgents)
         }
         override fun saveAgentFieldConfig(
@@ -67,7 +63,7 @@ class SettingsViewModelTest {
             providerType: com.lenswise.app.features.ai.config.AiProviderType,
             config: com.lenswise.app.features.ai.config.AiProviderConfig
         ) {
-            val current = _state.value.agentConfigs[agentType] ?: com.lenswise.app.features.ai.config.AgentAiConfig()
+            val current = _state.value.getAgentConfig(agentType)
             val localConfigs = current.providerConfigs.toMutableMap()
             localConfigs[providerType] = config
             val updatedAgents = _state.value.agentConfigs.toMutableMap()
@@ -79,16 +75,13 @@ class SettingsViewModelTest {
             providerType: com.lenswise.app.features.ai.config.AiProviderType?,
             config: com.lenswise.app.features.ai.config.AiProviderConfig?
         ) {
-            val current = _state.value.agentConfigs[agentType] ?: com.lenswise.app.features.ai.config.AgentAiConfig()
-            val localConfigs = current.providerConfigs.toMutableMap()
-            val targetProvider = providerType ?: current.customProviderType ?: _state.value.globalActiveProviderType
-            if (config != null) localConfigs[targetProvider] = config
-            val updatedAgents = _state.value.agentConfigs.toMutableMap()
-            updatedAgents[agentType] = current.copy(
-                customProviderType = providerType ?: current.customProviderType,
-                providerConfigs = localConfigs
-            )
-            _state.value = _state.value.copy(agentConfigs = updatedAgents)
+            if (providerType != null) {
+                saveAgentProvider(agentType, providerType)
+            }
+            if (config != null) {
+                val targetProvider = providerType ?: _state.value.getAgentConfig(agentType).providerType
+                saveAgentFieldConfig(agentType, targetProvider, config)
+            }
         }
     }
 

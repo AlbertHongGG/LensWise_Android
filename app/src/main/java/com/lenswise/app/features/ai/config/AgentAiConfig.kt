@@ -4,12 +4,12 @@ import com.lenswise.app.features.ai.domain.AiAgentType
 
 /**
  * 生效之 Agent AI 配置領域模型 (EffectiveAgentAiConfig)。
- * 不可變值物件，完整封裝解析完成之生效引擎、生效參數與全域跟隨狀態。
+ * 不可變值物件，完整封裝解析完成之生效引擎、生效參數與該 Agent 未合併之本機配置。
  */
 data class EffectiveAgentAiConfig(
     val effectiveProviderType: AiProviderType,
     val activeConfig: AiProviderConfig,
-    val isFollowingGlobal: Boolean,
+    val localConfig: AiProviderConfig,
     val providerConfigs: Map<AiProviderType, AiProviderConfig>
 ) {
     val activeProviderType: AiProviderType
@@ -18,33 +18,35 @@ data class EffectiveAgentAiConfig(
 
 /**
  * 個別 Agent 的 AI 引擎配置。
- * 遵循雙層繼承架構：
- * 1. 引擎層級：[customProviderType] 為 null 時，100% 動態繼承全域生效引擎；非 null 時為個別獨立覆蓋。
- * 2. 參數層級：[providerConfigs] 儲存該 Agent 針對各 Provider 的覆寫值，空白欄位自動 Fallback 繼承全域該引擎設定。
+ * 遵循領域驅動設計原則：
+ * 1. 引擎層級：[providerType] 必須強制顯式指定具體的 [AiProviderType]，絕不可為 null 或跟隨全域。
+ * 2. 參數層級：[providerConfigs] 儲存該 Agent 針對各 Provider 的本機覆寫值；空白欄位自動 Fallback 繼承全域該引擎設定檔。
  */
 data class AgentAiConfig(
-    val customProviderType: AiProviderType? = null,
+    val providerType: AiProviderType = AiProviderType.GOOGLE_AI_STUDIO,
     val providerConfigs: Map<AiProviderType, AiProviderConfig> = AiProviderType.entries.associateWith { it.createEmptyConfig() }
 ) {
-    val isFollowingGlobal: Boolean
-        get() = customProviderType == null
+    fun getLocalConfig(type: AiProviderType = providerType): AiProviderConfig {
+        return providerConfigs[type] ?: type.createEmptyConfig()
+    }
 
     fun resolveEffective(
-        globalProviderType: AiProviderType,
         globalConfigs: Map<AiProviderType, AiProviderConfig>
     ): EffectiveAgentAiConfig {
-        val effectiveType = customProviderType ?: globalProviderType
+        val local = getLocalConfig(providerType)
+        val global = globalConfigs[providerType]
+        val activeCfg = if (global != null) local.fallbackTo(global) else local
+
         val effectiveConfigs = AiProviderType.entries.associateWith { type ->
-            val local = providerConfigs[type] ?: type.createEmptyConfig()
-            val global = globalConfigs[type]
-            if (global != null) local.fallbackTo(global) else local
+            val l = providerConfigs[type] ?: type.createEmptyConfig()
+            val g = globalConfigs[type]
+            if (g != null) l.fallbackTo(g) else l
         }
-        val activeCfg = effectiveConfigs[effectiveType] ?: effectiveType.createDefaultConfig()
 
         return EffectiveAgentAiConfig(
-            effectiveProviderType = effectiveType,
+            effectiveProviderType = providerType,
             activeConfig = activeCfg,
-            isFollowingGlobal = isFollowingGlobal,
+            localConfig = local,
             providerConfigs = effectiveConfigs
         )
     }
@@ -56,28 +58,34 @@ data class AgentAiConfig(
 
 /**
  * 全域 AI 設定聚合狀態。
- * 封裝全域生效引擎 [globalActiveProviderType]、各引擎全域配置與各 Agent 調度路由。
+ * [editingGlobalProfileType]：目前全域卡片正在檢視/編輯的供應商設定檔。
+ * [globalProviderConfigs]：四大供應商全域設定檔庫。
+ * [agentConfigs]：各 Agent 個別指派之引擎與覆寫參數。
  */
 data class AiConfigState(
-    val globalActiveProviderType: AiProviderType = AiProviderType.GOOGLE_AI_STUDIO,
+    val editingGlobalProfileType: AiProviderType = AiProviderType.GOOGLE_AI_STUDIO,
     val globalProviderConfigs: Map<AiProviderType, AiProviderConfig> = AiProviderType.entries.associateWith { it.createDefaultConfig() },
     val agentConfigs: Map<AiAgentType, AgentAiConfig> = emptyMap(),
     val isAiAgentEnabled: Boolean = true
 ) {
     val editingGlobalProviderType: AiProviderType
-        get() = globalActiveProviderType
+        get() = editingGlobalProfileType
+
+    val globalActiveProviderType: AiProviderType
+        get() = editingGlobalProfileType
 
     val editingGlobalConfig: AiProviderConfig
-        get() = globalProviderConfigs[globalActiveProviderType] ?: globalActiveProviderType.createDefaultConfig()
+        get() = globalProviderConfigs[editingGlobalProfileType] ?: editingGlobalProfileType.createDefaultConfig()
 
-    fun getOverrideConfigFor(agentType: AiAgentType): AgentAiConfig {
+    fun getAgentConfig(agentType: AiAgentType): AgentAiConfig {
         return agentConfigs[agentType] ?: AgentAiConfig.defaultConfig()
     }
 
+    fun getOverrideConfigFor(agentType: AiAgentType): AgentAiConfig {
+        return getAgentConfig(agentType)
+    }
+
     fun getEffectiveConfigFor(agentType: AiAgentType): EffectiveAgentAiConfig {
-        return getOverrideConfigFor(agentType).resolveEffective(
-            globalProviderType = globalActiveProviderType,
-            globalConfigs = globalProviderConfigs
-        )
+        return getAgentConfig(agentType).resolveEffective(globalConfigs = globalProviderConfigs)
     }
 }

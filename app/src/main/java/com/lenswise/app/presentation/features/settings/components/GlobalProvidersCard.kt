@@ -64,7 +64,7 @@ fun GlobalProvidersCard(
 
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
-            text = "GLOBAL PROVIDERS CONFIGURATION",
+            text = "GLOBAL PROVIDER PROFILES",
             style = AppTypography.sectionHeader.copy(color = textSecondaryColor),
             modifier = Modifier.padding(start = 16.dp, bottom = 10.dp)
         )
@@ -109,7 +109,7 @@ fun GlobalProvidersCard(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "全域供應商設定",
+                            text = "全域供應商預設設定檔",
                             style = AppTypography.tileTitle.copy(color = textPrimaryColor)
                         )
                         Spacer(modifier = Modifier.height(4.dp))
@@ -122,7 +122,7 @@ fun GlobalProvidersCard(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = editingType.displayName.uppercase(),
+                                text = "${editingType.displayName.uppercase()} (正在編輯)",
                                 style = AppTypography.heroSubtitle.copy(
                                     fontSize = 13.sp,
                                     letterSpacing = 0.5.sp,

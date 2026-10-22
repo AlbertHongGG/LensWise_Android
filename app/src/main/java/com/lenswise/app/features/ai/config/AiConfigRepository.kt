@@ -16,10 +16,13 @@ interface IAiConfigRepository {
     val configState: StateFlow<AiConfigState>
     fun getEffectiveConfigFor(agentType: AiAgentType): EffectiveAgentAiConfig
     fun setAiAgentEnabled(enabled: Boolean)
-    fun setGlobalProvider(type: AiProviderType)
-    fun setEditingGlobalProvider(type: AiProviderType) = setGlobalProvider(type)
-    fun saveGlobalProviderConfig(type: AiProviderType, config: AiProviderConfig, setAsActive: Boolean = false)
-    fun saveAgentProvider(agentType: AiAgentType, customProviderType: AiProviderType?)
+    fun setEditingGlobalProfile(type: AiProviderType)
+    fun setGlobalProvider(type: AiProviderType) = setEditingGlobalProfile(type)
+    fun setEditingGlobalProvider(type: AiProviderType) = setEditingGlobalProfile(type)
+    fun saveGlobalProfileConfig(type: AiProviderType, config: AiProviderConfig)
+    fun saveGlobalProviderConfig(type: AiProviderType, config: AiProviderConfig, setAsActive: Boolean = false) =
+        saveGlobalProfileConfig(type, config)
+    fun saveAgentProvider(agentType: AiAgentType, providerType: AiProviderType)
     fun saveAgentFieldConfig(agentType: AiAgentType, providerType: AiProviderType, config: AiProviderConfig)
     fun saveAgentConfig(agentType: AiAgentType, providerType: AiProviderType? = null, config: AiProviderConfig? = null)
 }
@@ -66,7 +69,7 @@ class AiConfigRepository(context: Context) : IAiConfigRepository {
         val isEnabled = prefs.getBoolean(KEY_IS_AI_AGENT_ENABLED, true)
         val globalProviderStr = prefs.getString(KEY_GLOBAL_ACTIVE_PROVIDER, null)
             ?: prefs.getString("ai_global_editing_provider", null)
-        val globalActiveProvider = if (globalProviderStr != null) {
+        val editingProfile = if (globalProviderStr != null) {
             AiProviderType.fromIdentifier(globalProviderStr)
         } else {
             AiProviderType.GOOGLE_AI_STUDIO
@@ -80,16 +83,16 @@ class AiConfigRepository(context: Context) : IAiConfigRepository {
             globalConfigs[type] = parsed ?: type.createDefaultConfig()
         }
 
-        // 讀取各 Agent 自訂配置
+        // 讀取各 Agent 自訂配置 (Provider 必須為具體類型，不可為 null)
         val agentConfigs = mutableMapOf<AiAgentType, AgentAiConfig>()
         for (agentType in AiAgentType.entries) {
             val prefix = "ai_agent_${agentType.id}"
-            // 若為 null 或 "follow_global"，則代表跟隨全域！
-            val customProviderStr = prefs.getString("${prefix}_custom_provider", null)
-            val customProvider = if (customProviderStr != null && customProviderStr != "follow_global") {
-                AiProviderType.fromIdentifier(customProviderStr)
+            val savedProviderStr = prefs.getString("${prefix}_provider", null)
+                ?: prefs.getString("${prefix}_custom_provider", null)
+            val provider = if (savedProviderStr != null && savedProviderStr != "follow_global") {
+                AiProviderType.fromIdentifier(savedProviderStr)
             } else {
-                null
+                AiProviderType.GOOGLE_AI_STUDIO
             }
 
             val localConfigs = mutableMapOf<AiProviderType, AiProviderConfig>()
@@ -101,13 +104,13 @@ class AiConfigRepository(context: Context) : IAiConfigRepository {
             }
 
             agentConfigs[agentType] = AgentAiConfig(
-                customProviderType = customProvider,
+                providerType = provider,
                 providerConfigs = localConfigs
             )
         }
 
         return AiConfigState(
-            globalActiveProviderType = globalActiveProvider,
+            editingGlobalProfileType = editingProfile,
             globalProviderConfigs = globalConfigs,
             agentConfigs = agentConfigs,
             isAiAgentEnabled = isEnabled
@@ -119,51 +122,35 @@ class AiConfigRepository(context: Context) : IAiConfigRepository {
         _configState.value = _configState.value.copy(isAiAgentEnabled = enabled)
     }
 
-    override fun setGlobalProvider(type: AiProviderType) {
+    override fun setEditingGlobalProfile(type: AiProviderType) {
         prefs.edit().putString(KEY_GLOBAL_ACTIVE_PROVIDER, type.identifier).apply()
-        _configState.value = _configState.value.copy(globalActiveProviderType = type)
+        _configState.value = _configState.value.copy(editingGlobalProfileType = type)
     }
 
-    override fun saveGlobalProviderConfig(type: AiProviderType, config: AiProviderConfig, setAsActive: Boolean) {
-        val editor = prefs.edit()
+    override fun saveGlobalProfileConfig(type: AiProviderType, config: AiProviderConfig) {
         val key = "ai_global_${type.identifier}"
-        editor.putString(key, serializeConfig(config))
-        if (setAsActive) {
-            editor.putString(KEY_GLOBAL_ACTIVE_PROVIDER, type.identifier)
-        }
-        editor.apply()
+        prefs.edit().putString(key, serializeConfig(config)).apply()
 
         val updatedGlobals = _configState.value.globalProviderConfigs.toMutableMap()
         updatedGlobals[type] = config
-        _configState.value = _configState.value.copy(
-            globalProviderConfigs = updatedGlobals,
-            globalActiveProviderType = if (setAsActive) type else _configState.value.globalActiveProviderType
-        )
+        _configState.value = _configState.value.copy(globalProviderConfigs = updatedGlobals)
     }
 
-    override fun saveAgentProvider(agentType: AiAgentType, customProviderType: AiProviderType?) {
+    override fun saveAgentProvider(agentType: AiAgentType, providerType: AiProviderType) {
         val prefix = "ai_agent_${agentType.id}"
-        val editor = prefs.edit()
-        if (customProviderType != null) {
-            editor.putString("${prefix}_custom_provider", customProviderType.identifier)
-        } else {
-            editor.putString("${prefix}_custom_provider", "follow_global")
-        }
-        editor.apply()
+        prefs.edit().putString("${prefix}_provider", providerType.identifier).apply()
 
-        val currentAgentConfig = _configState.value.getOverrideConfigFor(agentType)
+        val currentAgentConfig = _configState.value.getAgentConfig(agentType)
         val updatedAgentConfigs = _configState.value.agentConfigs.toMutableMap()
-        updatedAgentConfigs[agentType] = currentAgentConfig.copy(customProviderType = customProviderType)
+        updatedAgentConfigs[agentType] = currentAgentConfig.copy(providerType = providerType)
         _configState.value = _configState.value.copy(agentConfigs = updatedAgentConfigs)
     }
 
     override fun saveAgentFieldConfig(agentType: AiAgentType, providerType: AiProviderType, config: AiProviderConfig) {
         val prefix = "ai_agent_${agentType.id}"
-        val editor = prefs.edit()
-        editor.putString("${prefix}_${providerType.identifier}", serializeConfig(config))
-        editor.apply()
+        prefs.edit().putString("${prefix}_${providerType.identifier}", serializeConfig(config)).apply()
 
-        val currentAgentConfig = _configState.value.getOverrideConfigFor(agentType)
+        val currentAgentConfig = _configState.value.getAgentConfig(agentType)
         val updatedLocalConfigs = currentAgentConfig.providerConfigs.toMutableMap()
         updatedLocalConfigs[providerType] = config
 
@@ -173,10 +160,11 @@ class AiConfigRepository(context: Context) : IAiConfigRepository {
     }
 
     override fun saveAgentConfig(agentType: AiAgentType, providerType: AiProviderType?, config: AiProviderConfig?) {
-        if (providerType != null && config == null) {
+        if (providerType != null) {
             saveAgentProvider(agentType, providerType)
-        } else if (config != null) {
-            val targetProvider = providerType ?: _configState.value.getEffectiveConfigFor(agentType).effectiveProviderType
+        }
+        if (config != null) {
+            val targetProvider = providerType ?: _configState.value.getAgentConfig(agentType).providerType
             saveAgentFieldConfig(agentType, targetProvider, config)
         }
     }

@@ -104,28 +104,24 @@ private class DefaultInMemoryAiConfigRepository : IAiConfigRepository {
     override fun setAiAgentEnabled(enabled: Boolean) {
         _state.value = _state.value.copy(isAiAgentEnabled = enabled)
     }
-    override fun setGlobalProvider(type: com.lenswise.app.features.ai.config.AiProviderType) {
-        _state.value = _state.value.copy(globalActiveProviderType = type)
+    override fun setEditingGlobalProfile(type: com.lenswise.app.features.ai.config.AiProviderType) {
+        _state.value = _state.value.copy(editingGlobalProfileType = type)
     }
-    override fun saveGlobalProviderConfig(
+    override fun saveGlobalProfileConfig(
         type: com.lenswise.app.features.ai.config.AiProviderType,
-        config: com.lenswise.app.features.ai.config.AiProviderConfig,
-        setAsActive: Boolean
+        config: com.lenswise.app.features.ai.config.AiProviderConfig
     ) {
         val updated = _state.value.globalProviderConfigs.toMutableMap()
         updated[type] = config
-        _state.value = _state.value.copy(
-            globalProviderConfigs = updated,
-            globalActiveProviderType = if (setAsActive) type else _state.value.globalActiveProviderType
-        )
+        _state.value = _state.value.copy(globalProviderConfigs = updated)
     }
     override fun saveAgentProvider(
         agentType: AiAgentType,
-        customProviderType: com.lenswise.app.features.ai.config.AiProviderType?
+        providerType: com.lenswise.app.features.ai.config.AiProviderType
     ) {
-        val currentAgent = _state.value.getOverrideConfigFor(agentType)
+        val currentAgent = _state.value.getAgentConfig(agentType)
         val updatedAgentConfigs = _state.value.agentConfigs.toMutableMap()
-        updatedAgentConfigs[agentType] = currentAgent.copy(customProviderType = customProviderType)
+        updatedAgentConfigs[agentType] = currentAgent.copy(providerType = providerType)
         _state.value = _state.value.copy(agentConfigs = updatedAgentConfigs)
     }
     override fun saveAgentFieldConfig(
@@ -133,7 +129,7 @@ private class DefaultInMemoryAiConfigRepository : IAiConfigRepository {
         providerType: com.lenswise.app.features.ai.config.AiProviderType,
         config: com.lenswise.app.features.ai.config.AiProviderConfig
     ) {
-        val currentAgent = _state.value.getOverrideConfigFor(agentType)
+        val currentAgent = _state.value.getAgentConfig(agentType)
         val updatedLocal = currentAgent.providerConfigs.toMutableMap()
         updatedLocal[providerType] = config
         val updatedAgentConfigs = _state.value.agentConfigs.toMutableMap()
@@ -145,10 +141,11 @@ private class DefaultInMemoryAiConfigRepository : IAiConfigRepository {
         providerType: com.lenswise.app.features.ai.config.AiProviderType?,
         config: com.lenswise.app.features.ai.config.AiProviderConfig?
     ) {
-        if (providerType != null && config == null) {
+        if (providerType != null) {
             saveAgentProvider(agentType, providerType)
-        } else if (config != null) {
-            val target = providerType ?: _state.value.getEffectiveConfigFor(agentType).effectiveProviderType
+        }
+        if (config != null) {
+            val target = providerType ?: _state.value.getAgentConfig(agentType).providerType
             saveAgentFieldConfig(agentType, target, config)
         }
     }
