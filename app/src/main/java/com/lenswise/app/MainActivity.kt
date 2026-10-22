@@ -1,4 +1,4 @@
-﻿package com.lenswise.app
+package com.lenswise.app
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -58,6 +58,9 @@ class MainActivity : ComponentActivity() {
     private val menuScannerViewModel: com.lenswise.app.features.menu.presentation.MenuScannerViewModel by viewModels {
         com.lenswise.app.features.menu.presentation.MenuScannerViewModel.Factory
     }
+    private val historyViewModel: com.lenswise.app.features.history.presentation.HistoryViewModel by viewModels {
+        com.lenswise.app.features.history.presentation.HistoryViewModel.Factory
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.Theme_LensWise)
@@ -97,7 +100,8 @@ class MainActivity : ComponentActivity() {
                                     receiptScannerViewModel = receiptScannerViewModel,
                                     productLensViewModel = productLensViewModel,
                                     productComparisonViewModel = productComparisonViewModel,
-                                    menuScannerViewModel = menuScannerViewModel
+                                    menuScannerViewModel = menuScannerViewModel,
+                                    historyViewModel = historyViewModel
                                 )
                             }
                         }
@@ -120,7 +124,8 @@ fun AppNavigation(
     receiptScannerViewModel: ReceiptScannerViewModel,
     productLensViewModel: com.lenswise.app.features.product.presentation.ProductLensViewModel,
     productComparisonViewModel: com.lenswise.app.features.comparison.presentation.ProductComparisonViewModel,
-    menuScannerViewModel: com.lenswise.app.features.menu.presentation.MenuScannerViewModel
+    menuScannerViewModel: com.lenswise.app.features.menu.presentation.MenuScannerViewModel,
+    historyViewModel: com.lenswise.app.features.history.presentation.HistoryViewModel
 ) {
     var backStack by rememberSaveable(stateSaver = AppRouteListSaver) {
         mutableStateOf(listOf(AppRoute.Scanner))
@@ -152,7 +157,16 @@ fun AppNavigation(
                 ScannerScreen(
                     viewModel = scannerViewModel,
                     onNavigateToSettings = { navigator.push(AppRoute.Settings) },
-                    onNavigateToHistory = { navigator.push(AppRoute.History()) },
+                    onNavigateToHistory = {
+                        val tabIdx = when (scannerViewModel.uiState.value.currentMode) {
+                            ScannerMode.RECEIPT -> 0
+                            ScannerMode.PRODUCT -> 1
+                            ScannerMode.COMPARISON -> 2
+                            ScannerMode.MENU -> 3
+                        }
+                        historyViewModel.selectTab(tabIdx)
+                        navigator.push(AppRoute.History(initialTab = tabIdx))
+                    },
                     onNavigateToViewer = { navigator.push(AppRoute.CapturedViewer) },
                     onStartAnalysis = { mode, images ->
                         when (mode) {
@@ -277,6 +291,7 @@ fun AppNavigation(
             is AppRoute.History -> {
                 HistoryScreen(
                     initialTab = route.initialTab,
+                    viewModel = historyViewModel,
                     onNavigateToReceiptDetail = { record ->
                         navigator.push(AppRoute.ReceiptDetail(record = record, isLiveSession = false))
                     },

@@ -1,4 +1,4 @@
-﻿package com.lenswise.app.features.comparison.presentation
+package com.lenswise.app.features.comparison.presentation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.haze
+import com.lenswise.app.core.image.SessionImageResolver
 import com.lenswise.app.domain.model.comparison.ProductComparisonRecord
 import com.lenswise.app.features.comparison.agent.ComparisonChatPrompts
 import com.lenswise.app.features.comparison.presentation.components.AiVerdictBottomSheet
@@ -83,24 +84,19 @@ fun ComparisonResultScreen(
     var showContendersSheet by remember { mutableStateOf(false) }
     var showChatSheet by remember { mutableStateOf(false) }
 
-    val totalProductCount = when {
-        effectiveRecord.imagePaths.isNotEmpty() -> effectiveRecord.imagePaths.size
-        state?.capturedImages?.isNotEmpty() == true -> state.capturedImages.size
-        else -> effectiveRecord.products.size
+    val capturedImages = state?.capturedImages ?: viewModel?.uiState?.value?.capturedImages
+    val imageResolver = remember(effectiveRecord.imagePaths, capturedImages) {
+        SessionImageResolver(
+            memoryImages = capturedImages,
+            imagePaths = effectiveRecord.imagePaths
+        )
     }
 
-    // 固化圖片來源解析器，串流期間保持穩定
-    val getImageModel: (Int) -> Any? = remember(effectiveRecord.id) {
-        val paths = effectiveRecord.imagePaths
-        val captured = state?.capturedImages ?: viewModel?.uiState?.value?.capturedImages
-        val resolver: (Int) -> Any? = { idx ->
-            when {
-                idx < paths.size -> File(paths[idx])
-                captured != null && idx < captured.size -> captured[idx].byteArray
-                else -> null
-            }
-        }
-        resolver
+    val totalProductCount = maxOf(imageResolver.count, effectiveRecord.products.size)
+
+    // 固化圖片來源解析器，以 File 原生類型供 Coil 毫秒級載入
+    val getImageModel: (Int) -> Any? = remember(imageResolver) {
+        { idx -> imageResolver.resolveFile(idx) }
     }
 
     val hazeState = remember { HazeState() }

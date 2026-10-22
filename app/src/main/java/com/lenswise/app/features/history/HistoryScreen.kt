@@ -1,4 +1,4 @@
-﻿package com.lenswise.app.features.history
+package com.lenswise.app.features.history
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,44 +25,43 @@ import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.lenswise.app.LensWiseApplication
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lenswise.app.domain.model.comparison.ProductComparisonRecord
 import com.lenswise.app.domain.model.history.HistoryTabConfig
 import com.lenswise.app.domain.model.menu.MenuScannerRecord
 import com.lenswise.app.domain.model.product.ProductLensRecord
 import com.lenswise.app.domain.model.receipt.ReceiptScannerRecord
-import com.lenswise.app.presentation.components.LensWisePillTabBar
-import com.lenswise.app.presentation.components.PremiumEmptyState
-import com.lenswise.app.presentation.components.SwipeToConfirmDrawer
 import com.lenswise.app.features.history.components.ComparisonHistoryCard
 import com.lenswise.app.features.history.components.MenuHistoryCard
 import com.lenswise.app.features.history.components.ProductHistoryCard
 import com.lenswise.app.features.history.components.ReceiptHistoryCard
+import com.lenswise.app.features.history.presentation.HistoryViewModel
+import com.lenswise.app.presentation.components.LensWisePillTabBar
+import com.lenswise.app.presentation.components.PremiumEmptyState
+import com.lenswise.app.presentation.components.SwipeToConfirmDrawer
 import com.lenswise.app.presentation.theme.AppColors
-import kotlinx.coroutines.launch
 
 /**
  * 統一歷史紀錄畫面 (HistoryScreen)。
  * 1:1 復刻 LensWise Flutter 版 UnifiedHistoryPage：
  * 頂部支援 4 大核心業務膠囊分頁（收據、商品、對比、菜單），
  * 具備精美空狀態插畫、專屬卡片列表與懸浮垃圾桶滑動抹除抽屜 (SwipeToConfirmDrawer)。
+ *
+ * 架構保證：
+ * 由 HistoryViewModel 完整守護頁籤狀態與資料流，點進細項後返回保證保持於當前選中 Tab，杜絕重置回收據之缺陷。
  */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
     initialTab: Int = 0,
+    viewModel: HistoryViewModel? = null,
     onNavigateToReceiptDetail: (ReceiptScannerRecord) -> Unit = {},
     onNavigateToProductDetail: (ProductLensRecord) -> Unit = {},
     onNavigateToComparisonResult: (ProductComparisonRecord) -> Unit = {},
@@ -70,16 +69,9 @@ fun HistoryScreen(
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
-    val context = LocalContext.current
-    val app = context.applicationContext as LensWiseApplication
-    val receiptRepo = app.receiptHistoryRepository
-    val productRepo = app.productHistoryRepository
-    val comparisonRepo = app.comparisonHistoryRepository
-    val menuRepo = app.menuHistoryRepository
-    val scope = rememberCoroutineScope()
-
-    var selectedTabIndex by remember { mutableIntStateOf(initialTab) }
-    var showClearDrawer by remember { mutableStateOf(false) }
+    val vm: HistoryViewModel = viewModel ?: viewModel(factory = HistoryViewModel.Factory)
+    val uiState by vm.uiState.collectAsState()
+    val selectedTabIndex = uiState.selectedTabIndex
 
     val tabs = remember {
         listOf(
@@ -119,10 +111,10 @@ fun HistoryScreen(
     }
 
     val currentTab = tabs[selectedTabIndex.coerceIn(0, tabs.size - 1)]
-    val receipts by receiptRepo.receiptsFlow.collectAsState()
-    val products by productRepo.productsFlow.collectAsState()
-    val comparisons by comparisonRepo.comparisonsFlow.collectAsState()
-    val menus by menuRepo.menusFlow.collectAsState()
+    val receipts by vm.receipts.collectAsState()
+    val products by vm.products.collectAsState()
+    val comparisons by vm.comparisons.collectAsState()
+    val menus by vm.menus.collectAsState()
 
     val hasActiveRecords = when (selectedTabIndex) {
         0 -> receipts.isNotEmpty()
@@ -132,21 +124,13 @@ fun HistoryScreen(
         else -> false
     }
 
-    if (showClearDrawer) {
+    if (uiState.showClearDrawer) {
         SwipeToConfirmDrawer(
             title = "CLEAR ${currentTab.tabName.uppercase()} HISTORY",
             onConfirm = {
-                scope.launch {
-                    when (selectedTabIndex) {
-                        0 -> receiptRepo.clearAll()
-                        1 -> productRepo.clearAll()
-                        2 -> comparisonRepo.clearAll()
-                        3 -> menuRepo.clearAll()
-                    }
-                    showClearDrawer = false
-                }
+                vm.clearCurrentTab()
             },
-            onDismiss = { showClearDrawer = false }
+            onDismiss = { vm.closeClearDrawer() }
         )
     }
 
@@ -161,7 +145,7 @@ fun HistoryScreen(
             LensWisePillTabBar(
                 items = tabs,
                 selectedIndex = selectedTabIndex,
-                onItemSelected = { selectedTabIndex = it },
+                onItemSelected = { vm.selectTab(it) },
                 itemTitle = { it.tabName },
                 itemIcon = { it.tabIcon }
             )
@@ -280,7 +264,7 @@ fun HistoryScreen(
                             color = if (isDark) Color.White.copy(alpha = 0.15f) else Color.Black.copy(alpha = 0.08f),
                             shape = CircleShape
                         )
-                        .clickable { showClearDrawer = true },
+                        .clickable { vm.openClearDrawer() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -294,4 +278,3 @@ fun HistoryScreen(
         }
     }
 }
-

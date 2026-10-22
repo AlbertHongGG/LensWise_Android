@@ -1,4 +1,4 @@
-﻿package com.lenswise.app.features.scanner.components
+package com.lenswise.app.features.scanner.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,13 +20,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-
+import com.lenswise.app.presentation.theme.GlassStyle
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeChild
 
 /**
  * 快門左側相簿挑選按鈕。
- * 採 1:1 白透磨砂毛玻璃質感搭配實心圓角相簿圖示。
+ * 1:1 復刻 LensWise 經典亮白擬毛玻璃質感 (Pure White Frosted Glass)：
+ * 56x56 圓形、純白 55% 透光遮罩、12dp 零雜訊即時高斯模糊取樣、0.5dp 精緻光澤白邊與柔和向下微陰影 (無黑邊)。
  */
 @Composable
 fun GalleryPickerButton(
@@ -36,28 +38,36 @@ fun GalleryPickerButton(
     modifier: Modifier = Modifier,
     hazeState: HazeState? = null
 ) {
+    val style = remember { GlassStyle.galleryButton() }
+
     Box(
         modifier = modifier
             .size(56.dp)
             .shadow(
-                elevation = 8.dp,
+                elevation = 6.dp,
                 shape = CircleShape,
-                ambientColor = Color.Black.copy(alpha = 0.25f),
-                spotColor = Color.Black.copy(alpha = 0.35f)
+                clip = false,
+                ambientColor = Color.Transparent,
+                spotColor = Color.Black.copy(alpha = 0.10f)
             )
             .clip(CircleShape)
             .then(
                 if (hazeState != null) {
                     Modifier.hazeChild(state = hazeState) {
-                        blurRadius = 24.dp
-                        noiseFactor = 0.05f
-                        backgroundColor = Color.White.copy(alpha = 0.22f)
+                        blurRadius = style.blurRadius
+                        noiseFactor = style.noiseFactor
+                        this.backgroundColor = style.tintColor
+                        tints = listOf(HazeTint(style.tintColor))
                     }
                 } else {
-                    Modifier.background(Color.White.copy(alpha = 0.22f))
+                    Modifier.background(style.tintColor)
                 }
             )
-            .border(width = 0.5.dp, color = Color.White.copy(alpha = 0.35f), shape = CircleShape)
+            .border(
+                width = style.borderWidth,
+                color = style.borderColor,
+                shape = CircleShape
+            )
             .clickable(
                 enabled = !isLocked && !isLoading,
                 interactionSource = remember { MutableInteractionSource() },
@@ -68,7 +78,7 @@ fun GalleryPickerButton(
     ) {
         if (isLoading) {
             CircularProgressIndicator(
-                color = Color.White,
+                color = style.iconColor,
                 strokeWidth = 2.dp,
                 modifier = Modifier.size(24.dp)
             )
@@ -76,10 +86,9 @@ fun GalleryPickerButton(
             Icon(
                 imageVector = Icons.Rounded.PhotoLibrary,
                 contentDescription = "相簿挑選",
-                tint = Color.White,
+                tint = style.iconColor,
                 modifier = Modifier.size(26.dp)
             )
         }
     }
 }
-

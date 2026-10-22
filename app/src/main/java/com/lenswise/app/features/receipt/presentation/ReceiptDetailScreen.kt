@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.lenswise.app.core.image.SessionImageResolver
 import com.lenswise.app.domain.model.receipt.ReceiptScannerRecord
 import com.lenswise.app.features.receipt.agent.ReceiptChatPrompts
 import com.lenswise.app.features.receipt.presentation.components.ReceiptImageSheet
@@ -84,16 +85,12 @@ fun ReceiptDetailScreen(
 
     val isStreaming = isLiveSession && liveState.status == ReceiptScannerStatus.STREAMING
 
-    // 解析相片實體檔案
+    // 解析相片實體檔案（透過 SessionImageResolver 雙軌統一抽象）
     val imageFiles = remember(liveState.capturedImages, currentRecord.imagePaths) {
-        if (liveState.capturedImages.isNotEmpty()) {
-            liveState.capturedImages.map { it.file }
-        } else {
-            currentRecord.imagePaths.mapNotNull { path ->
-                val f = File(path)
-                if (f.exists()) f else null
-            }
-        }
+        SessionImageResolver(
+            memoryImages = liveState.capturedImages,
+            imagePaths = currentRecord.imagePaths
+        ).getAllFiles()
     }
 
     // 攔截系統返回鍵

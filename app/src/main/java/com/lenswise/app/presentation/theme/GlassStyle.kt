@@ -47,5 +47,21 @@ data class GlassStyle(
             borderColor = if (isDark) Color.White.copy(alpha = 0.15f) else Color.White,
             borderWidth = 1.5.dp
         )
+
+        /**
+         * 主畫面相簿挑選按鈕 (GalleryPickerButton) 專用毛玻璃樣式：
+         * 復刻精心設計的亮白擬毛玻璃質感 (Pure White Frosted Glass)：
+         * - 12dp 高斯模糊、0 雜訊 (消除顆粒感)
+         * - 純白 55% 遮罩透光、純白 35% 高光微邊框 (0.5dp)
+         * - 柔和向下微陰影 (spotColor 0.10f，杜絕粗黑黑邊)
+         */
+        fun galleryButton(): GlassStyle = GlassStyle(
+            blurRadius = 12.dp,
+            noiseFactor = 0f,
+            tintColor = Color.White.copy(alpha = 0.55f),
+            borderColor = Color.White.copy(alpha = 0.35f),
+            borderWidth = 0.5.dp,
+            iconColor = Color.White
+        )
     }
 }

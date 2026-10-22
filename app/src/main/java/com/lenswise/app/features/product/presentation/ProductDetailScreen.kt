@@ -1,4 +1,4 @@
-﻿package com.lenswise.app.features.product.presentation
+package com.lenswise.app.features.product.presentation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -35,7 +35,9 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.haze
+import com.lenswise.app.core.image.SessionImageResolver
 import com.lenswise.app.domain.model.product.ProductLensRecord
+import com.lenswise.app.features.product.presentation.components.ImmersiveBackground
 import com.lenswise.app.features.product.agent.ProductChatPrompts
 import com.lenswise.app.features.product.presentation.components.HeroTitleOverlay
 import com.lenswise.app.features.product.presentation.components.InteractiveDetailPanel
@@ -71,20 +73,17 @@ fun ProductDetailScreen(
         record
     }
 
-    // 固化圖片模型來源：在整個串流生命週期中保持唯一引用，徹底消除重組觸發 Coil 閃爍
-    val stableImageModel = remember(record.id) {
-        when {
-            record.imagePaths.isNotEmpty() -> File(record.imagePaths.first())
-            state?.capturedImages?.isNotEmpty() == true -> state.capturedImages.first().byteArray
-            viewModel?.uiState?.value?.capturedImages?.isNotEmpty() == true ->
-                viewModel.uiState.value.capturedImages.first().byteArray
-            else -> null
-        }
+    // 雙軌圖片來源解析器，以 File 原生類型供 Coil 毫秒級載入
+    val capturedImages = state?.capturedImages ?: viewModel?.uiState?.value?.capturedImages
+    val imageResolver = remember(effectiveRecord.imagePaths, capturedImages) {
+        SessionImageResolver(
+            memoryImages = capturedImages,
+            imagePaths = effectiveRecord.imagePaths
+        )
     }
 
     val hazeState = remember { HazeState() }
     var showChatSheet by remember { mutableStateOf(false) }
-    var imageRedrawTrigger by remember { mutableIntStateOf(0) }
     val scrollState = rememberScrollState()
 
     DisposableEffect(isLiveSession) {
@@ -102,37 +101,19 @@ fun ProductDetailScreen(
         modifier = modifier.fillMaxSize()
     ) { _ ->
         Box(modifier = Modifier.fillMaxSize()) {
-            // 1. 頂部 48% 高度商品大圖區塊（完全解耦於串流文字，維持 0 重繪）
+            // 1. 頂部 48% 高度沉浸式商品多圖輪播展演區塊 (1:1 對齊 Flutter 版 ImmersiveBackground)
             val topImageHeight = screenHeight * 0.48f
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(topImageHeight)
-                    .drawWithContent {
-                        if (imageRedrawTrigger >= 0) {
-                            drawContent()
-                        }
-                    }
                     .haze(state = hazeState)
             ) {
-                if (stableImageModel != null) {
-                    AsyncImage(
-                        model = stableImageModel,
-                        contentDescription = effectiveRecord.productName,
-                        contentScale = ContentScale.Crop,
-                        onSuccess = {
-                            imageRedrawTrigger++
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(if (isDark) Color(0xFF1E1E1E) else Color(0xFFE2E8F0))
-                    )
-                }
+                ImmersiveBackground(
+                    resolver = imageResolver,
+                    modifier = Modifier.fillMaxSize()
+                )
             }
 
             // 2. 底部 42% 高度開始交疊的資訊卡片 (32dp 頂部圓角、立體雙層陰影)
