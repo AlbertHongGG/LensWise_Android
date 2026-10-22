@@ -71,10 +71,12 @@ fun ComparisonResultScreen(
     val state = viewModel?.uiState?.collectAsState()?.value
     val isStreaming = isLiveSession && (state?.status == ProductComparisonStatus.STREAMING)
 
+    var localRecord by remember(record) { mutableStateOf(record) }
+
     val effectiveRecord = if (isLiveSession && state != null && state.record.comparisonPoints.isNotEmpty()) {
         state.record
     } else {
-        record
+        localRecord
     }
 
     var leftIndex by remember { mutableIntStateOf(0) }
@@ -264,10 +266,16 @@ fun ComparisonResultScreen(
                 AiChatBottomSheet(
                     title = "比對顧問",
                     initialMessage = ComparisonChatPrompts.getInitialMessage(),
+                    initialMessages = effectiveRecord.chatHistory,
                     systemContextPrompt = ComparisonChatPrompts.buildSystemPrompt(effectiveRecord),
                     onSendMessage = { request ->
                         chatAgent?.executeStream(request)
                             ?: kotlinx.coroutines.flow.flowOf("AI 比對顧問暫未就緒，請稍後重試。")
+                    },
+                    onMessagesUpdated = { updatedMessages ->
+                        val updated = effectiveRecord.copy(chatHistory = updatedMessages)
+                        localRecord = updated
+                        viewModel?.updateAndPersistRecord(updated)
                     },
                     onDismissRequest = { showChatSheet = false }
                 )

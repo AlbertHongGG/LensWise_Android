@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
@@ -36,12 +37,9 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.outlined.Mic
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -68,6 +66,9 @@ import com.lenswise.app.core.ai.model.AiChatRequest
 import com.lenswise.app.core.ai.model.ChatMessage
 import com.lenswise.app.core.voice.rememberVoiceRecognitionService
 import com.lenswise.app.presentation.components.markdown.LensWiseMarkdown
+import com.lenswise.app.presentation.components.orb.ThinkingOrb
+import com.lenswise.app.presentation.components.sheet.LensWiseFixedSheet
+import com.lenswise.app.presentation.components.sheet.LensWiseSheetHandle
 import com.lenswise.app.presentation.theme.AppColors
 import com.lenswise.app.presentation.theme.OutfitFontFamily
 import kotlinx.coroutines.flow.Flow
@@ -77,31 +78,34 @@ import java.util.UUID
 
 /**
  * 通用 AI 專屬顧問對話抽屜 (AiChatBottomSheet)。
- * 1:1 對齊 LensWise Flutter 版 ai_chat_bottom_sheet.dart 規格：
- * 1. 預設高質感 Light Mode（白底/極淺灰，頂部 32dp 圓弧，細緻卡片陰影）。
- * 2. 整合 Android 原生語音輸入（Speech-to-Text），具備麥克風動態光圈與實時語音打字串流。
- * 3. 整合獨立模組化 Markdown 渲染器 (LensWiseMarkdown)，支援標題、粗體、條列點與引用區塊。
- * 4. 具備流式漸進展開氣泡 (Streaming Bubble) 與輸入列自動鍵盤避讓 (imePadding) 與導航列避讓 (navigationBarsPadding)。
+ * 採用 LensWise 統一固定高度面板架構 (Type A: LensWiseFixedSheet)：
+ * 1. 88% 固定展開高度 (heightRatio = 0.88f)，手勢下拉具跟手抓住位移，放手未超額彈簧彈回原位，超額則平滑收合。
+ * 2. 內部對話清單滾動與面板高度 100% 解耦，滑動訊息記錄絕不會導致面板意外關閉。
+ * 3. 預設高質感 Light Mode（白底/極淺灰，頂部 32dp 圓弧，細緻卡片陰影）。
+ * 4. 整合 Android 原生語音輸入（Speech-to-Text），具備麥克風動態光圈與實時語音打字串流。
+ * 5. 整合 3D Thinking Orb 旋轉粒子球，單一思考氣泡，徹底消滅雙氣泡殘影。
+ * 6. 支援跨生命週期對話歷史持久化 (initialMessages 與 onMessagesUpdated)。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AiChatBottomSheet(
     title: String,
-    initialMessage: String,
+    initialMessage: String = "",
+    initialMessages: List<ChatMessage> = emptyList(),
     systemContextPrompt: String,
     onSendMessage: (AiChatRequest) -> Flow<String>,
+    onMessagesUpdated: ((List<ChatMessage>) -> Unit)? = null,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     placeholderText: String = "輸入想進一步探討的問題..."
 ) {
     val isDark = isSystemInDarkTheme()
     val context = LocalContext.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
     var inputText by remember { mutableStateOf("") }
     var isSending by remember { mutableStateOf(false) }
+    var isAwaitingFirstChunk by remember { mutableStateOf(false) }
 
     // 語音辨識服務整合
     val voiceService = rememberVoiceRecognitionService()
@@ -121,266 +125,296 @@ fun AiChatBottomSheet(
         }
     }
 
-    val messages = remember {
-        mutableStateListOf(
-            ChatMessage(
-                id = UUID.randomUUID().toString(),
-                text = initialMessage,
-                isUser = false
+    val messages = remember(initialMessages) {
+        val list = mutableStateListOf<ChatMessage>()
+        if (initialMessages.isNotEmpty()) {
+            list.addAll(initialMessages)
+        } else if (initialMessage.isNotBlank()) {
+            list.add(
+                ChatMessage(
+                    id = UUID.randomUUID().toString(),
+                    text = initialMessage,
+                    isUser = false
+                )
             )
-        )
+        }
+        list
     }
 
     val bgColor = if (isDark) Color(0xFF1E1E1E) else Color.White
     val contentColor = if (isDark) Color.White else Color(0xFF111827)
     val chatAreaBg = if (isDark) Color(0xFF121212) else Color(0xFFF8F9FA)
 
-    ModalBottomSheet(
+    LensWiseFixedSheet(
         onDismissRequest = {
             voiceService.stopListening()
+            onMessagesUpdated?.invoke(messages.toList())
             onDismissRequest()
         },
-        sheetState = sheetState,
-        containerColor = bgColor,
-        contentColor = contentColor,
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
         modifier = modifier,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .width(40.dp)
-                    .height(4.dp)
-                    .background(
-                        if (isDark) Color.White.copy(alpha = 0.24f) else Color.Black.copy(alpha = 0.12f),
-                        RoundedCornerShape(2.dp)
-                    )
-            )
-        }
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.88f)
-                .imePadding()
-        ) {
-            // 1. 頂部標題列 (1:1 對齊 Flutter 的 _buildHeader)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 6.dp)
-            ) {
-                Row(
-                    modifier = Modifier.align(Alignment.Center),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(AppColors.primary.copy(alpha = 0.12f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = null,
-                            tint = AppColors.primary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = title,
-                        fontFamily = OutfitFontFamily,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 17.sp,
-                        color = contentColor
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // 2. 對話訊息滾動區塊
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .background(chatAreaBg)
-            ) {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        horizontal = 16.dp,
-                        vertical = 16.dp
-                    )
-                ) {
-                    items(messages, key = { it.id }) { msg ->
-                        ChatBubbleRow(
-                            message = msg,
-                            isDark = isDark
-                        )
-                        Spacer(modifier = Modifier.height(14.dp))
-                    }
-
-                    // 思考中提示氣泡
-                    if (isSending && (messages.lastOrNull()?.text?.isEmpty() == true)) {
-                        item {
-                            ThinkingBubble(isDark = isDark)
-                            Spacer(modifier = Modifier.height(14.dp))
-                        }
-                    }
-                }
-            }
-
-            LaunchedEffect(messages.size, messages.lastOrNull()?.text) {
-                if (messages.isNotEmpty()) {
-                    listState.animateScrollToItem(messages.size - 1)
-                }
-            }
-
-            // 3. 底部輸入控制列 (具備 Light Mode 白底、麥克風語音輸入與鍵盤/導航避讓)
-            Box(
-                modifier = Modifier
+        heightRatio = 0.88f,
+        hasScrim = true,
+        headerContent = { dragModifier ->
+            // 將頂部把手與顧問標題列整塊作為拖曳感應區
+            Column(
+                modifier = dragModifier
                     .fillMaxWidth()
                     .background(bgColor)
-                    .navigationBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
             ) {
-                val inputContainerBg = if (isDark) Color(0xFF2A2A2A) else Color(0xFFF1F5F9)
-                val inputBorderColor = if (isDark) Color.White.copy(0.12f) else Color.Black.copy(0.08f)
+                LensWiseSheetHandle(isDark = isDark)
 
-                Row(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(inputContainerBg, RoundedCornerShape(24.dp))
-                        .border(1.dp, inputBorderColor, RoundedCornerShape(24.dp))
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(horizontal = 20.dp, vertical = 6.dp)
                 ) {
-                    // 輸入文字方塊
-                    BasicTextField(
-                        value = inputText,
-                        onValueChange = { inputText = it },
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = 8.dp, vertical = 8.dp),
-                        textStyle = TextStyle(
-                            color = contentColor,
-                            fontSize = 15.sp,
-                            fontFamily = OutfitFontFamily
-                        ),
-                        cursorBrush = SolidColor(AppColors.primary),
-                        decorationBox = { innerTextField ->
-                            if (inputText.isEmpty()) {
-                                Text(
-                                    text = if (voiceState.isListening) "聆聽中..." else placeholderText,
-                                    color = if (voiceState.isListening) AppColors.primary else if (isDark) Color.White.copy(0.35f) else Color.Black.copy(0.35f),
-                                    fontSize = 14.5.sp,
-                                    fontFamily = OutfitFontFamily
-                                )
-                            }
-                            innerTextField()
-                        }
-                    )
-
-                    // 語音輸入按鈕 (麥克風)
-                    val isListening = voiceState.isListening
-                    IconButton(
-                        onClick = {
-                            if (isListening) {
-                                voiceService.stopListening()
-                            } else {
-                                val hasAudioPermission = ContextCompat.checkSelfPermission(
-                                    context,
-                                    Manifest.permission.RECORD_AUDIO
-                                ) == PackageManager.PERMISSION_GRANTED
-
-                                if (hasAudioPermission) {
-                                    baseTypedText = inputText.trim()
-                                    voiceService.startListening { text, isFinal ->
-                                        val combined = if (baseTypedText.isBlank()) text else "$baseTypedText $text"
-                                        inputText = combined
-                                    }
-                                } else {
-                                    permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                                }
-                            }
-                        },
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(if (isListening) AppColors.primary.copy(alpha = 0.15f) else Color.Transparent)
+                    Row(
+                        modifier = Modifier.align(Alignment.Center),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = if (isListening) Icons.Default.Mic else Icons.Outlined.Mic,
-                            contentDescription = "語音輸入",
-                            tint = if (isListening) AppColors.primary else if (isDark) Color.White.copy(0.6f) else Color(0xFF6B7280),
-                            modifier = Modifier.size(20.dp)
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(AppColors.primary.copy(alpha = 0.12f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                tint = AppColors.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = title,
+                            fontFamily = OutfitFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 17.sp,
+                            color = contentColor
                         )
                     }
+                }
 
-                    // 發送按鈕
-                    IconButton(
-                        onClick = {
-                            val query = inputText.trim()
-                            if (query.isNotEmpty() && !isSending) {
-                                if (voiceState.isListening) {
-                                    voiceService.stopListening()
-                                }
-                                inputText = ""
-                                baseTypedText = ""
-                                isSending = true
-
-                                val userMsg = ChatMessage(text = query, isUser = true)
-                                messages.add(userMsg)
-
-                                val aiMsgId = UUID.randomUUID().toString()
-                                val aiMsg = ChatMessage(id = aiMsgId, text = "", isUser = false)
-                                messages.add(aiMsg)
-
-                                scope.launch {
-                                    val chatRequest = AiChatRequest(
-                                        systemContextPrompt = systemContextPrompt,
-                                        history = messages.dropLast(2),
-                                        newQuery = query
-                                    )
-
-                                    val buffer = StringBuilder()
-                                    onSendMessage(chatRequest)
-                                        .catch { err ->
-                                            val idx = messages.indexOfFirst { it.id == aiMsgId }
-                                            if (idx != -1) {
-                                                messages[idx] = messages[idx].copy(text = "回應失敗: ${err.localizedMessage}")
-                                            }
-                                            isSending = false
-                                        }
-                                        .collect { chunk ->
-                                            buffer.append(chunk)
-                                            val idx = messages.indexOfFirst { it.id == aiMsgId }
-                                            if (idx != -1) {
-                                                messages[idx] = messages[idx].copy(text = buffer.toString())
-                                            }
-                                        }
-                                    isSending = false
-                                }
-                            }
-                        },
-                        enabled = inputText.isNotBlank() && !isSending,
-                        modifier = Modifier.size(38.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "發送",
-                            tint = if (inputText.isNotBlank() && !isSending) AppColors.primary else Color.Gray.copy(alpha = 0.4f),
-                            modifier = Modifier.size(19.dp)
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+        },
+        content = {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .imePadding()
+            ) {
+                // 2. 對話訊息滾動區塊 (獨立滾動，絕不牽動抽屜高度)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .background(chatAreaBg)
+                ) {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            horizontal = 16.dp,
+                            vertical = 16.dp
                         )
+                    ) {
+                        items(messages, key = { it.id }) { msg ->
+                            ChatBubbleRow(
+                                message = msg,
+                                isDark = isDark
+                            )
+                            Spacer(modifier = Modifier.height(14.dp))
+                        }
+
+                        // 思考中提示氣泡 (僅在等待第一批文字 chunk 到達前展示，且為畫面上唯一氣泡，絕無雙氣泡殘影)
+                        if (isAwaitingFirstChunk) {
+                            item(key = "thinking_bubble") {
+                                ThinkingBubble(isDark = isDark)
+                                Spacer(modifier = Modifier.height(14.dp))
+                            }
+                        }
+                    }
+                }
+
+                LaunchedEffect(messages.size, messages.lastOrNull()?.text, isAwaitingFirstChunk) {
+                    val totalCount = messages.size + if (isAwaitingFirstChunk) 1 else 0
+                    if (totalCount > 0) {
+                        listState.animateScrollToItem(totalCount - 1)
+                    }
+                }
+
+                // 3. 底部輸入控制列 (具備 Light Mode 白底、麥克風語音輸入與鍵盤/導航避讓)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(bgColor)
+                        .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                ) {
+                    val inputContainerBg = if (isDark) Color(0xFF2A2A2A) else Color(0xFFF1F5F9)
+                    val inputBorderColor = if (isDark) Color.White.copy(0.12f) else Color.Black.copy(0.08f)
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(inputContainerBg, RoundedCornerShape(24.dp))
+                            .border(1.dp, inputBorderColor, RoundedCornerShape(24.dp))
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // 輸入文字方塊
+                        BasicTextField(
+                            value = inputText,
+                            onValueChange = { inputText = it },
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 8.dp, vertical = 8.dp),
+                            textStyle = TextStyle(
+                                color = contentColor,
+                                fontSize = 15.sp,
+                                fontFamily = OutfitFontFamily
+                            ),
+                            cursorBrush = SolidColor(AppColors.primary),
+                            decorationBox = { innerTextField ->
+                                if (inputText.isEmpty()) {
+                                    Text(
+                                        text = if (voiceState.isListening) "聆聽中..." else placeholderText,
+                                        color = if (voiceState.isListening) AppColors.primary else if (isDark) Color.White.copy(0.35f) else Color.Black.copy(0.35f),
+                                        fontSize = 14.5.sp,
+                                        fontFamily = OutfitFontFamily
+                                    )
+                                }
+                                innerTextField()
+                            }
+                        )
+
+                        // 語音輸入按鈕 (麥克風)
+                        val isListening = voiceState.isListening
+                        IconButton(
+                            onClick = {
+                                if (isListening) {
+                                    voiceService.stopListening()
+                                } else {
+                                    val hasAudioPermission = ContextCompat.checkSelfPermission(
+                                        context,
+                                        Manifest.permission.RECORD_AUDIO
+                                    ) == PackageManager.PERMISSION_GRANTED
+
+                                    if (hasAudioPermission) {
+                                        baseTypedText = inputText.trim()
+                                        voiceService.startListening { text, isFinal ->
+                                            val combined = if (baseTypedText.isBlank()) text else "$baseTypedText $text"
+                                            inputText = combined
+                                        }
+                                    } else {
+                                        permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                    }
+                                }
+                            },
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(if (isListening) AppColors.primary.copy(alpha = 0.15f) else Color.Transparent)
+                        ) {
+                            Icon(
+                                imageVector = if (isListening) Icons.Default.Mic else Icons.Outlined.Mic,
+                                contentDescription = "語音輸入",
+                                tint = if (isListening) AppColors.primary else if (isDark) Color.White.copy(0.6f) else Color(0xFF6B7280),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        // 發送按鈕
+                        IconButton(
+                            onClick = {
+                                val query = inputText.trim()
+                                if (query.isNotEmpty() && !isSending) {
+                                    if (voiceState.isListening) {
+                                        voiceService.stopListening()
+                                    }
+                                    inputText = ""
+                                    baseTypedText = ""
+                                    isSending = true
+                                    isAwaitingFirstChunk = true
+
+                                    val userMsg = ChatMessage(text = query, isUser = true)
+                                    messages.add(userMsg)
+                                    onMessagesUpdated?.invoke(messages.toList())
+
+                                    val aiMsgId = UUID.randomUUID().toString()
+
+                                    scope.launch {
+                                        val chatRequest = AiChatRequest(
+                                            systemContextPrompt = systemContextPrompt,
+                                            history = messages.dropLast(1),
+                                            newQuery = query
+                                        )
+
+                                        val buffer = StringBuilder()
+                                        onSendMessage(chatRequest)
+                                            .catch { err ->
+                                                if (isAwaitingFirstChunk) {
+                                                    isAwaitingFirstChunk = false
+                                                    messages.add(
+                                                        ChatMessage(
+                                                            id = aiMsgId,
+                                                            text = "回應失敗: ${err.localizedMessage ?: "未知錯誤"}",
+                                                            isUser = false
+                                                        )
+                                                    )
+                                                } else {
+                                                    val idx = messages.indexOfFirst { it.id == aiMsgId }
+                                                    if (idx != -1) {
+                                                        messages[idx] = messages[idx].copy(
+                                                            text = "回應失敗: ${err.localizedMessage ?: "未知錯誤"}"
+                                                        )
+                                                    }
+                                                }
+                                                isSending = false
+                                                onMessagesUpdated?.invoke(messages.toList())
+                                            }
+                                            .collect { chunk ->
+                                                buffer.append(chunk)
+                                                if (isAwaitingFirstChunk) {
+                                                    isAwaitingFirstChunk = false
+                                                    messages.add(
+                                                        ChatMessage(
+                                                            id = aiMsgId,
+                                                            text = buffer.toString(),
+                                                            isUser = false
+                                                        )
+                                                    )
+                                                } else {
+                                                    val idx = messages.indexOfFirst { it.id == aiMsgId }
+                                                    if (idx != -1) {
+                                                        messages[idx] = messages[idx].copy(text = buffer.toString())
+                                                    }
+                                                }
+                                            }
+                                        isAwaitingFirstChunk = false
+                                        isSending = false
+                                        onMessagesUpdated?.invoke(messages.toList())
+                                    }
+                                }
+                            },
+                            enabled = inputText.isNotBlank() && !isSending,
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = "發送",
+                                tint = if (inputText.isNotBlank() && !isSending) AppColors.primary else Color.Gray.copy(alpha = 0.4f),
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
                     }
                 }
             }
         }
-    }
+    )
 }
 
 /**
@@ -503,12 +537,13 @@ private fun ChatBubbleRow(
 
 /**
  * AI 思考中狀態氣泡。
+ * 整合 3D ThinkingOrb 旋轉粒子球，左下角對齊，1:1 對齊正常 AI 訊息氣泡幾何結構。
  */
 @Composable
 private fun ThinkingBubble(isDark: Boolean) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
+        initialValue = 0.5f,
         targetValue = 1.0f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 700),
@@ -520,30 +555,51 @@ private fun ThinkingBubble(isDark: Boolean) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Start,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.Bottom
     ) {
-        Box(
-            modifier = Modifier
-                .size(30.dp)
-                .clip(CircleShape)
-                .background(AppColors.primary.copy(alpha = 0.12f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.AutoAwesome,
-                contentDescription = null,
-                tint = AppColors.primary,
-                modifier = Modifier.size(16.dp)
-            )
-        }
+        ThinkingOrb(
+            size = 30.dp,
+            isDark = isDark,
+            modifier = Modifier.padding(bottom = 2.dp)
+        )
 
         Spacer(modifier = Modifier.width(8.dp))
 
+        val aiBubbleBg = if (isDark) Color(0xFF262626) else Color.White
+        val aiBubbleBorder = if (isDark) Color.White.copy(0.08f) else Color.Black.copy(0.06f)
+
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(16.dp))
-                .background(if (isDark) Color(0xFF262626) else Color.White)
-                .padding(horizontal = 14.dp, vertical = 8.dp)
+                .shadow(
+                    elevation = if (isDark) 0.dp else 2.dp,
+                    shape = RoundedCornerShape(
+                        topStart = 20.dp,
+                        topEnd = 20.dp,
+                        bottomStart = 4.dp,
+                        bottomEnd = 20.dp
+                    ),
+                    spotColor = Color.Black.copy(0.08f)
+                )
+                .clip(
+                    RoundedCornerShape(
+                        topStart = 20.dp,
+                        topEnd = 20.dp,
+                        bottomStart = 4.dp,
+                        bottomEnd = 20.dp
+                    )
+                )
+                .background(aiBubbleBg)
+                .border(
+                    width = 1.dp,
+                    color = aiBubbleBorder,
+                    shape = RoundedCornerShape(
+                        topStart = 20.dp,
+                        topEnd = 20.dp,
+                        bottomStart = 4.dp,
+                        bottomEnd = 20.dp
+                    )
+                )
+                .padding(horizontal = 16.dp, vertical = 12.dp)
                 .alpha(alpha)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -557,9 +613,9 @@ private fun ThinkingBubble(isDark: Boolean) {
                 Text(
                     text = "AI 深度思考中...",
                     fontFamily = OutfitFontFamily,
-                    fontSize = 13.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = AppColors.primary
+                    color = if (isDark) Color.White.copy(alpha = 0.85f) else Color(0xFF1E293B)
                 )
             }
         }

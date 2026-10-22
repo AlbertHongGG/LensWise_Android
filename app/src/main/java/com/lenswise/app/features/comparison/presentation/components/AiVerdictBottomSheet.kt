@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -18,11 +18,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,16 +32,19 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lenswise.app.presentation.components.StreamingSkeleton
+import com.lenswise.app.presentation.components.sheet.LensWiseAdjustableDrawer
+import com.lenswise.app.presentation.components.sheet.LensWiseSheetHandle
 import com.lenswise.app.presentation.theme.AppColors
 
 /**
  * AI 決策與推薦總結抽屜 (AiVerdictBottomSheet)。
- * 1:1 對齊 LensWise Flutter 版 _showAiVerdictSheet：
- * - 兩段式高度：剛彈出時佔 60% (PartiallyExpanded)，使用者往上滑動時平滑展開至 85%
- * - 串流中繼骨架屏 (3 行 20dp 骨架)
- * - 結構化 Markdown 渲染 (## 核心結論、## 選購指南、## 關鍵取捨與避坑)。
+ * 採用 LensWise 統一可調整抽屜架構 (Type B: LensWiseAdjustableDrawer)：
+ * - 首次開啟預設佔 60% 高度 (defaultHeightRatio = 0.60f)
+ * - 頂部拉桿與標題列大面積拖曳，支援拉到任意高度自由停放
+ * - Body 內容完全解耦：滑動長文 Markdown 絕對不影響抽屜高度，徹底杜絕截斷與懸空 Bug
+ * - 唯有向下拖拉至底部緩衝門檻 (< 0.20f) 才觸發平滑收合關閉
+ * - 串流中繼骨架屏與結構化 Markdown 渲染維持 100% 現有設計
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AiVerdictBottomSheet(
     summary: String,
@@ -53,54 +53,61 @@ fun AiVerdictBottomSheet(
 ) {
     val isDark = isSystemInDarkTheme()
 
-    ModalBottomSheet(
+    LensWiseAdjustableDrawer(
         onDismissRequest = onDismissRequest,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
-        containerColor = if (isDark) Color(0xFF1E1E1E) else Color.White,
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-        modifier = modifier
-            .fillMaxWidth()
-            .fillMaxHeight(0.85f)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 36.dp)
-        ) {
-            // 標題列
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(bottom = 24.dp)
+        modifier = modifier,
+        defaultHeightRatio = 0.60f,
+        maxHeightRatio = 0.90f,
+        hasScrim = true,
+        headerContent = { dragModifier ->
+            // 把手與標題整塊作為拖曳感應區
+            Column(
+                modifier = dragModifier.fillMaxWidth()
             ) {
-                Box(
+                LensWiseSheetHandle(isDark = isDark)
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(AppColors.primary.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 16.dp, top = 4.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.AutoAwesome,
-                        contentDescription = null,
-                        tint = AppColors.primary,
-                        modifier = Modifier.size(20.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(AppColors.primary.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            tint = AppColors.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Text(
+                        text = "AI 推薦總結",
+                        style = androidx.compose.ui.text.TextStyle(
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDark) Color.White else Color(0xFF111418),
+                            letterSpacing = 0.5.sp
+                        )
                     )
                 }
-                Spacer(modifier = Modifier.width(14.dp))
-                Text(
-                    text = "AI 推薦總結",
-                    style = androidx.compose.ui.text.TextStyle(
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isDark) Color.White else Color(0xFF111418),
-                        letterSpacing = 0.5.sp
-                    )
-                )
             }
-
+        },
+        content = {
+            // Body 槽位：Markdown 內容獨立滾動，與抽屜高度手勢完全解耦
             if (summary.isBlank()) {
-                Column(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                ) {
                     StreamingSkeleton(modifier = Modifier.fillMaxWidth(), height = 20.dp, isDark = isDark)
                     Spacer(modifier = Modifier.height(12.dp))
                     StreamingSkeleton(modifier = Modifier.fillMaxWidth(), height = 20.dp, isDark = isDark)
@@ -111,8 +118,10 @@ fun AiVerdictBottomSheet(
                 val scrollState = rememberScrollState()
                 Column(
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .fillMaxSize()
                         .verticalScroll(scrollState)
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 36.dp)
                 ) {
                     RenderStructuredVerdictMarkdown(
                         markdown = summary,
@@ -121,7 +130,7 @@ fun AiVerdictBottomSheet(
                 }
             }
         }
-    }
+    )
 }
 
 /**

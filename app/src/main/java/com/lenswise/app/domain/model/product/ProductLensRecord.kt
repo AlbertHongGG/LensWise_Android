@@ -1,6 +1,7 @@
 package com.lenswise.app.domain.model.product
 
 import android.os.Parcelable
+import com.lenswise.app.core.ai.model.ChatMessage
 import com.lenswise.app.domain.model.history.IHistoryRecord
 import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
@@ -25,7 +26,8 @@ data class ProductLensRecord(
     val dietaryFlags: List<String> = emptyList(),
     val whenRecommended: List<String> = emptyList(),
     val whenNotRecommended: List<String> = emptyList(),
-    override val imagePaths: List<String> = emptyList()
+    override val imagePaths: List<String> = emptyList(),
+    val chatHistory: List<ChatMessage> = emptyList()
 ) : IHistoryRecord, Parcelable {
 
     override val displayTitle: String

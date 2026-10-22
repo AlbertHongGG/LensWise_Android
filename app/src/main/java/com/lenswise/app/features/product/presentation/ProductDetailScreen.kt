@@ -67,10 +67,12 @@ fun ProductDetailScreen(
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
 
     val state = viewModel?.uiState?.collectAsState()?.value
+    var localRecord by remember(record) { mutableStateOf(record) }
+
     val effectiveRecord = if (isLiveSession && state != null && state.record.productName.isNotBlank()) {
         state.record
     } else {
-        record
+        localRecord
     }
 
     // 雙軌圖片來源解析器，以 File 原生類型供 Coil 毫秒級載入
@@ -170,10 +172,16 @@ fun ProductDetailScreen(
                 AiChatBottomSheet(
                     title = "商品顧問",
                     initialMessage = ProductChatPrompts.getInitialMessage(),
+                    initialMessages = effectiveRecord.chatHistory,
                     systemContextPrompt = ProductChatPrompts.buildSystemContextPrompt(effectiveRecord),
                     onSendMessage = { request ->
                         chatAgent?.executeStream(request)
                             ?: kotlinx.coroutines.flow.flowOf("AI 顧問暫未就緒，請稍後重試。")
+                    },
+                    onMessagesUpdated = { updatedMessages ->
+                        val updated = effectiveRecord.copy(chatHistory = updatedMessages)
+                        localRecord = updated
+                        viewModel?.updateRecord(updated)
                     },
                     onDismissRequest = { showChatSheet = false }
                 )

@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -39,11 +40,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.lenswise.app.core.image.SessionImageResolver
 import com.lenswise.app.domain.model.menu.MenuScannerRecord
 import com.lenswise.app.features.menu.agent.MenuChatPrompts
 import com.lenswise.app.features.menu.presentation.components.MenuHeaderSection
 import com.lenswise.app.features.menu.presentation.components.MenuListSection
+import com.lenswise.app.features.receipt.presentation.components.ReceiptImageSheet
 import com.lenswise.app.presentation.components.chat.AiChatBottomSheet
+import java.io.File
 
 /**
  * 菜單掃描結果與品項清單畫面 (MenuResultScreen)。
@@ -66,12 +70,26 @@ fun MenuResultScreen(
     val state = viewModel?.uiState?.collectAsState()?.value
     val isStreaming = isLiveSession && (state?.status == MenuScannerStatus.STREAMING)
 
+    var localRecord by remember(record) { mutableStateOf(record) }
+
     val effectiveRecord = if (isLiveSession && state != null && state.record.items.isNotEmpty()) {
         state.record
     } else {
-        record
+        localRecord
     }
 
+    val capturedImages = state?.capturedImages ?: viewModel?.uiState?.value?.capturedImages
+    val imageResolver = remember(effectiveRecord.imagePaths, capturedImages) {
+        SessionImageResolver(
+            memoryImages = capturedImages,
+            imagePaths = effectiveRecord.imagePaths
+        )
+    }
+    val imageFiles = remember(imageResolver) {
+        imageResolver.getAllFiles()
+    }
+
+    var showImageSheet by remember { mutableStateOf(false) }
     var showChatSheet by remember { mutableStateOf(false) }
 
     DisposableEffect(isLiveSession) {
@@ -130,34 +148,70 @@ fun MenuResultScreen(
                 }
             }
 
-            // 2. 底部懸浮 Squircle 按鈕 (56x56 圓角方塊按鈕)
+            // 2. 底部懸浮 Squircle 按鈕組 (56x56 圓角方塊按鈕)
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
-                    .padding(bottom = 24.dp)
+                    .padding(bottom = 28.dp)
             ) {
                 val buttonBg = if (isDark) Color(0xFF2C2C2E) else Color(0xFF1F2937)
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .shadow(
-                            elevation = 16.dp,
-                            shape = RoundedCornerShape(16.dp),
-                            spotColor = buttonBg.copy(alpha = 0.35f)
-                        )
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(buttonBg)
-                        .clickable { showChatSheet = true },
-                    contentAlignment = Alignment.Center
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.AutoAwesome,
-                        contentDescription = "AI 美食顧問對話",
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    if (imageFiles.isNotEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .shadow(
+                                    elevation = 16.dp,
+                                    shape = RoundedCornerShape(16.dp),
+                                    spotColor = buttonBg.copy(alpha = 0.35f)
+                                )
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(buttonBg)
+                                .clickable { showImageSheet = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Image,
+                                contentDescription = "檢視菜單原圖",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .shadow(
+                                elevation = 16.dp,
+                                shape = RoundedCornerShape(16.dp),
+                                spotColor = buttonBg.copy(alpha = 0.35f)
+                            )
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(buttonBg)
+                            .clickable { showChatSheet = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = "AI 美食顧問對話",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
+            }
+
+            // 3. 原圖檢視抽屜
+            if (showImageSheet) {
+                ReceiptImageSheet(
+                    imageFiles = imageFiles,
+                    onDismissRequest = { showImageSheet = false }
+                )
             }
 
             // 4. AI 深度對話顧問抽屜
@@ -166,10 +220,16 @@ fun MenuResultScreen(
                 AiChatBottomSheet(
                     title = "菜單顧問",
                     initialMessage = MenuChatPrompts.getInitialMessage(),
+                    initialMessages = effectiveRecord.chatHistory,
                     systemContextPrompt = MenuChatPrompts.buildSystemPrompt(effectiveRecord),
                     onSendMessage = { request ->
                         chatAgent?.executeStream(request)
                             ?: kotlinx.coroutines.flow.flowOf("AI 菜單顧問暫未就緒，請稍後重試。")
+                    },
+                    onMessagesUpdated = { updatedMessages ->
+                        val updated = effectiveRecord.copy(chatHistory = updatedMessages)
+                        localRecord = updated
+                        viewModel?.updateAndPersistRecord(updated)
                     },
                     onDismissRequest = { showChatSheet = false }
                 )

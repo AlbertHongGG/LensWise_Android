@@ -9,11 +9,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -25,11 +23,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardDoubleArrowLeft
 import androidx.compose.material.icons.filled.KeyboardDoubleArrowRight
 import androidx.compose.material.icons.outlined.ViewCarousel
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,16 +39,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.lenswise.app.domain.model.comparison.ProductComparisonRecord
+import com.lenswise.app.presentation.components.sheet.LensWiseAdjustableDrawer
+import com.lenswise.app.presentation.components.sheet.LensWiseSheetHandle
 import com.lenswise.app.presentation.theme.AppColors
 
 /**
  * 商品比對產品圖鑑抽屜 (ComparisonContendersDrawer)。
- * 1:1 對齊 LensWise Flutter 版 comparison_contenders_drawer.dart：
- * - 頂部圖鑑 Icon 與「產品圖鑑」標題列
- * - 幾何高度精準對齊：當候選人 > 2 時，初始視窗高度精確完整露出 2 個選項 (140dp 橫幅卡片)，絕不垂直裁切第二張卡片
- * - 點擊任意卡片可觸發選手對決席位替換。
+ * 採用 LensWise 統一可調整抽屜架構 (Type B: LensWiseAdjustableDrawer)：
+ * 1. 初始高度 0.53f：剛好完整露出 2 個選項 (140dp 橫幅卡片)，絕不多露第 3 張也不裁切第 2 張。
+ * 2. 大面積拖曳感應區：頂部拉桿與「產品圖鑑」標題列整塊皆可拖曳調整高度。
+ * 3. 自由停放機制：使用者拖拉到任意高度放手即停留在該位置，絕無多餘檔位吸附干涉。
+ * 4. 滾動完全解耦：下方卡片清單獨立滾動，絕不干擾抽屜高度。
+ * 5. 唯有向下拖拉至底部緩衝門檻 (< 0.20f) 才觸發平滑收合關閉。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ComparisonContendersDrawer(
     record: ProductComparisonRecord,
@@ -67,39 +65,25 @@ fun ComparisonContendersDrawer(
     val isDark = isSystemInDarkTheme()
     val products = record.products
 
-    // 設置 skipPartiallyExpanded = true，直接展開至完整高度，杜絕滑動清單時將外層抽屜往上扯起之巢狀衝突缺陷
-    val sheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true
-    )
-
-    ModalBottomSheet(
+    LensWiseAdjustableDrawer(
         onDismissRequest = onDismissRequest,
-        sheetState = sheetState,
-        containerColor = if (isDark) Color(0xFF1E1E1E) else Color.White,
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-        modifier = modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = if (products.size > 2) {
-                Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.88f)
-                    .navigationBarsPadding()
-                    .padding(bottom = 16.dp)
-            } else {
-                Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(bottom = 16.dp)
-            }
-        ) {
-            // 1. 標題列
-            Padding(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 8.dp)
+        modifier = modifier,
+        defaultHeightRatio = 0.53f,
+        maxHeightRatio = 0.90f,
+        hasScrim = true,
+        headerContent = { dragModifier ->
+            // 將頂部把手與標題整塊作為拖曳區，大面積操作極度順暢
+            Column(
+                modifier = dragModifier.fillMaxWidth()
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                LensWiseSheetHandle(isDark = isDark)
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Box(
                         modifier = Modifier
                             .size(40.dp)
@@ -125,21 +109,16 @@ fun ComparisonContendersDrawer(
                         )
                     )
                 }
+
+                Spacer(modifier = Modifier.height(10.dp))
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 2. 橫幅商品卡片清單 (每張高度 140dp，間距 16dp)
-            // 配置 weight(1f)，讓清單獲得明確視口約束，在內部平滑滾動，杜絕手勢衝突
+        },
+        content = {
+            // Body 槽位：橫幅商品卡片清單 (每張高度 140dp，間距 16dp)
+            // 獨立滾動，與外層抽屜高度手勢解耦
             LazyColumn(
-                modifier = if (products.size > 2) {
-                    Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                } else {
-                    Modifier.fillMaxWidth()
-                },
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 4.dp)
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 4.dp, bottom = 16.dp)
             ) {
                 itemsIndexed(products) { index, product ->
                     val isSelected = index == leftIndex || index == rightIndex
@@ -159,7 +138,7 @@ fun ComparisonContendersDrawer(
                 }
             }
         }
-    }
+    )
 }
 
 @Composable
@@ -267,15 +246,5 @@ private fun ContenderBannerCard(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun Padding(
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
-) {
-    Box(modifier = modifier) {
-        content()
     }
 }

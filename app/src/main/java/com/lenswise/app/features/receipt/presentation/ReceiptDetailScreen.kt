@@ -203,10 +203,16 @@ fun ReceiptDetailScreen(
             AiChatBottomSheet(
                 title = "消費顧問",
                 initialMessage = ReceiptChatPrompts.getInitialMessage(),
+                initialMessages = currentRecord.chatHistory,
                 systemContextPrompt = ReceiptChatPrompts.buildSystemPrompt(currentRecord),
                 onSendMessage = { request ->
                     chatAgent?.executeStream(request)
                         ?: kotlinx.coroutines.flow.flowOf("AI 顧問暫未就緒，請稍後重試。")
+                },
+                onMessagesUpdated = { updatedMessages ->
+                    val updated = currentRecord.copy(chatHistory = updatedMessages)
+                    localRecord = updated
+                    viewModel?.updateRecord(updated)
                 },
                 onDismissRequest = { showChatSheet = false }
             )

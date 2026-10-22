@@ -1,6 +1,7 @@
 package com.lenswise.app.domain.model.menu
 
 import android.os.Parcelable
+import com.lenswise.app.core.ai.model.ChatMessage
 import com.lenswise.app.domain.model.history.IHistoryRecord
 import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
@@ -18,7 +19,8 @@ data class MenuScannerRecord(
     val storeName: String = "",
     val items: List<MenuScannerItem> = emptyList(),
     override val imagePaths: List<String> = emptyList(),
-    val translatedImagePaths: Map<String, String> = emptyMap()
+    val translatedImagePaths: Map<String, String> = emptyMap(),
+    val chatHistory: List<ChatMessage> = emptyList()
 ) : IHistoryRecord, Parcelable {
 
     override val displayTitle: String

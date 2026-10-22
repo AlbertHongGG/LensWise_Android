@@ -1,6 +1,7 @@
 package com.lenswise.app.domain.model.comparison
 
 import android.os.Parcelable
+import com.lenswise.app.core.ai.model.ChatMessage
 import com.lenswise.app.domain.model.history.IHistoryRecord
 import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
@@ -19,7 +20,8 @@ data class ProductComparisonRecord(
     val summary: String = "",
     val products: List<ComparisonProduct> = emptyList(),
     val comparisonPoints: List<ComparisonPoint> = emptyList(),
-    override val imagePaths: List<String> = emptyList()
+    override val imagePaths: List<String> = emptyList(),
+    val chatHistory: List<ChatMessage> = emptyList()
 ) : IHistoryRecord, Parcelable {
 
     override val displayTitle: String

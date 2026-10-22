@@ -1,7 +1,5 @@
 package com.lenswise.app.presentation.components.picker
 
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -14,7 +12,6 @@ import com.lenswise.app.domain.model.settings.TargetLanguage
  * 目標翻譯語言選擇抽屜 (LanguagePickerBottomSheet)。
  * 封裝 PickerBottomSheetShell 與 InfiniteWheelPicker，專職處理 TargetLanguage 選取邏輯。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LanguagePickerBottomSheet(
     currentLanguage: TargetLanguage,
@@ -36,7 +33,6 @@ fun LanguagePickerBottomSheet(
             onConfirm(selected)
         },
         onDismiss = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         modifier = modifier
     ) {
         InfiniteWheelPicker(

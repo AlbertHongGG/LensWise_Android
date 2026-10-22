@@ -1,6 +1,7 @@
 package com.lenswise.app.domain.model.receipt
 
 import android.os.Parcelable
+import com.lenswise.app.core.ai.model.ChatMessage
 import com.lenswise.app.domain.model.history.IHistoryRecord
 import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
@@ -23,7 +24,8 @@ data class ReceiptScannerRecord(
     val discounts: List<ReceiptFeeItem> = emptyList(),
     val taxes: List<ReceiptFeeItem> = emptyList(),
     val totalAmount: Double = 0.0,
-    override val imagePaths: List<String> = emptyList()
+    override val imagePaths: List<String> = emptyList(),
+    val chatHistory: List<ChatMessage> = emptyList()
 ) : IHistoryRecord, Parcelable {
 
     override val displayTitle: String
