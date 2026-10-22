@@ -47,7 +47,7 @@ import com.lenswise.app.presentation.theme.OutfitFontFamily
  */
 @Composable
 fun GlobalProvidersCard(
-    editingType: AiProviderType,
+    selectedProvider: AiProviderType,
     activeConfig: AiProviderConfig,
     isDark: Boolean,
     onOpenProviderSelector: () -> Unit,
@@ -115,14 +115,14 @@ fun GlobalProvidersCard(
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = editingType.icon,
+                                imageVector = selectedProvider.icon,
                                 contentDescription = null,
                                 tint = textSecondaryColor,
                                 modifier = Modifier.size(12.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "${editingType.displayName.uppercase()} (正在編輯)",
+                                text = selectedProvider.displayName.uppercase(),
                                 style = AppTypography.heroSubtitle.copy(
                                     fontSize = 13.sp,
                                     letterSpacing = 0.5.sp,
@@ -157,14 +157,14 @@ fun GlobalProvidersCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = editingType.icon,
+                                imageVector = selectedProvider.icon,
                                 contentDescription = null,
                                 tint = textSecondaryColor,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(16.dp))
                             Text(
-                                text = editingType.displayName.uppercase(),
+                                text = selectedProvider.displayName.uppercase(),
                                 style = AppTypography.itemValue.copy(color = textPrimaryColor),
                                 modifier = Modifier.weight(1f)
                             )

@@ -38,10 +38,10 @@ class SettingsViewModelTest {
         override fun setAiAgentEnabled(enabled: Boolean) {
             _state.value = _state.value.copy(isAiAgentEnabled = enabled)
         }
-        override fun setEditingGlobalProfile(type: com.lenswise.app.features.ai.config.AiProviderType) {
-            _state.value = _state.value.copy(editingGlobalProfileType = type)
+        override fun selectGlobalProvider(type: com.lenswise.app.features.ai.config.AiProviderType) {
+            _state.value = _state.value.copy(selectedGlobalProvider = type)
         }
-        override fun saveGlobalProfileConfig(
+        override fun saveGlobalProviderConfig(
             type: com.lenswise.app.features.ai.config.AiProviderType,
             config: com.lenswise.app.features.ai.config.AiProviderConfig
         ) {

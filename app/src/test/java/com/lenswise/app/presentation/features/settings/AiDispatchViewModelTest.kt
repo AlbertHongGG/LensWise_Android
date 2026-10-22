@@ -44,16 +44,16 @@ class AiDispatchViewModelTest {
     }
 
     @Test
-    fun `switch editing global profile updates editing profile in state`() {
-        assertEquals(AiProviderType.GOOGLE_AI_STUDIO, viewModel.uiState.value.editingGlobalProfileType)
+    fun `switch selected global provider updates state`() {
+        assertEquals(AiProviderType.GOOGLE_AI_STUDIO, viewModel.uiState.value.selectedGlobalProvider)
 
-        viewModel.setEditingGlobalProvider(AiProviderType.OLLAMA)
-        assertEquals(AiProviderType.OLLAMA, viewModel.uiState.value.editingGlobalProfileType)
+        viewModel.selectGlobalProvider(AiProviderType.OLLAMA)
+        assertEquals(AiProviderType.OLLAMA, viewModel.uiState.value.selectedGlobalProvider)
     }
 
     @Test
     fun `update global field updates global profile correctly`() {
-        viewModel.setEditingGlobalProvider(AiProviderType.OLLAMA)
+        viewModel.selectGlobalProvider(AiProviderType.OLLAMA)
         viewModel.updateGlobalField("baseUrl", "http://192.168.1.100:11434")
 
         val currentConfig = viewModel.uiState.value.globalProviderConfigs[AiProviderType.OLLAMA] as OllamaConfig
@@ -98,7 +98,7 @@ class AiDispatchViewModelTest {
 private class FakeAiConfigRepository : IAiConfigRepository {
     private val _state = MutableStateFlow(
         AiConfigState(
-            editingGlobalProfileType = AiProviderType.GOOGLE_AI_STUDIO,
+            selectedGlobalProvider = AiProviderType.GOOGLE_AI_STUDIO,
             globalProviderConfigs = mapOf(
                 AiProviderType.GEMINIFLOW to GeminiFlowConfig(),
                 AiProviderType.GOOGLE_AI_STUDIO to GoogleAiStudioConfig(modelName = GoogleAiStudioModel.FLASH_3_8),
@@ -121,11 +121,11 @@ private class FakeAiConfigRepository : IAiConfigRepository {
         _state.value = _state.value.copy(isAiAgentEnabled = enabled)
     }
 
-    override fun setEditingGlobalProfile(type: AiProviderType) {
-        _state.value = _state.value.copy(editingGlobalProfileType = type)
+    override fun selectGlobalProvider(type: AiProviderType) {
+        _state.value = _state.value.copy(selectedGlobalProvider = type)
     }
 
-    override fun saveGlobalProfileConfig(type: AiProviderType, config: AiProviderConfig) {
+    override fun saveGlobalProviderConfig(type: AiProviderType, config: AiProviderConfig) {
         val updated = _state.value.globalProviderConfigs.toMutableMap()
         updated[type] = config
         _state.value = _state.value.copy(globalProviderConfigs = updated)

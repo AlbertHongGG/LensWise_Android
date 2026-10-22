@@ -16,12 +16,9 @@ interface IAiConfigRepository {
     val configState: StateFlow<AiConfigState>
     fun getEffectiveConfigFor(agentType: AiAgentType): EffectiveAgentAiConfig
     fun setAiAgentEnabled(enabled: Boolean)
-    fun setEditingGlobalProfile(type: AiProviderType)
-    fun setGlobalProvider(type: AiProviderType) = setEditingGlobalProfile(type)
-    fun setEditingGlobalProvider(type: AiProviderType) = setEditingGlobalProfile(type)
-    fun saveGlobalProfileConfig(type: AiProviderType, config: AiProviderConfig)
-    fun saveGlobalProviderConfig(type: AiProviderType, config: AiProviderConfig, setAsActive: Boolean = false) =
-        saveGlobalProfileConfig(type, config)
+    fun selectGlobalProvider(type: AiProviderType)
+    fun setGlobalProvider(type: AiProviderType) = selectGlobalProvider(type)
+    fun saveGlobalProviderConfig(type: AiProviderType, config: AiProviderConfig)
     fun saveAgentProvider(agentType: AiAgentType, providerType: AiProviderType)
     fun saveAgentFieldConfig(agentType: AiAgentType, providerType: AiProviderType, config: AiProviderConfig)
     fun saveAgentConfig(agentType: AiAgentType, providerType: AiProviderType? = null, config: AiProviderConfig? = null)
@@ -110,7 +107,7 @@ class AiConfigRepository(context: Context) : IAiConfigRepository {
         }
 
         return AiConfigState(
-            editingGlobalProfileType = editingProfile,
+            selectedGlobalProvider = editingProfile,
             globalProviderConfigs = globalConfigs,
             agentConfigs = agentConfigs,
             isAiAgentEnabled = isEnabled
@@ -122,12 +119,12 @@ class AiConfigRepository(context: Context) : IAiConfigRepository {
         _configState.value = _configState.value.copy(isAiAgentEnabled = enabled)
     }
 
-    override fun setEditingGlobalProfile(type: AiProviderType) {
+    override fun selectGlobalProvider(type: AiProviderType) {
         prefs.edit().putString(KEY_GLOBAL_ACTIVE_PROVIDER, type.identifier).apply()
-        _configState.value = _configState.value.copy(editingGlobalProfileType = type)
+        _configState.value = _configState.value.copy(selectedGlobalProvider = type)
     }
 
-    override fun saveGlobalProfileConfig(type: AiProviderType, config: AiProviderConfig) {
+    override fun saveGlobalProviderConfig(type: AiProviderType, config: AiProviderConfig) {
         val key = "ai_global_${type.identifier}"
         prefs.edit().putString(key, serializeConfig(config)).apply()
 

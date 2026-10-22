@@ -58,24 +58,18 @@ data class AgentAiConfig(
 
 /**
  * 全域 AI 設定聚合狀態。
- * [editingGlobalProfileType]：目前全域卡片正在檢視/編輯的供應商設定檔。
+ * [selectedGlobalProvider]：目前全域卡片所選定展示之供應商設定檔。
  * [globalProviderConfigs]：四大供應商全域設定檔庫。
  * [agentConfigs]：各 Agent 個別指派之引擎與覆寫參數。
  */
 data class AiConfigState(
-    val editingGlobalProfileType: AiProviderType = AiProviderType.GOOGLE_AI_STUDIO,
+    val selectedGlobalProvider: AiProviderType = AiProviderType.GOOGLE_AI_STUDIO,
     val globalProviderConfigs: Map<AiProviderType, AiProviderConfig> = AiProviderType.entries.associateWith { it.createDefaultConfig() },
     val agentConfigs: Map<AiAgentType, AgentAiConfig> = emptyMap(),
     val isAiAgentEnabled: Boolean = true
 ) {
-    val editingGlobalProviderType: AiProviderType
-        get() = editingGlobalProfileType
-
-    val globalActiveProviderType: AiProviderType
-        get() = editingGlobalProfileType
-
-    val editingGlobalConfig: AiProviderConfig
-        get() = globalProviderConfigs[editingGlobalProfileType] ?: editingGlobalProfileType.createDefaultConfig()
+    val currentGlobalConfig: AiProviderConfig
+        get() = globalProviderConfigs[selectedGlobalProvider] ?: selectedGlobalProvider.createDefaultConfig()
 
     fun getAgentConfig(agentType: AiAgentType): AgentAiConfig {
         return agentConfigs[agentType] ?: AgentAiConfig.defaultConfig()

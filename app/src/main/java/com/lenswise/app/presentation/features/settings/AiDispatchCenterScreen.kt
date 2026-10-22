@@ -47,7 +47,7 @@ fun AiDispatchCenterScreen(
     AiDispatchCenterContent(
         state = state,
         onUpdateGlobalField = viewModel::updateGlobalField,
-        onSelectGlobalProvider = viewModel::setEditingGlobalProvider,
+        onSelectGlobalProvider = viewModel::selectGlobalProvider,
         onSelectAgentProvider = viewModel::saveAgentProvider,
         onUpdateAgentField = viewModel::updateAgentField,
         modifier = modifier,
@@ -91,8 +91,8 @@ fun AiDispatchCenterContent(
             ) {
                 // 1. 全域供應商配置
                 GlobalProvidersCard(
-                    editingType = state.editingGlobalProviderType,
-                    activeConfig = state.editingGlobalConfig,
+                    selectedProvider = state.selectedGlobalProvider,
+                    activeConfig = state.currentGlobalConfig,
                     isDark = isDark,
                     onOpenProviderSelector = {
                         dialogState = AiDispatchDialogState.SelectGlobalProvider
@@ -128,7 +128,7 @@ fun AiDispatchCenterContent(
         AiDispatchDialogs(
             dialogState = dialogState,
             isDark = isDark,
-            currentGlobalProvider = state.editingGlobalProviderType,
+            currentGlobalProvider = state.selectedGlobalProvider,
             agentConfigs = state.agentConfigs,
             onDismissRequest = { dialogState = AiDispatchDialogState.None },
             onSelectGlobalProvider = { providerType ->

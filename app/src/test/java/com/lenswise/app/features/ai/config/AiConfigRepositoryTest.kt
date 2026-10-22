@@ -13,7 +13,7 @@ class AiConfigRepositoryTest {
     fun testDefaultAiConfigState_hasDefaultGlobalProfiles() {
         val state = AiConfigState()
         assertTrue(state.isAiAgentEnabled)
-        assertEquals(AiProviderType.GOOGLE_AI_STUDIO, state.editingGlobalProfileType)
+        assertEquals(AiProviderType.GOOGLE_AI_STUDIO, state.selectedGlobalProvider)
 
         val studioConfig = state.globalProviderConfigs[AiProviderType.GOOGLE_AI_STUDIO] as? GoogleAiStudioConfig
         assertNotNull(studioConfig)
@@ -28,7 +28,7 @@ class AiConfigRepositoryTest {
     @Test
     fun testAgentExplicitProviderSelection_parameterFallbackToGlobalProfile() {
         val state = AiConfigState(
-            editingGlobalProfileType = AiProviderType.GOOGLE_AI_STUDIO,
+            selectedGlobalProvider = AiProviderType.GOOGLE_AI_STUDIO,
             globalProviderConfigs = mapOf(
                 AiProviderType.GOOGLE_AI_STUDIO to GoogleAiStudioConfig(
                     apiKey = "AIzaSyGlobalStudioKey",
@@ -297,6 +297,17 @@ class AiConfigRepositoryTest {
             assertFalse("Placeholder should not have parentheses: ${prop.placeholder}", prop.placeholder.contains("(") || prop.placeholder.contains("（"))
         }
     }
+
+    @Test
+    fun testFormFields_emptyOptionHasCleanLabelWithoutParentheses() {
+        val studioConfig = GoogleAiStudioConfig.empty()
+        val fields = studioConfig.getFormFields(fallback = GoogleAiStudioConfig(modelName = "gemini-3.8-flash"))
+        val modelField = fields.first { it.key == "modelName" } as ConfigField.Select
+        val firstOption = modelField.options.first()
+        assertEquals("跟隨全域設定檔", firstOption.label)
+        assertFalse(firstOption.label.contains("(") || firstOption.label.contains("（"))
+        assertFalse(firstOption.label.contains("目前"))
+    }
 }
 
 private class TestAiConfigRepository(
@@ -312,11 +323,11 @@ private class TestAiConfigRepository(
         _state.value = _state.value.copy(isAiAgentEnabled = enabled)
     }
 
-    override fun setEditingGlobalProfile(type: AiProviderType) {
-        _state.value = _state.value.copy(editingGlobalProfileType = type)
+    override fun selectGlobalProvider(type: AiProviderType) {
+        _state.value = _state.value.copy(selectedGlobalProvider = type)
     }
 
-    override fun saveGlobalProfileConfig(type: AiProviderType, config: AiProviderConfig) {
+    override fun saveGlobalProviderConfig(type: AiProviderType, config: AiProviderConfig) {
         val updated = _state.value.globalProviderConfigs.toMutableMap()
         updated[type] = config
         _state.value = _state.value.copy(globalProviderConfigs = updated)

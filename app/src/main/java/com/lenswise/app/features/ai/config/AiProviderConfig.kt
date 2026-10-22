@@ -247,8 +247,7 @@ data class GeminiFlowConfig(
         val fb = fallback as? GeminiFlowConfig
 
         val modelOptions = if (fallback != null) {
-            val globalModelDisplay = fb?.modelName?.takeIf { it.isNotBlank() }?.let { GeminiFlowModel.getDisplayName(it) } ?: "未設定"
-            listOf(SelectOption(value = "", label = "跟隨全域設定檔 (目前：$globalModelDisplay)", description = "繼承全域設定")) +
+            listOf(SelectOption(value = "", label = "跟隨全域設定檔", description = "繼承全域設定")) +
                 GeminiFlowModel.ITEMS.map {
                     SelectOption(value = it.id, label = it.displayName, description = it.description)
                 }
@@ -259,8 +258,7 @@ data class GeminiFlowConfig(
         }
 
         val thinkingOptions = if (fallback != null) {
-            val globalThinkingDisplay = fb?.thinkingLevel?.takeIf { it.isNotBlank() }?.let { GeminiThinkingLevel.fromValue(it).label } ?: "未設定"
-            listOf(SelectOption(value = "", label = "跟隨全域設定檔 (目前：$globalThinkingDisplay)", description = "繼承全域設定")) +
+            listOf(SelectOption(value = "", label = "跟隨全域設定檔", description = "繼承全域設定")) +
                 GeminiThinkingLevel.entries.map {
                     SelectOption(value = it.value, label = it.label, description = it.description)
                 }
@@ -397,8 +395,7 @@ data class VertexAiConfig(
             SelectOption("gemini-2.5-pro", "Gemini 2.5 Pro")
         )
         val modelOptions = if (fallback != null) {
-            val globalModelDisplay = fb?.modelName?.takeIf { it.isNotBlank() } ?: "未設定"
-            listOf(SelectOption(value = "", label = "跟隨全域設定檔 (目前：$globalModelDisplay)", description = "繼承全域設定")) + defaultVertexModels
+            listOf(SelectOption(value = "", label = "跟隨全域設定檔", description = "繼承全域設定")) + defaultVertexModels
         } else {
             defaultVertexModels
         }
@@ -524,8 +521,7 @@ data class GoogleAiStudioConfig(
         val fb = fallback as? GoogleAiStudioConfig
 
         val modelOptions = if (fallback != null) {
-            val globalModelDisplay = fb?.modelName?.takeIf { it.isNotBlank() }?.let { GoogleAiStudioModel.getDisplayName(it) } ?: "未設定"
-            listOf(SelectOption(value = "", label = "跟隨全域設定檔 (目前：$globalModelDisplay)", description = "繼承全域設定")) +
+            listOf(SelectOption(value = "", label = "跟隨全域設定檔", description = "繼承全域設定")) +
                 GoogleAiStudioModel.ITEMS.map {
                     SelectOption(value = it.id, label = it.displayName, description = it.description)
                 }
@@ -536,8 +532,7 @@ data class GoogleAiStudioConfig(
         }
 
         val thinkingOptions = if (fallback != null) {
-            val globalThinkingDisplay = fb?.thinkingLevel?.takeIf { it.isNotBlank() }?.let { GeminiThinkingLevel.fromValue(it).label } ?: "未設定"
-            listOf(SelectOption(value = "", label = "跟隨全域設定檔 (目前：$globalThinkingDisplay)", description = "繼承全域設定")) +
+            listOf(SelectOption(value = "", label = "跟隨全域設定檔", description = "繼承全域設定")) +
                 GeminiThinkingLevel.entries.map {
                     SelectOption(value = it.value, label = it.label, description = it.description)
                 }

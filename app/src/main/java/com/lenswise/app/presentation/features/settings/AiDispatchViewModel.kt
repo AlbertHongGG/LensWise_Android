@@ -27,22 +27,22 @@ class AiDispatchViewModel(
         configRepository.setAiAgentEnabled(enabled)
     }
 
-    fun setEditingGlobalProvider(type: AiProviderType) {
-        configRepository.setEditingGlobalProfile(type)
+    fun selectGlobalProvider(type: AiProviderType) {
+        configRepository.selectGlobalProvider(type)
     }
 
     fun setGlobalProvider(type: AiProviderType) {
-        configRepository.setEditingGlobalProfile(type)
+        configRepository.selectGlobalProvider(type)
     }
 
-    fun saveGlobalProviderConfig(type: AiProviderType, config: AiProviderConfig, setAsEditing: Boolean = false) {
-        configRepository.saveGlobalProfileConfig(type, config)
+    fun saveGlobalProviderConfig(type: AiProviderType, config: AiProviderConfig) {
+        configRepository.saveGlobalProviderConfig(type, config)
     }
 
     fun updateGlobalField(key: String, value: String) {
         val currentState = uiState.value
-        val updated = currentState.editingGlobalConfig.copyWithField(key, value)
-        configRepository.saveGlobalProfileConfig(currentState.editingGlobalProfileType, updated)
+        val updated = currentState.currentGlobalConfig.copyWithField(key, value)
+        configRepository.saveGlobalProviderConfig(currentState.selectedGlobalProvider, updated)
     }
 
     fun saveAgentProvider(agentType: AiAgentType, providerType: AiProviderType) {
