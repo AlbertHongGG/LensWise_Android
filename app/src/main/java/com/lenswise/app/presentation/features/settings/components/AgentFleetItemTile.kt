@@ -116,9 +116,9 @@ fun AgentFleetItemTile(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     val providerDesc = if (isFollowing) {
-                        "${effectiveProvider.displayName.uppercase()} (跟隨全域)"
+                        "${effectiveProvider.displayName.uppercase()} · 跟隨全域"
                     } else {
-                        "${effectiveProvider.displayName.uppercase()} (個別覆蓋)"
+                        "${effectiveProvider.displayName.uppercase()} · 個別覆蓋"
                     }
                     Text(
                         text = providerDesc,
@@ -163,7 +163,7 @@ fun AgentFleetItemTile(
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     val dropdownLabel = if (isFollowing) {
-                        "跟隨全域 (${effectiveProvider.displayName.uppercase()})"
+                        "跟隨全域 · ${effectiveProvider.displayName.uppercase()}"
                     } else {
                         effectiveProvider.displayName.uppercase()
                     }

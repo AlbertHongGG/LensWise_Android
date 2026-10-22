@@ -321,7 +321,7 @@ private fun ApiLogCardContent(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = if (log.durationMs > 0) "${log.displayTime} (${log.durationMs}ms)" else log.displayTime,
+                    text = if (log.durationMs > 0) "${log.displayTime} · ${log.durationMs} ms" else log.displayTime,
                     fontSize = 13.sp,
                     color = if (isDark) Color.White.copy(alpha = 0.54f) else Color.Black.copy(alpha = 0.45f)
                 )

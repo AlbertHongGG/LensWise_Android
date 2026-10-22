@@ -71,7 +71,7 @@ class ReceiptHistoryRepositoryTest {
                 com.lenswise.app.domain.model.receipt.ReceiptFeeItem("大正百保能 5%折扣", 90.0)
             ),
             taxes = listOf(
-                com.lenswise.app.domain.model.receipt.ReceiptFeeItem("消費稅 (8%)", 881.0)
+                com.lenswise.app.domain.model.receipt.ReceiptFeeItem("消費稅 8%", 881.0)
             ),
             totalAmount = 11912.0
         )
@@ -86,7 +86,7 @@ class ReceiptHistoryRepositoryTest {
         assertEquals("蕃茄甘納豆 5%折扣", deserialized.discounts[0].name)
         assertEquals(13.0, deserialized.discounts[0].amount, 0.001)
         assertEquals(1, deserialized.taxes.size)
-        assertEquals("消費稅 (8%)", deserialized.taxes[0].name)
+        assertEquals("消費稅 8%", deserialized.taxes[0].name)
         assertEquals(881.0, deserialized.taxes[0].amount, 0.001)
         assertEquals(11912.0, deserialized.totalAmount, 0.001)
         assertEquals("JPY 11912.00", deserialized.displaySubtitle)

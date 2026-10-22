@@ -69,7 +69,7 @@ class ScannerViewModel(
                             isCapturing = false
                         )
                     }
-                    NotificationController.showSuccess("照片拍攝成功 (共 ${_uiState.value.imageCount} 張)")
+                    NotificationController.showSuccess("照片拍攝成功，共 ${_uiState.value.imageCount} 張")
                 }.onFailure { error ->
                     _uiState.update { it.copy(isCapturing = false) }
                     NotificationController.showError("圖片規格化失敗: ${error.localizedMessage}")
@@ -110,7 +110,7 @@ class ScannerViewModel(
                         isPickingGallery = false
                     )
                 }
-                NotificationController.showSuccess("已新增 ${standardizedList.size} 張照片 (共 ${_uiState.value.imageCount} 張)")
+                NotificationController.showSuccess("已新增 ${standardizedList.size} 張照片，目前共 ${_uiState.value.imageCount} 張")
             } else {
                 _uiState.update { it.copy(isPickingGallery = false) }
             }
@@ -126,7 +126,7 @@ class ScannerViewModel(
         if (index in currentImages.indices) {
             val updated = currentImages.toMutableList().apply { removeAt(index) }
             _uiState.update { it.copy(capturedImages = updated) }
-            NotificationController.showInfo("已刪除照片 (剩餘 ${updated.size} 張)")
+            NotificationController.showInfo("已刪除照片，剩餘 ${updated.size} 張")
         }
     }
 
@@ -148,7 +148,7 @@ class ScannerViewModel(
         if (onProceed != null) {
             onProceed(state.currentMode, state.capturedImages)
         } else {
-            NotificationController.showInfo("即將啟動「${state.currentMode.actionTitle}」分析流程 (${state.imageCount} 張照片)")
+            NotificationController.showInfo("即將啟動「${state.currentMode.actionTitle}」分析流程，共 ${state.imageCount} 張照片")
         }
     }
 

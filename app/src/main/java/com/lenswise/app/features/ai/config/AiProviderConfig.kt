@@ -4,43 +4,130 @@ import com.lenswise.app.features.ai.domain.AiAgentType
 import kotlinx.serialization.Serializable
 
 /**
+ * 配置屬性描述器 (ConfigProperty)。
+ * 作為配置欄位的單一真實來源 (Single Source of Truth)，
+ * 統一封裝欄位鍵名、標準顯示名稱、輸入提示文字與機密屬性。
+ * 徹底杜絕雙語括號與硬編碼字串。
+ */
+data class ConfigProperty(
+    val key: String,
+    val label: String,
+    val placeholder: String,
+    val isSecret: Boolean = false
+) {
+    companion object {
+        val API_KEY = ConfigProperty(
+            key = "apiKey",
+            label = "API Key",
+            placeholder = "請輸入 API Key",
+            isSecret = true
+        )
+        val API_KEY_OR_TOKEN = ConfigProperty(
+            key = "apiKey",
+            label = "API Key / Token",
+            placeholder = "請輸入 API Key / Token",
+            isSecret = true
+        )
+        val BASE_URL = ConfigProperty(
+            key = "baseUrl",
+            label = "Base URL",
+            placeholder = "請輸入 Base URL"
+        )
+        val ENDPOINT_URL = ConfigProperty(
+            key = "baseUrl",
+            label = "Endpoint URL",
+            placeholder = "請輸入 Endpoint URL"
+        )
+        val PROJECT_ID = ConfigProperty(
+            key = "projectId",
+            label = "Project ID",
+            placeholder = "請輸入 GCP 專案 ID"
+        )
+        val LOCATION = ConfigProperty(
+            key = "location",
+            label = "Location",
+            placeholder = "請輸入 Location，例如 us-central1"
+        )
+        val MODEL = ConfigProperty(
+            key = "modelName",
+            label = "Model",
+            placeholder = "請選擇 Model"
+        )
+        val MODEL_TAG = ConfigProperty(
+            key = "modelName",
+            label = "Model Tag",
+            placeholder = "請輸入 Model Tag"
+        )
+        val THINKING_LEVEL = ConfigProperty(
+            key = "thinkingLevel",
+            label = "Thinking Level",
+            placeholder = "請選擇 Thinking Level"
+        )
+    }
+}
+
+/**
  * AI 配置缺失領域異常。
- * 當 Agent 與 Global 皆未指定必要參數時拋出，包含 Agent 型別與具體缺失欄位名稱。
+ * 當 Agent 與 Global 皆未指定必要參數時拋出，包含 Agent 型別與具體缺失屬性描述器。
  */
 class MissingAiConfigException(
     val agentType: AiAgentType,
-    val fieldKey: String,
-    val fieldLabel: String
-) : IllegalStateException("「${agentType.displayName}」執行失敗：未指定${fieldLabel}，請至 AI 代理調度中心設定全域或個別參數。")
+    val property: ConfigProperty
+) : IllegalStateException("「${agentType.displayName}」執行失敗：未指定 ${property.label}，請至 AI 代理調度中心設定全域或個別參數。") {
+    val fieldKey: String get() = property.key
+    val fieldLabel: String get() = property.label
+}
 
 /**
  * 設定欄位定義。
  */
 sealed class ConfigField(
-    val key: String,
-    val label: String,
+    val property: ConfigProperty,
     val value: String,
     val hintValue: String? = null
 ) {
+    val key: String get() = property.key
+    val label: String get() = property.label
+    val placeholder: String get() = property.placeholder
+
+    /**
+     * 動態解析 Placeholder 提示文字。
+     * 若為全域配置直接使用標準 Placeholder；
+     * 若為 Agent 專屬配置且有全域繼承值，則顯示「跟隨全域」；
+     * 若全域尚未設定且該欄位為機密憑證（如 API Key），則明確提示「全域尚未設定 ${property.label}」。
+     */
+    fun resolvePlaceholder(isGlobal: Boolean): String {
+        return if (isGlobal) {
+            placeholder
+        } else {
+            if (!hintValue.isNullOrBlank()) {
+                "跟隨全域"
+            } else if (property.isSecret) {
+                "全域尚未設定 ${property.label}"
+            } else {
+                "跟隨全域"
+            }
+        }
+    }
+
     class Text(
-        key: String,
-        label: String,
+        property: ConfigProperty,
         value: String,
-        hintValue: String? = null,
-        val isSecret: Boolean = false
-    ) : ConfigField(key, label, value, hintValue)
+        hintValue: String? = null
+    ) : ConfigField(property, value, hintValue) {
+        val isSecret: Boolean get() = property.isSecret
+    }
 
     class Select(
-        key: String,
-        label: String,
+        property: ConfigProperty,
         value: String,
         hintValue: String? = null,
         val options: List<SelectOption>
-    ) : ConfigField(key, label, value, hintValue) {
+    ) : ConfigField(property, value, hintValue) {
         val displayLabel: String
             get() {
                 val matched = options.firstOrNull { it.value.equals(value, ignoreCase = true) }
-                return matched?.label ?: value
+                return matched?.label ?: value.ifEmpty { placeholder }
             }
     }
 }
@@ -142,10 +229,10 @@ data class GeminiFlowConfig(
 
     override fun validateRequiredFields(agentType: AiAgentType) {
         if (baseUrl.isBlank()) {
-            throw MissingAiConfigException(agentType, "baseUrl", "伺服器位址 (Base URL)")
+            throw MissingAiConfigException(agentType, ConfigProperty.BASE_URL)
         }
         if (modelName.isBlank()) {
-            throw MissingAiConfigException(agentType, "modelName", "模型 (Model)")
+            throw MissingAiConfigException(agentType, ConfigProperty.MODEL)
         }
     }
 
@@ -174,21 +261,18 @@ data class GeminiFlowConfig(
 
         return listOf(
             ConfigField.Select(
-                key = "modelName",
-                label = "模型",
+                property = ConfigProperty.MODEL,
                 value = modelName,
                 hintValue = fb?.modelName,
                 options = modelOptions
             ),
             ConfigField.Text(
-                key = "baseUrl",
-                label = "Base URL",
+                property = ConfigProperty.BASE_URL,
                 value = baseUrl,
                 hintValue = fb?.baseUrl
             ),
             ConfigField.Select(
-                key = "thinkingLevel",
-                label = "思考強度",
+                property = ConfigProperty.THINKING_LEVEL,
                 value = thinkingLevel,
                 hintValue = fb?.thinkingLevel,
                 options = thinkingOptions
@@ -227,10 +311,10 @@ data class OllamaConfig(
 
     override fun validateRequiredFields(agentType: AiAgentType) {
         if (baseUrl.isBlank()) {
-            throw MissingAiConfigException(agentType, "baseUrl", "伺服器位址 (Base URL)")
+            throw MissingAiConfigException(agentType, ConfigProperty.ENDPOINT_URL)
         }
         if (modelName.isBlank()) {
-            throw MissingAiConfigException(agentType, "modelName", "模型標籤 (Model Tag)")
+            throw MissingAiConfigException(agentType, ConfigProperty.MODEL_TAG)
         }
     }
 
@@ -238,14 +322,12 @@ data class OllamaConfig(
         val fb = fallback as? OllamaConfig
         return listOf(
             ConfigField.Text(
-                key = "baseUrl",
-                label = "ENDPOINT URL",
+                property = ConfigProperty.ENDPOINT_URL,
                 value = baseUrl,
                 hintValue = fb?.baseUrl
             ),
             ConfigField.Text(
-                key = "modelName",
-                label = "MODEL TAG",
+                property = ConfigProperty.MODEL_TAG,
                 value = modelName,
                 hintValue = fb?.modelName
             )
@@ -283,16 +365,16 @@ data class VertexAiConfig(
 
     override fun validateRequiredFields(agentType: AiAgentType) {
         if (projectId.isBlank()) {
-            throw MissingAiConfigException(agentType, "projectId", "專案 ID (Project ID)")
+            throw MissingAiConfigException(agentType, ConfigProperty.PROJECT_ID)
         }
         if (location.isBlank()) {
-            throw MissingAiConfigException(agentType, "location", "區域位置 (Location)")
+            throw MissingAiConfigException(agentType, ConfigProperty.LOCATION)
         }
         if (apiKey.isBlank()) {
-            throw MissingAiConfigException(agentType, "apiKey", "API 金鑰 / 權杖 (API Key / Token)")
+            throw MissingAiConfigException(agentType, ConfigProperty.API_KEY_OR_TOKEN)
         }
         if (modelName.isBlank()) {
-            throw MissingAiConfigException(agentType, "modelName", "模型 (Model Name)")
+            throw MissingAiConfigException(agentType, ConfigProperty.MODEL)
         }
     }
 
@@ -314,27 +396,22 @@ data class VertexAiConfig(
 
         return listOf(
             ConfigField.Text(
-                key = "projectId",
-                label = "PROJECT ID",
+                property = ConfigProperty.PROJECT_ID,
                 value = projectId,
                 hintValue = fb?.projectId
             ),
             ConfigField.Text(
-                key = "location",
-                label = "LOCATION",
+                property = ConfigProperty.LOCATION,
                 value = location,
                 hintValue = fb?.location
             ),
             ConfigField.Text(
-                key = "apiKey",
-                label = "API KEY / TOKEN",
+                property = ConfigProperty.API_KEY_OR_TOKEN,
                 value = apiKey,
-                hintValue = apiKeyHint,
-                isSecret = true
+                hintValue = apiKeyHint
             ),
             ConfigField.Select(
-                key = "modelName",
-                label = "MODEL NAME",
+                property = ConfigProperty.MODEL,
                 value = modelName,
                 hintValue = fb?.modelName,
                 options = modelOptions
@@ -421,10 +498,10 @@ data class GoogleAiStudioConfig(
 
     override fun validateRequiredFields(agentType: AiAgentType) {
         if (apiKey.isBlank()) {
-            throw MissingAiConfigException(agentType, "apiKey", "API 金鑰 (API Key)")
+            throw MissingAiConfigException(agentType, ConfigProperty.API_KEY)
         }
         if (modelName.isBlank()) {
-            throw MissingAiConfigException(agentType, "modelName", "模型 (Model Name)")
+            throw MissingAiConfigException(agentType, ConfigProperty.MODEL)
         }
     }
 
@@ -457,22 +534,18 @@ data class GoogleAiStudioConfig(
 
         return listOf(
             ConfigField.Text(
-                key = "apiKey",
-                label = "API KEY",
+                property = ConfigProperty.API_KEY,
                 value = apiKey,
-                hintValue = apiKeyHint,
-                isSecret = true
+                hintValue = apiKeyHint
             ),
             ConfigField.Select(
-                key = "modelName",
-                label = "MODEL NAME",
+                property = ConfigProperty.MODEL,
                 value = modelName,
                 hintValue = fb?.modelName?.let { GoogleAiStudioModel.getDisplayName(it) },
                 options = modelOptions
             ),
             ConfigField.Select(
-                key = "thinkingLevel",
-                label = "THINKING LEVEL",
+                property = ConfigProperty.THINKING_LEVEL,
                 value = thinkingLevel,
                 hintValue = fb?.thinkingLevel,
                 options = thinkingOptions

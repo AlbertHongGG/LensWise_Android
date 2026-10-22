@@ -123,24 +123,7 @@ fun ConfigFieldTile(
                     contentAlignment = Alignment.CenterStart
                 ) {
                     if (localText.isEmpty()) {
-                        val placeholderText = if (isGlobal) {
-                            when (field.key) {
-                                "apiKey" -> "請輸入 API 金鑰 (API Key)"
-                                "baseUrl" -> "請輸入伺服器位址 (Base URL)"
-                                "projectId" -> "請輸入 GCP 專案 ID"
-                                "location" -> "請輸入區域位置 (如 us-central1)"
-                                else -> field.label
-                            }
-                        } else {
-                            if (!field.hintValue.isNullOrBlank()) {
-                                "跟隨全域"
-                            } else {
-                                when (field.key) {
-                                    "apiKey" -> "跟隨全域 (尚未設定 API Key)"
-                                    else -> "跟隨全域"
-                                }
-                            }
-                        }
+                        val placeholderText = field.resolvePlaceholder(isGlobal)
                         Text(
                             text = placeholderText,
                             style = AppTypography.itemValue.copy(

@@ -150,7 +150,7 @@ class AiConfigRepositoryTest {
         } catch (e: MissingAiConfigException) {
             assertEquals(AiAgentType.RECEIPT_SCANNER, e.agentType)
             assertEquals("modelName", e.fieldKey)
-            assertTrue(e.message?.contains("未指定模型") == true)
+            assertTrue(e.message?.contains("未指定 Model") == true)
         }
     }
 
@@ -186,7 +186,7 @@ class AiConfigRepositoryTest {
         } catch (e: MissingAiConfigException) {
             assertEquals(AiAgentType.RECEIPT_SCANNER, e.agentType)
             assertEquals("baseUrl", e.fieldKey)
-            assertTrue(e.message?.contains("未指定伺服器位址") == true)
+            assertTrue(e.message?.contains("未指定 Base URL") == true)
         }
     }
 
@@ -354,7 +354,45 @@ class AiConfigRepositoryTest {
             org.junit.Assert.fail("Expected MissingAiConfigException when apiKey is blank")
         } catch (e: MissingAiConfigException) {
             assertEquals("apiKey", e.fieldKey)
+            assertEquals("API Key", e.fieldLabel)
+            assertEquals(ConfigProperty.API_KEY, e.property)
+            assertTrue(e.message?.contains("未指定 API Key") == true)
+            assertFalse(e.message?.contains("(") == true)
+            assertFalse(e.message?.contains("（") == true)
         }
+    }
+
+    @Test
+    fun testConfigProperty_hasZeroParenthesesInAllDescriptors() {
+        val properties = listOf(
+            ConfigProperty.API_KEY,
+            ConfigProperty.API_KEY_OR_TOKEN,
+            ConfigProperty.BASE_URL,
+            ConfigProperty.ENDPOINT_URL,
+            ConfigProperty.PROJECT_ID,
+            ConfigProperty.LOCATION,
+            ConfigProperty.MODEL,
+            ConfigProperty.MODEL_TAG,
+            ConfigProperty.THINKING_LEVEL
+        )
+        for (prop in properties) {
+            assertFalse("Label should not have parentheses: ${prop.label}", prop.label.contains("(") || prop.label.contains("（"))
+            assertFalse("Placeholder should not have parentheses: ${prop.placeholder}", prop.placeholder.contains("(") || prop.placeholder.contains("（"))
+        }
+    }
+
+    @Test
+    fun testConfigField_resolvePlaceholder_cleanWithoutParentheses() {
+        val globalField = ConfigField.Text(ConfigProperty.API_KEY, value = "")
+        assertEquals("請輸入 API Key", globalField.resolvePlaceholder(isGlobal = true))
+
+        val agentFieldWithHint = ConfigField.Text(ConfigProperty.API_KEY, value = "", hintValue = "AIzaSy...")
+        assertEquals("跟隨全域", agentFieldWithHint.resolvePlaceholder(isGlobal = false))
+
+        val agentFieldWithoutHint = ConfigField.Text(ConfigProperty.API_KEY, value = "", hintValue = null)
+        assertEquals("全域尚未設定 API Key", agentFieldWithoutHint.resolvePlaceholder(isGlobal = false))
+        assertFalse(agentFieldWithoutHint.resolvePlaceholder(isGlobal = false).contains("("))
+        assertFalse(agentFieldWithoutHint.resolvePlaceholder(isGlobal = false).contains("（"))
     }
 
     @Test

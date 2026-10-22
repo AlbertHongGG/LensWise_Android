@@ -10,7 +10,11 @@ object ReceiptChatPrompts {
 
     fun buildSystemPrompt(record: ReceiptScannerRecord): String {
         val itemsStr = record.items.joinToString("\n") { e ->
-            "- ${e.originalName} (${e.translatedName}): ${e.price}"
+            if (e.translatedName.isNotBlank() && e.translatedName != e.originalName) {
+                "- ${e.originalName} / ${e.translatedName}: ${e.price}"
+            } else {
+                "- ${e.originalName}: ${e.price}"
+            }
         }
         val discountsStr = record.discounts.joinToString("\n") { e ->
             "- ${e.name}: ${e.amount}"
@@ -50,8 +54,8 @@ $itemsStr
 $discountsBlock$taxesBlock
 你可以幫忙：
 1. 分析這筆消費的性質。
-2. 計算特定人員的平分金額 (AA制)。
-3. 解釋購買品項的詳細內容 (因為可能有翻譯的商品)。"""
+2. 計算特定人員的平分金額或 AA 制分攤。
+3. 解釋購買品項的詳細內容與商品用途。"""
     }
 
     fun getInitialMessage(): String {
