@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -81,13 +80,12 @@ fun AiDispatchDialogs(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .defaultMinSize(minHeight = 440.dp)
-                        .padding(horizontal = 24.dp, vertical = 20.dp)
+                        .padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 20.dp)
                         .navigationBarsPadding()
                 ) {
                     BottomSheetHandleBar(isDark = isDark)
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
 
                     Text(
                         text = "選擇全域 AI 引擎",
@@ -98,9 +96,10 @@ fun AiDispatchDialogs(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
 
-                    AiProviderType.entries.forEach { providerType ->
+                    val entries = AiProviderType.entries
+                    entries.forEachIndexed { index, providerType ->
                         val isSelected = currentGlobalProvider == providerType
                         val rowBgColor = if (isSelected) {
                             if (isDark) Color.White.copy(alpha = 0.08f) else AppColors.primary.copy(alpha = 0.08f)
@@ -142,9 +141,10 @@ fun AiDispatchDialogs(
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
+                        if (index < entries.size - 1) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
                     }
-                    Spacer(modifier = Modifier.height(24.dp))
                 }
             }
         }
@@ -162,13 +162,12 @@ fun AiDispatchDialogs(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .defaultMinSize(minHeight = 440.dp)
-                        .padding(horizontal = 24.dp, vertical = 20.dp)
+                        .padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 20.dp)
                         .navigationBarsPadding()
                 ) {
                     BottomSheetHandleBar(isDark = isDark)
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
 
                     Text(
                         text = "選擇 AI 引擎",
@@ -179,7 +178,7 @@ fun AiDispatchDialogs(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
 
                     // 第一項：跟隨全域設定
                     val isFollowGlobal = agentConfig.isFollowingGlobal
@@ -233,7 +232,8 @@ fun AiDispatchDialogs(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    AiProviderType.entries.forEach { providerType ->
+                    val entries = AiProviderType.entries
+                    entries.forEachIndexed { index, providerType ->
                         val isSelected = agentConfig.customProviderType == providerType
                         val rowBgColor = if (isSelected) {
                             if (isDark) Color.White.copy(alpha = 0.08f) else AppColors.primary.copy(alpha = 0.08f)
@@ -275,9 +275,10 @@ fun AiDispatchDialogs(
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
+                        if (index < entries.size - 1) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
                     }
-                    Spacer(modifier = Modifier.height(24.dp))
                 }
             }
         }
@@ -372,13 +373,12 @@ private fun OptionBottomSheetContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .defaultMinSize(minHeight = 440.dp)
-            .padding(horizontal = 24.dp, vertical = 20.dp)
+            .padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 20.dp)
             .navigationBarsPadding()
     ) {
         BottomSheetHandleBar(isDark = isDark)
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
         Text(
             text = title,
@@ -389,9 +389,9 @@ private fun OptionBottomSheetContent(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
-        options.forEach { option ->
+        options.forEachIndexed { index, option ->
             val isSelected = option.value.equals(selectedValue, ignoreCase = true)
             val isEmptyOption = option.value.isEmpty()
             val itemIcon = if (isEmptyOption) Icons.Default.RemoveCircleOutline else defaultIcon
@@ -450,10 +450,10 @@ private fun OptionBottomSheetContent(
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            if (index < options.size - 1) {
+                Spacer(modifier = Modifier.height(8.dp))
+            }
         }
-
-        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
