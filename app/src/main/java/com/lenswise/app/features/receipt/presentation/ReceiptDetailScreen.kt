@@ -201,7 +201,7 @@ fun ReceiptDetailScreen(
         if (showChatSheet) {
             val chatAgent = viewModel?.createChatAgent()
             AiChatBottomSheet(
-                title = "發票 · 消費顧問對話",
+                title = "消費顧問",
                 initialMessage = ReceiptChatPrompts.getInitialMessage(),
                 systemContextPrompt = ReceiptChatPrompts.buildSystemPrompt(currentRecord),
                 onSendMessage = { request ->

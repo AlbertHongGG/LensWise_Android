@@ -1,4 +1,4 @@
-﻿package com.lenswise.app.features.menu.presentation
+package com.lenswise.app.features.menu.presentation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -164,7 +164,7 @@ fun MenuResultScreen(
             if (showChatSheet) {
                 val chatAgent = viewModel?.createChatAgent()
                 AiChatBottomSheet(
-                    title = "${effectiveRecord.storeName.ifBlank { "菜單" }} · 美食顧問",
+                    title = "菜單顧問",
                     initialMessage = MenuChatPrompts.getInitialMessage(),
                     systemContextPrompt = MenuChatPrompts.buildSystemPrompt(effectiveRecord),
                     onSendMessage = { request ->

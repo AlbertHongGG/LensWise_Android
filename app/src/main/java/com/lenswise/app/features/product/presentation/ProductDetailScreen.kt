@@ -168,7 +168,7 @@ fun ProductDetailScreen(
             if (showChatSheet) {
                 val chatAgent = viewModel?.createChatAgent()
                 AiChatBottomSheet(
-                    title = "${effectiveRecord.productName.ifBlank { "商品" }} · 顧問對話",
+                    title = "商品顧問",
                     initialMessage = ProductChatPrompts.getInitialMessage(),
                     systemContextPrompt = ProductChatPrompts.buildSystemContextPrompt(effectiveRecord),
                     onSendMessage = { request ->

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -76,24 +77,20 @@ fun ComparisonContendersDrawer(
         sheetState = sheetState,
         containerColor = if (isDark) Color(0xFF1E1E1E) else Color.White,
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-        modifier = if (products.size > 2) {
-            modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.85f)
-        } else {
-            modifier.fillMaxWidth()
-        }
+        modifier = modifier.fillMaxWidth()
     ) {
         Column(
             modifier = if (products.size > 2) {
                 Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight()
-                    .padding(bottom = 24.dp)
+                    .fillMaxHeight(0.88f)
+                    .navigationBarsPadding()
+                    .padding(bottom = 16.dp)
             } else {
                 Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 24.dp)
+                    .navigationBarsPadding()
+                    .padding(bottom = 16.dp)
             }
         ) {
             // 1. 標題列

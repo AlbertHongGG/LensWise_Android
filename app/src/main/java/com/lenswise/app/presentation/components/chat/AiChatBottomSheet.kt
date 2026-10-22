@@ -422,15 +422,15 @@ private fun ChatBubbleRow(
             }
         }
     } else {
-        // AI 訊息氣泡 (靠左、機器人圓形頭像、純白陰影卡片、結構化 Markdown 渲染)
+        // AI 訊息氣泡 (靠左、機器人圓形頭像位於左下角、純白陰影卡片、結構化 Markdown 渲染)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Start,
-            verticalAlignment = Alignment.Top
+            verticalAlignment = Alignment.Bottom
         ) {
             Box(
                 modifier = Modifier
-                    .padding(top = 4.dp)
+                    .padding(bottom = 2.dp)
                     .size(30.dp)
                     .clip(CircleShape)
                     .background(AppColors.primary.copy(alpha = 0.12f)),

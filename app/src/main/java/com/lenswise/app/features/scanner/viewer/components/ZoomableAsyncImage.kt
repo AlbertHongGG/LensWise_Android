@@ -1,4 +1,4 @@
-﻿package com.lenswise.app.features.scanner.viewer.components
+package com.lenswise.app.features.scanner.viewer.components
 
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -44,7 +44,8 @@ fun ZoomableAsyncImage(
     isSelected: Boolean,
     onIsZoomedChanged: (Boolean) -> Unit,
     onToggleControls: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Fit
 ) {
     val coroutineScope = rememberCoroutineScope()
     var scale by remember { mutableFloatStateOf(1f) }
@@ -146,7 +147,7 @@ fun ZoomableAsyncImage(
         AsyncImage(
             model = model,
             contentDescription = contentDescription,
-            contentScale = ContentScale.Fit,
+            contentScale = contentScale,
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {

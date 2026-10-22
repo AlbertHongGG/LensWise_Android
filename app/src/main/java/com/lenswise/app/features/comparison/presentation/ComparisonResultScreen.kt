@@ -262,7 +262,7 @@ fun ComparisonResultScreen(
             if (showChatSheet) {
                 val chatAgent = viewModel?.createChatAgent()
                 AiChatBottomSheet(
-                    title = "${effectiveRecord.title.ifBlank { "商品比對" }} · 顧問對話",
+                    title = "比對顧問",
                     initialMessage = ComparisonChatPrompts.getInitialMessage(),
                     systemContextPrompt = ComparisonChatPrompts.buildSystemPrompt(effectiveRecord),
                     onSendMessage = { request ->
