@@ -39,26 +39,37 @@ class AiConfigRepository(context: Context) : IAiConfigRepository {
     private val _configState = MutableStateFlow(loadState())
     override val configState: StateFlow<AiConfigState> = _configState.asStateFlow()
 
+    private fun serializeConfig(config: AiProviderConfig): String {
+        return when (config) {
+            is GeminiFlowConfig -> json.encodeToString(config)
+            is GoogleAiStudioConfig -> json.encodeToString(config)
+            is OllamaConfig -> json.encodeToString(config)
+            is VertexAiConfig -> json.encodeToString(config)
+        }
+    }
+
+    private fun deserializeConfig(type: AiProviderType, rawJson: String): AiProviderConfig? {
+        return runCatching {
+            when (type) {
+                AiProviderType.GEMINIFLOW -> json.decodeFromString<GeminiFlowConfig>(rawJson)
+                AiProviderType.GOOGLE_AI_STUDIO -> json.decodeFromString<GoogleAiStudioConfig>(rawJson)
+                AiProviderType.OLLAMA -> json.decodeFromString<OllamaConfig>(rawJson)
+                AiProviderType.VERTEX_AI -> json.decodeFromString<VertexAiConfig>(rawJson)
+            }
+        }.getOrNull()
+    }
+
     private fun loadState(): AiConfigState {
         val isEnabled = prefs.getBoolean(KEY_IS_AI_AGENT_ENABLED, true)
         val editingTypeStr = prefs.getString(KEY_GLOBAL_EDITING_PROVIDER, null)
         val editingType = AiProviderType.fromIdentifier(editingTypeStr)
 
-        val globalConfigs = mutableMapOf<AiProviderType, AiProviderConfig>(
-            AiProviderType.GEMINIFLOW to GeminiFlowConfig(),
-            AiProviderType.OLLAMA to OllamaConfig(),
-            AiProviderType.VERTEX_AI to VertexAiConfig()
-        )
-
-        // 讀取全域自訂配置
-        prefs.getString("ai_global_geminiflow", null)?.let {
-            runCatching { globalConfigs[AiProviderType.GEMINIFLOW] = json.decodeFromString<GeminiFlowConfig>(it) }
-        }
-        prefs.getString("ai_global_ollama", null)?.let {
-            runCatching { globalConfigs[AiProviderType.OLLAMA] = json.decodeFromString<OllamaConfig>(it) }
-        }
-        prefs.getString("ai_global_vertexai", null)?.let {
-            runCatching { globalConfigs[AiProviderType.VERTEX_AI] = json.decodeFromString<VertexAiConfig>(it) }
+        val globalConfigs = mutableMapOf<AiProviderType, AiProviderConfig>()
+        for (type in AiProviderType.entries) {
+            val key = "ai_global_${type.identifier}"
+            val savedJson = prefs.getString(key, null)
+            val parsed = if (savedJson != null) deserializeConfig(type, savedJson) else null
+            globalConfigs[type] = parsed ?: type.createDefaultConfig()
         }
 
         // 讀取各 Agent 自訂配置
@@ -68,20 +79,12 @@ class AiConfigRepository(context: Context) : IAiConfigRepository {
             val activeProviderStr = prefs.getString("${prefix}_provider", null)
             val activeProvider = if (activeProviderStr != null) AiProviderType.fromIdentifier(activeProviderStr) else AiProviderType.GEMINIFLOW
 
-            val localConfigs = mutableMapOf<AiProviderType, AiProviderConfig>(
-                AiProviderType.GEMINIFLOW to GeminiFlowConfig.empty(),
-                AiProviderType.OLLAMA to OllamaConfig.empty(),
-                AiProviderType.VERTEX_AI to VertexAiConfig.empty()
-            )
-
-            prefs.getString("${prefix}_geminiflow", null)?.let {
-                runCatching { localConfigs[AiProviderType.GEMINIFLOW] = json.decodeFromString<GeminiFlowConfig>(it) }
-            }
-            prefs.getString("${prefix}_ollama", null)?.let {
-                runCatching { localConfigs[AiProviderType.OLLAMA] = json.decodeFromString<OllamaConfig>(it) }
-            }
-            prefs.getString("${prefix}_vertexai", null)?.let {
-                runCatching { localConfigs[AiProviderType.VERTEX_AI] = json.decodeFromString<VertexAiConfig>(it) }
+            val localConfigs = mutableMapOf<AiProviderType, AiProviderConfig>()
+            for (type in AiProviderType.entries) {
+                val key = "${prefix}_${type.identifier}"
+                val savedJson = prefs.getString(key, null)
+                val parsed = if (savedJson != null) deserializeConfig(type, savedJson) else null
+                localConfigs[type] = parsed ?: type.createEmptyConfig()
             }
 
             agentConfigs[agentType] = AgentAiConfig(
@@ -110,11 +113,8 @@ class AiConfigRepository(context: Context) : IAiConfigRepository {
 
     override fun saveGlobalProviderConfig(type: AiProviderType, config: AiProviderConfig, setAsEditing: Boolean) {
         val editor = prefs.edit()
-        when (config) {
-            is GeminiFlowConfig -> editor.putString("ai_global_geminiflow", json.encodeToString(config))
-            is OllamaConfig -> editor.putString("ai_global_ollama", json.encodeToString(config))
-            is VertexAiConfig -> editor.putString("ai_global_vertexai", json.encodeToString(config))
-        }
+        val key = "ai_global_${type.identifier}"
+        editor.putString(key, serializeConfig(config))
         if (setAsEditing) {
             editor.putString(KEY_GLOBAL_EDITING_PROVIDER, type.identifier)
         }
@@ -143,11 +143,7 @@ class AiConfigRepository(context: Context) : IAiConfigRepository {
             editor.putString("${prefix}_provider", newProviderType.identifier)
         }
         if (config != null) {
-            when (config) {
-                is GeminiFlowConfig -> editor.putString("${prefix}_geminiflow", json.encodeToString(config))
-                is OllamaConfig -> editor.putString("${prefix}_ollama", json.encodeToString(config))
-                is VertexAiConfig -> editor.putString("${prefix}_vertexai", json.encodeToString(config))
-            }
+            editor.putString("${prefix}_${newProviderType.identifier}", serializeConfig(config))
         }
         editor.apply()
 

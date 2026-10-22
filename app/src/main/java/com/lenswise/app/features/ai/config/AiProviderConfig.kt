@@ -360,3 +360,133 @@ data class VertexAiConfig(
         fun empty() = VertexAiConfig(modelName = "", projectId = "", location = "", apiKey = "")
     }
 }
+
+/**
+ * Google AI Studio 模型條目與型錄定義。
+ * 嚴格限定 3 款指定模型：
+ * 1. Gemini 3.8 Flash (gemini-3.8-flash)
+ * 2. Gemini 3.6 Flash (gemini-3.6-flash)
+ * 3. Gemini 3.5 Flash Lite (gemini-3.5-flash-lite)
+ */
+data class GoogleAiStudioModelItem(
+    val id: String,
+    val displayName: String,
+    val description: String? = null
+)
+
+object GoogleAiStudioModel {
+    const val FLASH_3_8 = "gemini-3.8-flash"
+    const val FLASH_3_6 = "gemini-3.6-flash"
+    const val FLASH_LITE_3_5 = "gemini-3.5-flash-lite"
+
+    val ITEMS = listOf(
+        GoogleAiStudioModelItem(
+            id = FLASH_3_8,
+            displayName = "Gemini 3.8 Flash",
+            description = "最新旗艦極速"
+        ),
+        GoogleAiStudioModelItem(
+            id = FLASH_3_6,
+            displayName = "Gemini 3.6 Flash",
+            description = "平衡推理"
+        ),
+        GoogleAiStudioModelItem(
+            id = FLASH_LITE_3_5,
+            displayName = "Gemini 3.5 Flash Lite",
+            description = "超輕量低延遲"
+        )
+    )
+
+    fun getDisplayName(id: String): String {
+        return ITEMS.firstOrNull { it.id.equals(id.trim(), ignoreCase = true) }?.displayName ?: id
+    }
+}
+
+/**
+ * Google AI Studio 供應商專屬配置。
+ * 透過 API Key 直接連線 Google Generative Language API，無需 GCP 專案 ID 與區域配置。
+ */
+@Serializable
+data class GoogleAiStudioConfig(
+    override val modelName: String = GoogleAiStudioModel.FLASH_3_8,
+    val apiKey: String = "",
+    val thinkingLevel: String = GeminiThinkingLevel.LOW.value
+) : AiProviderConfig() {
+
+    override fun validateRequiredFields(agentType: AiAgentType) {
+        if (apiKey.isBlank()) {
+            throw MissingAiConfigException(agentType, "apiKey", "API 金鑰 (API Key)")
+        }
+        if (modelName.isBlank()) {
+            throw MissingAiConfigException(agentType, "modelName", "模型 (Model Name)")
+        }
+    }
+
+    override fun getFormFields(fallback: AiProviderConfig?): List<ConfigField> {
+        val fb = fallback as? GoogleAiStudioConfig
+
+        val modelEmptyDesc = if (fallback != null) "跟隨全域設定" else "未指定"
+        val modelOptions = listOf(SelectOption.empty(modelEmptyDesc)) + GoogleAiStudioModel.ITEMS.map {
+            SelectOption(
+                value = it.id,
+                label = it.displayName,
+                description = it.description
+            )
+        }
+
+        val thinkingEmptyDesc = if (fallback != null) "跟隨全域設定" else "未指定"
+        val thinkingOptions = listOf(SelectOption.empty(thinkingEmptyDesc)) + GeminiThinkingLevel.entries.map {
+            SelectOption(
+                value = it.value,
+                label = it.label,
+                description = it.description
+            )
+        }
+
+        return listOf(
+            ConfigField.Text(
+                key = "apiKey",
+                label = "API KEY",
+                value = apiKey,
+                hintValue = if (!fb?.apiKey.isNullOrEmpty()) "••••••••" else "AIzaSy...",
+                isSecret = true
+            ),
+            ConfigField.Select(
+                key = "modelName",
+                label = "MODEL NAME",
+                value = modelName,
+                hintValue = fb?.modelName?.let { GoogleAiStudioModel.getDisplayName(it) },
+                options = modelOptions
+            ),
+            ConfigField.Select(
+                key = "thinkingLevel",
+                label = "THINKING LEVEL",
+                value = thinkingLevel,
+                hintValue = fb?.thinkingLevel,
+                options = thinkingOptions
+            )
+        )
+    }
+
+    override fun copyWithField(key: String, value: String): AiProviderConfig {
+        return when (key) {
+            "apiKey" -> copy(apiKey = value)
+            "modelName" -> copy(modelName = value)
+            "thinkingLevel" -> copy(thinkingLevel = value)
+            else -> this
+        }
+    }
+
+    override fun fallbackTo(fallback: AiProviderConfig): AiProviderConfig {
+        if (fallback !is GoogleAiStudioConfig) return this
+        return GoogleAiStudioConfig(
+            modelName = modelName.ifEmpty { fallback.modelName },
+            apiKey = apiKey.ifEmpty { fallback.apiKey },
+            thinkingLevel = thinkingLevel.ifEmpty { fallback.thinkingLevel }
+        )
+    }
+
+    companion object {
+        fun empty() = GoogleAiStudioConfig(modelName = "", apiKey = "", thinkingLevel = "")
+    }
+}

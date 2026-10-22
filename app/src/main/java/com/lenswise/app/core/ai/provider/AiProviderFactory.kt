@@ -45,21 +45,33 @@ object AiProviderFactory {
 
         return when (effective.activeProviderType) {
             AiProviderType.GEMINIFLOW -> {
-                val config = effective.activeConfig as GeminiFlowConfig
+                val config = effective.activeConfig as? GeminiFlowConfig
+                    ?: throw IllegalStateException("GeminiFlow 配置型別異常")
                 GeminiFlowProvider(
                     baseUrl = config.baseUrl,
                     modelName = config.modelName
                 )
             }
+            AiProviderType.GOOGLE_AI_STUDIO -> {
+                val config = effective.activeConfig as? com.lenswise.app.features.ai.config.GoogleAiStudioConfig
+                    ?: throw IllegalStateException("Google AI Studio 配置型別異常")
+                com.lenswise.app.core.ai.provider.googleaistudio.GoogleAiStudioProvider(
+                    apiKey = config.apiKey,
+                    modelName = config.modelName,
+                    thinkingLevel = config.thinkingLevel
+                )
+            }
             AiProviderType.OLLAMA -> {
-                val config = effective.activeConfig as OllamaConfig
+                val config = effective.activeConfig as? OllamaConfig
+                    ?: throw IllegalStateException("Ollama 配置型別異常")
                 com.lenswise.app.core.ai.provider.ollama.OllamaProvider(
                     baseUrl = config.baseUrl,
                     modelName = config.modelName
                 )
             }
             AiProviderType.VERTEX_AI -> {
-                val config = effective.activeConfig as VertexAiConfig
+                val config = effective.activeConfig as? VertexAiConfig
+                    ?: throw IllegalStateException("Vertex AI 配置型別異常")
                 com.lenswise.app.core.ai.provider.vertexai.VertexAiProvider(
                     projectId = config.projectId,
                     location = config.location,

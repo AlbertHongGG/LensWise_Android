@@ -305,6 +305,73 @@ class AiConfigRepositoryTest {
         assertNotNull(provider)
         assertEquals("vertexai", provider.name)
     }
+
+    @Test
+    fun testGoogleAiStudioModelCatalog_hasOnlySpecifiedThreeModels() {
+        val models = GoogleAiStudioModel.ITEMS
+        assertEquals(3, models.size)
+        assertEquals(listOf("gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"), models.map { it.id })
+        assertEquals("Gemini 3.8 Flash", GoogleAiStudioModel.getDisplayName("gemini-3.8-flash"))
+        assertEquals("Gemini 3.6 Flash", GoogleAiStudioModel.getDisplayName("gemini-3.6-flash"))
+        assertEquals("Gemini 3.5 Flash Lite", GoogleAiStudioModel.getDisplayName("gemini-3.5-flash-lite"))
+    }
+
+    @Test
+    fun testGoogleAiStudioConfig_validateRequiredFields_throwsWhenApiKeyMissing() {
+        val config = GoogleAiStudioConfig(
+            apiKey = "",
+            modelName = "gemini-3.8-flash"
+        )
+        try {
+            config.validateRequiredFields(AiAgentType.RECEIPT_SCANNER)
+            org.junit.Assert.fail("Expected MissingAiConfigException when apiKey is blank")
+        } catch (e: MissingAiConfigException) {
+            assertEquals("apiKey", e.fieldKey)
+        }
+    }
+
+    @Test
+    fun testGoogleAiStudioConfig_fallbackTo_inheritsGlobalSettings() {
+        val global = GoogleAiStudioConfig(
+            apiKey = "AIzaSyGlobalKey123",
+            modelName = "gemini-3.8-flash",
+            thinkingLevel = "medium"
+        )
+        val localEmpty = GoogleAiStudioConfig.empty()
+        val effective = localEmpty.fallbackTo(global) as GoogleAiStudioConfig
+
+        assertEquals("AIzaSyGlobalKey123", effective.apiKey)
+        assertEquals("gemini-3.8-flash", effective.modelName)
+        assertEquals("medium", effective.thinkingLevel)
+    }
+
+    @Test
+    fun testAiProviderFactory_createsGoogleAiStudioProviderSuccessfully() {
+        val fakeRepo = TestAiConfigRepository(
+            AiConfigState(
+                isAiAgentEnabled = true,
+                agentConfigs = mapOf(
+                    AiAgentType.RECEIPT_SCANNER to AgentAiConfig(
+                        activeProviderType = AiProviderType.GOOGLE_AI_STUDIO,
+                        providerConfigs = mapOf(
+                            AiProviderType.GOOGLE_AI_STUDIO to GoogleAiStudioConfig(
+                                apiKey = "AIzaSyTestStudioKey456",
+                                modelName = "gemini-3.8-flash",
+                                thinkingLevel = "low"
+                            )
+                        )
+                    )
+                )
+            )
+        )
+
+        val provider = com.lenswise.app.core.ai.provider.AiProviderFactory.createProviderForAgent(
+            AiAgentType.RECEIPT_SCANNER,
+            fakeRepo
+        )
+        assertNotNull(provider)
+        assertEquals("google_ai_studio", provider.name)
+    }
 }
 
 private class TestAiConfigRepository(

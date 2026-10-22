@@ -7,23 +7,15 @@ import com.lenswise.app.features.ai.domain.AiAgentType
  */
 data class AgentAiConfig(
     val activeProviderType: AiProviderType = AiProviderType.GEMINIFLOW,
-    val providerConfigs: Map<AiProviderType, AiProviderConfig> = mapOf(
-        AiProviderType.GEMINIFLOW to GeminiFlowConfig.empty(),
-        AiProviderType.OLLAMA to OllamaConfig.empty(),
-        AiProviderType.VERTEX_AI to VertexAiConfig.empty()
-    )
+    val providerConfigs: Map<AiProviderType, AiProviderConfig> = AiProviderType.entries.associateWith { it.createEmptyConfig() }
 ) {
     val activeConfig: AiProviderConfig
-        get() = providerConfigs[activeProviderType] ?: GeminiFlowConfig.empty()
+        get() = providerConfigs[activeProviderType] ?: activeProviderType.createEmptyConfig()
 
     fun getEffectiveConfig(globalConfigs: Map<AiProviderType, AiProviderConfig>): AgentAiConfig {
         val effectiveMap = mutableMapOf<AiProviderType, AiProviderConfig>()
         for (type in AiProviderType.entries) {
-            val local = providerConfigs[type] ?: when (type) {
-                AiProviderType.GEMINIFLOW -> GeminiFlowConfig.empty()
-                AiProviderType.OLLAMA -> OllamaConfig.empty()
-                AiProviderType.VERTEX_AI -> VertexAiConfig.empty()
-            }
+            val local = providerConfigs[type] ?: type.createEmptyConfig()
             val global = globalConfigs[type]
             effectiveMap[type] = if (global != null) local.fallbackTo(global) else local
         }
@@ -39,17 +31,13 @@ data class AgentAiConfig(
  * 全域 AI 設定聚合狀態。
  */
 data class AiConfigState(
-    val globalProviderConfigs: Map<AiProviderType, AiProviderConfig> = mapOf(
-        AiProviderType.GEMINIFLOW to GeminiFlowConfig(),
-        AiProviderType.OLLAMA to OllamaConfig(),
-        AiProviderType.VERTEX_AI to VertexAiConfig()
-    ),
+    val globalProviderConfigs: Map<AiProviderType, AiProviderConfig> = AiProviderType.entries.associateWith { it.createDefaultConfig() },
     val editingGlobalProviderType: AiProviderType = AiProviderType.GEMINIFLOW,
     val agentConfigs: Map<AiAgentType, AgentAiConfig> = emptyMap(),
     val isAiAgentEnabled: Boolean = true
 ) {
     val editingGlobalConfig: AiProviderConfig
-        get() = globalProviderConfigs[editingGlobalProviderType] ?: GeminiFlowConfig()
+        get() = globalProviderConfigs[editingGlobalProviderType] ?: editingGlobalProviderType.createDefaultConfig()
 
     fun getOverrideConfigFor(agentType: AiAgentType): AgentAiConfig {
         return agentConfigs[agentType] ?: AgentAiConfig.defaultConfig()
