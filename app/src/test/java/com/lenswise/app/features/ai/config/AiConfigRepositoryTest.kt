@@ -2,6 +2,7 @@ package com.lenswise.app.features.ai.config
 
 import com.lenswise.app.features.ai.domain.AiAgentType
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -12,7 +13,8 @@ class AiConfigRepositoryTest {
     fun testDefaultAiConfigState_hasDefaultGlobalProviders() {
         val state = AiConfigState()
         assertTrue(state.isAiAgentEnabled)
-        assertEquals(AiProviderType.GEMINIFLOW, state.editingGlobalProviderType)
+        assertEquals(AiProviderType.GOOGLE_AI_STUDIO, state.globalActiveProviderType)
+        assertEquals(AiProviderType.GOOGLE_AI_STUDIO, state.editingGlobalProviderType)
 
         val geminiConfig = state.globalProviderConfigs[AiProviderType.GEMINIFLOW] as? GeminiFlowConfig
         assertNotNull(geminiConfig)
@@ -23,6 +25,7 @@ class AiConfigRepositoryTest {
     @Test
     fun testEffectiveConfigFallback_inheritsGlobalWhenAgentConfigEmpty() {
         val state = AiConfigState(
+            globalActiveProviderType = AiProviderType.GEMINIFLOW,
             globalProviderConfigs = mapOf(
                 AiProviderType.GEMINIFLOW to GeminiFlowConfig(
                     modelName = "gemini-2.5-pro",
@@ -32,7 +35,7 @@ class AiConfigRepositoryTest {
             ),
             agentConfigs = mapOf(
                 AiAgentType.RECEIPT_SCANNER to AgentAiConfig(
-                    activeProviderType = AiProviderType.GEMINIFLOW,
+                    customProviderType = null, // 跟隨全域
                     providerConfigs = mapOf(
                         AiProviderType.GEMINIFLOW to GeminiFlowConfig.empty()
                     )
@@ -41,7 +44,8 @@ class AiConfigRepositoryTest {
         )
 
         val effective = state.getEffectiveConfigFor(AiAgentType.RECEIPT_SCANNER)
-        assertEquals(AiProviderType.GEMINIFLOW, effective.activeProviderType)
+        assertEquals(AiProviderType.GEMINIFLOW, effective.effectiveProviderType)
+        assertTrue(effective.isFollowingGlobal)
 
         val active = effective.activeConfig as GeminiFlowConfig
         // 應繼承自全域設定
@@ -53,6 +57,7 @@ class AiConfigRepositoryTest {
     @Test
     fun testEffectiveConfigOverride_takesPrecedenceOverGlobal() {
         val state = AiConfigState(
+            globalActiveProviderType = AiProviderType.GEMINIFLOW,
             globalProviderConfigs = mapOf(
                 AiProviderType.GEMINIFLOW to GeminiFlowConfig(
                     modelName = "gemini-2.5-flash",
@@ -61,7 +66,7 @@ class AiConfigRepositoryTest {
             ),
             agentConfigs = mapOf(
                 AiAgentType.RECEIPT_CHAT to AgentAiConfig(
-                    activeProviderType = AiProviderType.GEMINIFLOW,
+                    customProviderType = AiProviderType.GEMINIFLOW,
                     providerConfigs = mapOf(
                         AiProviderType.GEMINIFLOW to GeminiFlowConfig(
                             modelName = "gemini-2.5-pro",
@@ -83,6 +88,7 @@ class AiConfigRepositoryTest {
     @Test
     fun testPartialInheritance_agentOverridesModelButInheritsBaseUrl() {
         val state = AiConfigState(
+            globalActiveProviderType = AiProviderType.GEMINIFLOW,
             globalProviderConfigs = mapOf(
                 AiProviderType.GEMINIFLOW to GeminiFlowConfig(
                     modelName = "gemini-3.8-flash",
@@ -91,7 +97,7 @@ class AiConfigRepositoryTest {
             ),
             agentConfigs = mapOf(
                 AiAgentType.RECEIPT_SCANNER to AgentAiConfig(
-                    activeProviderType = AiProviderType.GEMINIFLOW,
+                    customProviderType = AiProviderType.GEMINIFLOW,
                     providerConfigs = mapOf(
                         AiProviderType.GEMINIFLOW to GeminiFlowConfig(
                             modelName = "gemini-3-pro",
@@ -115,6 +121,7 @@ class AiConfigRepositoryTest {
     @Test
     fun testValidateRequiredFields_throwsWhenBothAgentAndGlobalEmpty_modelName() {
         val state = AiConfigState(
+            globalActiveProviderType = AiProviderType.GEMINIFLOW,
             globalProviderConfigs = mapOf(
                 AiProviderType.GEMINIFLOW to GeminiFlowConfig(
                     modelName = "",
@@ -123,7 +130,7 @@ class AiConfigRepositoryTest {
             ),
             agentConfigs = mapOf(
                 AiAgentType.RECEIPT_SCANNER to AgentAiConfig(
-                    activeProviderType = AiProviderType.GEMINIFLOW,
+                    customProviderType = AiProviderType.GEMINIFLOW,
                     providerConfigs = mapOf(
                         AiProviderType.GEMINIFLOW to GeminiFlowConfig(
                             modelName = "",
@@ -150,6 +157,7 @@ class AiConfigRepositoryTest {
     @Test
     fun testValidateRequiredFields_throwsWhenBothAgentAndGlobalEmpty_baseUrl() {
         val state = AiConfigState(
+            globalActiveProviderType = AiProviderType.GEMINIFLOW,
             globalProviderConfigs = mapOf(
                 AiProviderType.GEMINIFLOW to GeminiFlowConfig(
                     modelName = "gemini-3.8-flash",
@@ -158,7 +166,7 @@ class AiConfigRepositoryTest {
             ),
             agentConfigs = mapOf(
                 AiAgentType.RECEIPT_SCANNER to AgentAiConfig(
-                    activeProviderType = AiProviderType.GEMINIFLOW,
+                    customProviderType = AiProviderType.GEMINIFLOW,
                     providerConfigs = mapOf(
                         AiProviderType.GEMINIFLOW to GeminiFlowConfig(
                             modelName = "",
@@ -201,13 +209,14 @@ class AiConfigRepositoryTest {
     fun testAiProviderFactory_throwsWhenRequiredFieldMissing() {
         val fakeRepo = TestAiConfigRepository(
             AiConfigState(
+                globalActiveProviderType = AiProviderType.GEMINIFLOW,
                 isAiAgentEnabled = true,
                 globalProviderConfigs = mapOf(
                     AiProviderType.GEMINIFLOW to GeminiFlowConfig.empty()
                 ),
                 agentConfigs = mapOf(
                     AiAgentType.RECEIPT_SCANNER to AgentAiConfig(
-                        activeProviderType = AiProviderType.GEMINIFLOW,
+                        customProviderType = AiProviderType.GEMINIFLOW,
                         providerConfigs = mapOf(
                             AiProviderType.GEMINIFLOW to GeminiFlowConfig.empty()
                         )
@@ -229,81 +238,99 @@ class AiConfigRepositoryTest {
     }
 
     @Test
-    fun testAiProviderFactory_createsProviderSuccessfullyWhenConfigValid() {
+    fun testGlobalProviderChange_automaticallyChangesAllFollowingAgents() {
         val fakeRepo = TestAiConfigRepository(
             AiConfigState(
+                globalActiveProviderType = AiProviderType.GOOGLE_AI_STUDIO,
                 isAiAgentEnabled = true,
                 globalProviderConfigs = mapOf(
-                    AiProviderType.GEMINIFLOW to GeminiFlowConfig(
-                        modelName = "gemini-3.8-flash",
-                        baseUrl = "http://127.0.0.1:5000"
+                    AiProviderType.GOOGLE_AI_STUDIO to GoogleAiStudioConfig(
+                        apiKey = "AIzaSyTestStudioKey123",
+                        modelName = "gemini-3.8-flash"
                     )
+                ),
+                agentConfigs = mapOf(
+                    AiAgentType.RECEIPT_SCANNER to AgentAiConfig() // default: customProviderType = null
                 )
             )
         )
+
+        // 1. 驗證預設即跟隨全域 Google AI Studio
+        val effective = fakeRepo.getEffectiveConfigFor(AiAgentType.RECEIPT_SCANNER)
+        assertEquals(AiProviderType.GOOGLE_AI_STUDIO, effective.effectiveProviderType)
+        assertTrue(effective.isFollowingGlobal)
 
         val provider = com.lenswise.app.core.ai.provider.AiProviderFactory.createProviderForAgent(
             AiAgentType.RECEIPT_SCANNER,
             fakeRepo
         )
-        assertNotNull(provider)
-        assertEquals("geminiflow", provider.name)
+        // 絕對不得為 geminiflow (localhost)！
+        assertEquals("google_ai_studio", provider.name)
+
+        // 2. 切換全域為 Vertex AI
+        fakeRepo.saveGlobalProviderConfig(
+            AiProviderType.VERTEX_AI,
+            VertexAiConfig(projectId = "my-p", location = "us", apiKey = "my-k", modelName = "gemini-2.5-flash"),
+            setAsActive = true
+        )
+
+        // 驗證未自訂的 Agent 自動同步切換至 Vertex AI
+        val updatedEffective = fakeRepo.getEffectiveConfigFor(AiAgentType.RECEIPT_SCANNER)
+        assertEquals(AiProviderType.VERTEX_AI, updatedEffective.effectiveProviderType)
+        assertTrue(updatedEffective.isFollowingGlobal)
+
+        val updatedProvider = com.lenswise.app.core.ai.provider.AiProviderFactory.createProviderForAgent(
+            AiAgentType.RECEIPT_SCANNER,
+            fakeRepo
+        )
+        assertEquals("vertexai", updatedProvider.name)
     }
 
     @Test
-    fun testAiProviderFactory_createsOllamaProviderSuccessfully() {
+    fun testAgentCustomOverride_preemptsGlobalProvider() {
         val fakeRepo = TestAiConfigRepository(
             AiConfigState(
+                globalActiveProviderType = AiProviderType.GOOGLE_AI_STUDIO,
                 isAiAgentEnabled = true,
-                agentConfigs = mapOf(
-                    AiAgentType.RECEIPT_SCANNER to AgentAiConfig(
-                        activeProviderType = AiProviderType.OLLAMA,
-                        providerConfigs = mapOf(
-                            AiProviderType.OLLAMA to OllamaConfig(
-                                baseUrl = "http://localhost:11434",
-                                modelName = "llama3.2-vision:latest"
-                            )
-                        )
+                globalProviderConfigs = mapOf(
+                    AiProviderType.GOOGLE_AI_STUDIO to GoogleAiStudioConfig(
+                        apiKey = "AIzaSyGlobalKey",
+                        modelName = "gemini-3.8-flash"
+                    ),
+                    AiProviderType.VERTEX_AI to VertexAiConfig(
+                        projectId = "gcp-proj",
+                        location = "us-central1",
+                        apiKey = "AIzaSyVertexKey",
+                        modelName = "gemini-2.5-flash"
                     )
                 )
             )
         )
 
-        val provider = com.lenswise.app.core.ai.provider.AiProviderFactory.createProviderForAgent(
-            AiAgentType.RECEIPT_SCANNER,
-            fakeRepo
-        )
-        assertNotNull(provider)
-        assertEquals("ollama", provider.name)
-    }
+        // 個別覆蓋 RECEIPT_SCANNER 為 Vertex AI
+        fakeRepo.saveAgentProvider(AiAgentType.RECEIPT_SCANNER, AiProviderType.VERTEX_AI)
 
-    @Test
-    fun testAiProviderFactory_createsVertexAiProviderSuccessfully() {
-        val fakeRepo = TestAiConfigRepository(
-            AiConfigState(
-                isAiAgentEnabled = true,
-                agentConfigs = mapOf(
-                    AiAgentType.RECEIPT_SCANNER to AgentAiConfig(
-                        activeProviderType = AiProviderType.VERTEX_AI,
-                        providerConfigs = mapOf(
-                            AiProviderType.VERTEX_AI to VertexAiConfig(
-                                projectId = "my-gcp-project",
-                                location = "us-central1",
-                                modelName = "gemini-2.5-flash",
-                                apiKey = "AIzaSyTestKey123"
-                            )
-                        )
-                    )
-                )
-            )
-        )
+        val effective = fakeRepo.getEffectiveConfigFor(AiAgentType.RECEIPT_SCANNER)
+        assertEquals(AiProviderType.VERTEX_AI, effective.effectiveProviderType)
+        assertFalse(effective.isFollowingGlobal)
 
         val provider = com.lenswise.app.core.ai.provider.AiProviderFactory.createProviderForAgent(
             AiAgentType.RECEIPT_SCANNER,
             fakeRepo
         )
-        assertNotNull(provider)
         assertEquals("vertexai", provider.name)
+
+        // 還原為跟隨全域 (傳入 null)
+        fakeRepo.saveAgentProvider(AiAgentType.RECEIPT_SCANNER, null)
+        val revertedEffective = fakeRepo.getEffectiveConfigFor(AiAgentType.RECEIPT_SCANNER)
+        assertEquals(AiProviderType.GOOGLE_AI_STUDIO, revertedEffective.effectiveProviderType)
+        assertTrue(revertedEffective.isFollowingGlobal)
+
+        val revertedProvider = com.lenswise.app.core.ai.provider.AiProviderFactory.createProviderForAgent(
+            AiAgentType.RECEIPT_SCANNER,
+            fakeRepo
+        )
+        assertEquals("google_ai_studio", revertedProvider.name)
     }
 
     @Test
@@ -344,34 +371,6 @@ class AiConfigRepositoryTest {
         assertEquals("gemini-3.8-flash", effective.modelName)
         assertEquals("medium", effective.thinkingLevel)
     }
-
-    @Test
-    fun testAiProviderFactory_createsGoogleAiStudioProviderSuccessfully() {
-        val fakeRepo = TestAiConfigRepository(
-            AiConfigState(
-                isAiAgentEnabled = true,
-                agentConfigs = mapOf(
-                    AiAgentType.RECEIPT_SCANNER to AgentAiConfig(
-                        activeProviderType = AiProviderType.GOOGLE_AI_STUDIO,
-                        providerConfigs = mapOf(
-                            AiProviderType.GOOGLE_AI_STUDIO to GoogleAiStudioConfig(
-                                apiKey = "AIzaSyTestStudioKey456",
-                                modelName = "gemini-3.8-flash",
-                                thinkingLevel = "low"
-                            )
-                        )
-                    )
-                )
-            )
-        )
-
-        val provider = com.lenswise.app.core.ai.provider.AiProviderFactory.createProviderForAgent(
-            AiAgentType.RECEIPT_SCANNER,
-            fakeRepo
-        )
-        assertNotNull(provider)
-        assertEquals("google_ai_studio", provider.name)
-    }
 }
 
 private class TestAiConfigRepository(
@@ -380,28 +379,48 @@ private class TestAiConfigRepository(
     private val _state = kotlinx.coroutines.flow.MutableStateFlow(initialState)
     override val configState: kotlinx.coroutines.flow.StateFlow<AiConfigState> = _state
 
-    override fun getEffectiveConfigFor(agentType: AiAgentType) = _state.value.getEffectiveConfigFor(agentType)
+    override fun getEffectiveConfigFor(agentType: AiAgentType): EffectiveAgentAiConfig =
+        _state.value.getEffectiveConfigFor(agentType)
+
     override fun setAiAgentEnabled(enabled: Boolean) {
         _state.value = _state.value.copy(isAiAgentEnabled = enabled)
     }
-    override fun setEditingGlobalProvider(type: AiProviderType) {
-        _state.value = _state.value.copy(editingGlobalProviderType = type)
+
+    override fun setGlobalProvider(type: AiProviderType) {
+        _state.value = _state.value.copy(globalActiveProviderType = type)
     }
-    override fun saveGlobalProviderConfig(type: AiProviderType, config: AiProviderConfig, setAsEditing: Boolean) {
+
+    override fun saveGlobalProviderConfig(type: AiProviderType, config: AiProviderConfig, setAsActive: Boolean) {
         val updated = _state.value.globalProviderConfigs.toMutableMap()
         updated[type] = config
         _state.value = _state.value.copy(
             globalProviderConfigs = updated,
-            editingGlobalProviderType = if (setAsEditing) type else _state.value.editingGlobalProviderType
+            globalActiveProviderType = if (setAsActive) type else _state.value.globalActiveProviderType
         )
     }
-    override fun saveAgentConfig(agentType: AiAgentType, providerType: AiProviderType?, config: AiProviderConfig?) {
+
+    override fun saveAgentProvider(agentType: AiAgentType, customProviderType: AiProviderType?) {
         val current = _state.value.getOverrideConfigFor(agentType)
-        val newProvider = providerType ?: current.activeProviderType
-        val localConfigs = current.providerConfigs.toMutableMap()
-        if (config != null) localConfigs[newProvider] = config
         val updatedAgents = _state.value.agentConfigs.toMutableMap()
-        updatedAgents[agentType] = AgentAiConfig(activeProviderType = newProvider, providerConfigs = localConfigs)
+        updatedAgents[agentType] = current.copy(customProviderType = customProviderType)
         _state.value = _state.value.copy(agentConfigs = updatedAgents)
+    }
+
+    override fun saveAgentFieldConfig(agentType: AiAgentType, providerType: AiProviderType, config: AiProviderConfig) {
+        val current = _state.value.getOverrideConfigFor(agentType)
+        val localConfigs = current.providerConfigs.toMutableMap()
+        localConfigs[providerType] = config
+        val updatedAgents = _state.value.agentConfigs.toMutableMap()
+        updatedAgents[agentType] = current.copy(providerConfigs = localConfigs)
+        _state.value = _state.value.copy(agentConfigs = updatedAgents)
+    }
+
+    override fun saveAgentConfig(agentType: AiAgentType, providerType: AiProviderType?, config: AiProviderConfig?) {
+        if (providerType != null && config == null) {
+            saveAgentProvider(agentType, providerType)
+        } else if (config != null) {
+            val target = providerType ?: _state.value.getEffectiveConfigFor(agentType).effectiveProviderType
+            saveAgentFieldConfig(agentType, target, config)
+        }
     }
 }

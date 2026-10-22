@@ -28,7 +28,11 @@ class AiDispatchViewModel(
     }
 
     fun setEditingGlobalProvider(type: AiProviderType) {
-        configRepository.setEditingGlobalProvider(type)
+        configRepository.setGlobalProvider(type)
+    }
+
+    fun setGlobalProvider(type: AiProviderType) {
+        configRepository.setGlobalProvider(type)
     }
 
     fun saveGlobalProviderConfig(type: AiProviderType, config: AiProviderConfig, setAsEditing: Boolean = false) {
@@ -38,18 +42,18 @@ class AiDispatchViewModel(
     fun updateGlobalField(key: String, value: String) {
         val currentState = uiState.value
         val updated = currentState.editingGlobalConfig.copyWithField(key, value)
-        configRepository.saveGlobalProviderConfig(currentState.editingGlobalProviderType, updated)
+        configRepository.saveGlobalProviderConfig(currentState.globalActiveProviderType, updated)
     }
 
-    fun saveAgentProvider(agentType: AiAgentType, providerType: AiProviderType) {
-        configRepository.saveAgentConfig(agentType = agentType, providerType = providerType)
+    fun saveAgentProvider(agentType: AiAgentType, providerType: AiProviderType?) {
+        configRepository.saveAgentProvider(agentType = agentType, customProviderType = providerType)
     }
 
     fun updateAgentField(agentType: AiAgentType, key: String, value: String) {
         val currentState = uiState.value
         val effective = currentState.getEffectiveConfigFor(agentType)
         val updated = effective.activeConfig.copyWithField(key, value)
-        configRepository.saveAgentConfig(agentType = agentType, config = updated)
+        configRepository.saveAgentFieldConfig(agentType = agentType, providerType = effective.effectiveProviderType, config = updated)
     }
 
     companion object {

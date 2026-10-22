@@ -15,16 +15,13 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.lenswise.app.features.ai.config.AgentAiConfig
 import com.lenswise.app.features.ai.config.AiProviderConfig
 import com.lenswise.app.features.ai.config.AiProviderType
 import com.lenswise.app.features.ai.config.ConfigField
 import com.lenswise.app.features.ai.domain.AiAgentType
 import com.lenswise.app.presentation.theme.AppTypography
-import com.lenswise.app.presentation.theme.OutfitFontFamily
 
 /**
  * AI 代理群調度列表卡片元件 (AgentFleetCard)。
@@ -34,6 +31,7 @@ import com.lenswise.app.presentation.theme.OutfitFontFamily
 fun AgentFleetCard(
     isAiAgentEnabled: Boolean,
     agentConfigs: Map<AiAgentType, AgentAiConfig>,
+    globalActiveProvider: AiProviderType,
     globalConfigs: Map<AiProviderType, AiProviderConfig>,
     isDark: Boolean,
     onOpenAgentProviderSelector: (AiAgentType) -> Unit,
@@ -70,11 +68,13 @@ fun AgentFleetCard(
                 val agents = AiAgentType.entries
                 agents.forEachIndexed { index, agentType ->
                     val agentConfig = agentConfigs[agentType] ?: AgentAiConfig.defaultConfig()
-                    val globalFallback = globalConfigs[agentConfig.activeProviderType]
+                    val effectiveConfig = agentConfig.resolveEffective(globalActiveProvider, globalConfigs)
+                    val globalFallback = globalConfigs[effectiveConfig.effectiveProviderType]
 
                     AgentFleetItemTile(
                         agentType = agentType,
                         agentConfig = agentConfig,
+                        effectiveConfig = effectiveConfig,
                         globalFallbackConfig = globalFallback,
                         isEnabled = isAiAgentEnabled,
                         isDark = isDark,

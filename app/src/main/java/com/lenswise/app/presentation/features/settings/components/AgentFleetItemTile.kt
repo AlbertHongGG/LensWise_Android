@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -43,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import com.lenswise.app.features.ai.config.AgentAiConfig
 import com.lenswise.app.features.ai.config.AiProviderConfig
 import com.lenswise.app.features.ai.config.ConfigField
+import com.lenswise.app.features.ai.config.EffectiveAgentAiConfig
 import com.lenswise.app.features.ai.domain.AiAgentType
 import com.lenswise.app.presentation.theme.AppColors
 import com.lenswise.app.presentation.theme.AppTypography
@@ -56,6 +58,7 @@ import com.lenswise.app.presentation.theme.OutfitFontFamily
 fun AgentFleetItemTile(
     agentType: AiAgentType,
     agentConfig: AgentAiConfig,
+    effectiveConfig: EffectiveAgentAiConfig,
     globalFallbackConfig: AiProviderConfig?,
     isEnabled: Boolean,
     isDark: Boolean,
@@ -68,21 +71,22 @@ fun AgentFleetItemTile(
     modifier: Modifier = Modifier
 ) {
     var isExpanded by remember { mutableStateOf(false) }
-    val activeProvider = agentConfig.activeProviderType
-    val activeConfig = agentConfig.activeConfig
+
+    val effectiveProvider = effectiveConfig.effectiveProviderType
+    val isFollowing = agentConfig.isFollowingGlobal
 
     Column(modifier = modifier.fillMaxWidth()) {
-        // 標頭列
+        // 卡片主列
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(enabled = isEnabled) { isExpanded = !isExpanded }
-                .padding(horizontal = 20.dp, vertical = 14.dp),
+                .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(42.dp)
+                    .size(44.dp)
                     .clip(CircleShape)
                     .background(AppColors.primary.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center
@@ -91,7 +95,7 @@ fun AgentFleetItemTile(
                     imageVector = getAgentIcon(agentType),
                     contentDescription = null,
                     tint = AppColors.primary,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
 
@@ -105,14 +109,19 @@ fun AgentFleetItemTile(
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = activeProvider.icon,
+                        imageVector = if (isFollowing) Icons.Default.Public else effectiveProvider.icon,
                         contentDescription = null,
                         tint = textSecondaryColor,
                         modifier = Modifier.size(12.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
+                    val providerDesc = if (isFollowing) {
+                        "${effectiveProvider.displayName.uppercase()} (跟隨全域)"
+                    } else {
+                        "${effectiveProvider.displayName.uppercase()} (個別覆蓋)"
+                    }
                     Text(
-                        text = activeProvider.displayName.uppercase(),
+                        text = providerDesc,
                         style = AppTypography.heroSubtitle.copy(
                             fontSize = 13.sp,
                             letterSpacing = 0.5.sp,
@@ -147,14 +156,19 @@ fun AgentFleetItemTile(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = activeProvider.icon,
+                        imageVector = if (isFollowing) Icons.Default.Public else effectiveProvider.icon,
                         contentDescription = null,
                         tint = textSecondaryColor,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(16.dp))
+                    val dropdownLabel = if (isFollowing) {
+                        "跟隨全域 (${effectiveProvider.displayName.uppercase()})"
+                    } else {
+                        effectiveProvider.displayName.uppercase()
+                    }
                     Text(
-                        text = activeProvider.displayName.uppercase(),
+                        text = dropdownLabel,
                         style = AppTypography.itemValue.copy(color = textPrimaryColor),
                         modifier = Modifier.weight(1f)
                     )
@@ -172,7 +186,7 @@ fun AgentFleetItemTile(
                 )
 
                 // 2. 代理專屬動態欄位 (支援 fallback 至全域設定)
-                val fields = activeConfig.getFormFields(globalFallbackConfig)
+                val fields = effectiveConfig.activeConfig.getFormFields(globalFallbackConfig)
                 fields.forEachIndexed { index, field ->
                     ConfigFieldTile(
                         field = field,

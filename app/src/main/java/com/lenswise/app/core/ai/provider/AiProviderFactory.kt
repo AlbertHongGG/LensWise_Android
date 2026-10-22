@@ -19,10 +19,6 @@ import com.lenswise.app.presentation.notification.NotificationController
  */
 object AiProviderFactory {
 
-    fun createDefaultProvider(baseUrl: String = "http://10.0.2.2:5000"): AiProvider {
-        return GeminiFlowProvider(baseUrl = baseUrl)
-    }
-
     fun createProviderForAgent(
         agentType: AiAgentType,
         configRepo: com.lenswise.app.features.ai.config.IAiConfigRepository
@@ -43,7 +39,7 @@ object AiProviderFactory {
             throw e
         }
 
-        return when (effective.activeProviderType) {
+        return when (effective.effectiveProviderType) {
             AiProviderType.GEMINIFLOW -> {
                 val config = effective.activeConfig as? GeminiFlowConfig
                     ?: throw IllegalStateException("GeminiFlow 配置型別異常")
