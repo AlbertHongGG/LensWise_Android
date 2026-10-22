@@ -3,16 +3,19 @@ package com.lenswise.app.domain.model.settings
 /**
  * 目標翻譯語言列舉 (TargetLanguage)。
  * 1:1 對齊 LensWise 原版定義：
- * 封裝 UI 顯示名稱 (displayName) 與 AI 提示詞注入專用名稱 (promptName)。
+ * 封裝 UI 顯示名稱 (displayName)、AI 提示詞注入名稱 (promptName) 與標準 BCP-47 語言代碼 (code / languageCode)。
  */
 enum class TargetLanguage(
     val displayName: String,
-    val promptName: String
+    val promptName: String,
+    val languageCode: String
 ) {
-    TRADITIONAL_CHINESE("繁體中文", "Traditional Chinese"),
-    ENGLISH("English", "English"),
-    JAPANESE("日本語", "Japanese"),
-    KOREAN("한국어", "Korean");
+    TRADITIONAL_CHINESE("繁體中文", "Traditional Chinese", "zh-TW"),
+    ENGLISH("English", "English", "en"),
+    JAPANESE("日本語", "Japanese", "ja"),
+    KOREAN("한국어", "Korean", "ko");
+
+    val code: String get() = languageCode
 
     companion object {
         /**

@@ -3,8 +3,9 @@ package com.lenswise.app.features.ai.agents.receipt
 import com.lenswise.app.domain.model.settings.TargetLanguage
 
 /**
- * 收據萃取 Agent 提示詞工廠。
- * 內容完全嚴格對標參考專案 (LensWise)，維持鐵律規範。
+ * 收據萃取 Agent 提示詞工廠 (ReceiptScannerPrompts)。
+ * 1:1 對齊參考專案 (LensWise) 之核心業務提示詞與鐵律規範，
+ * 嚴格以契約驅動 (Contract-Driven) 定義輸出 Schema，杜絕大模型脫韁產生非預期欄位名稱或說明文字。
  */
 object ReceiptScannerPrompts {
 
@@ -31,7 +32,7 @@ object ReceiptScannerPrompts {
 5. **目標語言翻譯 (Strict Translation)**：將收據原語言的所有品項與店鋪名稱，一律翻譯為目標語言：「${targetLanguage.displayName}」。
 6. **金額純數字化 (Amount Extraction)**：所有金額欄位必須是純數字，請剔除貨幣符號與逗號。
 
-【輸出 JSON 欄位定義】
+【輸出 JSON 欄位定義 (Strict Schema Contract)】
 請將提取結果映射為以下的 JSON 物件。若照片無法辨識，只需回傳 status 與 message。
 
 - status (字串): 解析狀態。成功為 "success"，失敗或模糊為 "needs_more_info"。
@@ -51,12 +52,14 @@ object ReceiptScannerPrompts {
     - name (字串): 稅金名目 (已翻譯，例如 消費稅 8%)。
     - amount (數字): 稅金金額。
 
-【回應要求】
-1. 僅回傳 JSON，**絕對不要**包含 Markdown 格式 (如 ```json) 或任何其他說明文字。
-2. 輸出的 JSON 字串必須是可以被合法解析的格式。"""
+【絕對限制 (Critical Constraints)】
+1. 僅回傳單一純 JSON 物件（以 '{' 開頭，以 '}' 結尾）。
+2. **絕對不要**包含 Markdown 代碼標記（如 ```json），**絕對不要**包含任何前置引言、說明或引用標註。
+3. **絕對不要**回傳 JSON 陣列 ([...])，即便照片包含多張收據或內容，也必須整合成單一最符合的 data 物件。
+4. **嚴格禁止別名更名**：所有屬性鍵名必須精確對應上述定義（`originalName`, `translatedName`, `price`, `name`, `amount`, `storeName`, `receiptDateTime`, `currency`, `items`, `discounts`, `taxes`），嚴禁自行替換或使用蛇形命名（如 original_name, unit_price, cost 等）。"""
     }
 
     fun buildUserPrompt(): String {
-        return "請根據上述的系統設定與鐵律，嚴格解析這組連續拍攝的收據影像，自動過濾重疊區域，並回傳指定的 JSON 格式。"
+        return """請根據上述的系統設定與鐵律，嚴格解析這組連續拍攝的收據影像，自動過濾重疊區域，並回傳指定的單一 JSON 物件。僅輸出純 JSON，嚴禁 Markdown 與說明文字。"""
     }
 }

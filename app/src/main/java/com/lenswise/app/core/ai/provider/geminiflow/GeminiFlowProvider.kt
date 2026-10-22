@@ -4,19 +4,15 @@ import android.util.Base64
 import com.lenswise.app.core.ai.model.GenerateRequest
 import com.lenswise.app.core.ai.model.GenerateResponse
 import com.lenswise.app.core.ai.provider.AiProvider
+import com.lenswise.app.core.ai.provider.geminiflow.dto.GeminiFlowChatRequestDto
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.add
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonArray
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -30,7 +26,8 @@ import java.util.concurrent.TimeUnit
 
 /**
  * GeminiFlow 核心 Provider。
- * 透過 OkHttp SSE 實現雙工/單向串流事件解碼，嚴格相容參考專案伺服器規範。
+ * 透過強型別 [GeminiFlowChatRequestDto] 與 OkHttp SSE 實現通訊，
+ * 嚴格遵循蛇形命名協定 (system_prompt)，杜絕提示詞遺失。
  */
 class GeminiFlowProvider(
     private val baseUrl: String = "http://10.0.2.2:5000",
@@ -43,13 +40,17 @@ class GeminiFlowProvider(
 ) : AiProvider {
 
     override val name: String = "geminiflow"
-    private val jsonParser = Json { ignoreUnknownKeys = true; isLenient = true }
+    private val jsonParser = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+        encodeDefaults = true
+    }
 
     override suspend fun generate(request: GenerateRequest): GenerateResponse {
         val sanitizedBaseUrl = baseUrl.trimEnd('/')
         val url = "$sanitizedBaseUrl/chat"
-        val payload = buildPayload(request)
-        val body = payload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+        val payloadJson = buildPayloadJson(request)
+        val body = payloadJson.toRequestBody("application/json; charset=utf-8".toMediaType())
         val httpRequest = Request.Builder().url(url).post(body).build()
 
         client.newCall(httpRequest).execute().use { response ->
@@ -69,8 +70,8 @@ class GeminiFlowProvider(
     override fun generateStream(request: GenerateRequest): Flow<GenerateResponse> = callbackFlow {
         val sanitizedBaseUrl = baseUrl.trimEnd('/')
         val url = "$sanitizedBaseUrl/stream"
-        val payload = buildPayload(request)
-        val body = payload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+        val payloadJson = buildPayloadJson(request)
+        val body = payloadJson.toRequestBody("application/json; charset=utf-8".toMediaType())
         val httpRequest = Request.Builder()
             .url(url)
             .addHeader("Accept", "text/event-stream")
@@ -123,19 +124,22 @@ class GeminiFlowProvider(
         }
     }
 
-    private fun buildPayload(request: GenerateRequest): JsonObject {
+    internal fun buildPayloadJson(request: GenerateRequest): String {
         val imagesBase64 = request.images?.map {
             Base64.encodeToString(it, Base64.NO_WRAP)
         } ?: emptyList()
 
-        return buildJsonObject {
-            put("prompt", request.prompt)
-            request.systemPrompt?.let { put("systemPrompt", it) }
-            put("model", request.model ?: modelName)
-            putJsonArray("images") {
-                imagesBase64.forEach { add(JsonPrimitive(it)) }
-            }
-        }
+        val dto = GeminiFlowChatRequestDto(
+            prompt = request.prompt,
+            systemPrompt = request.systemPrompt?.takeIf { it.isNotBlank() },
+            model = request.model ?: modelName,
+            thinking = request.thinking,
+            language = request.language,
+            images = imagesBase64,
+            sessionId = request.sessionId
+        )
+
+        return jsonParser.encodeToString(dto)
     }
 
     private fun extractText(dataStr: String): String {

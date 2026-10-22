@@ -4,16 +4,16 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonObject
 
 /**
  * 串流增量 JSON 解析與自適應修復管線 (JsonStreamPipeline)。
  *
  * 核心特徵：
- * 1. 首字節瞬時觸發 (TTFT Immediate Emit)：捕獲第一個合法 Snapshot 瞬間發射，作為頁面流轉訊號。
- * 2. 局部 JSON 補全修復：面對未傳輸完成的截斷字串與巢狀括號自動補閉合，防止反序列化例外。
- * 3. 自適應渲染防抖節流 (Throttle Interval)：後續 Emission 以 50ms 節流，杜絕高頻 chunk 引發 Compose 畫面重繪過載。
- * 4. 終止標記 Flush：串流關閉時進行最終反序列化解析，並發射 isComplete = true 終態。
+ * 1. 髒字串清洗防禦 (JsonStreamSanitizer)：精確過濾前置引言、Markdown Code Block 標籤與尾端雜訊。
+ * 2. 語法狀態機補全 (JsonStreamRepairer)：自動閉合引號、懸掛欄位與括號堆疊。
+ * 3. 首字節瞬時觸發 (TTFT Immediate Emit)：捕獲第一個合法 Snapshot 瞬間發射，作為頁面流轉訊號。
+ * 4. 自適應渲染防抖節流 (Throttle Interval)：後續 Emission 以 50ms 節流，杜絕高頻 chunk 引發 Compose 畫面重繪過載。
+ * 5. 終止標記 Flush：串流關閉時進行最終反序列化解析，並發射 isComplete = true 終態。
  */
 object JsonStreamPipeline {
 
@@ -23,62 +23,14 @@ object JsonStreamPipeline {
         coerceInputValues = true
     }
 
-    /**
-     * 從原生字串中截取第一個 `{` 之後的 JSON 候選子字串，過濾 Markdown 標記 (如 ```json)
-     */
+    /** 便捷提供靜態字串提取接口 */
     fun extractJsonSubstring(raw: String): String {
-        val firstBrace = raw.indexOf('{')
-        if (firstBrace == -1) return raw.trim()
-        return raw.substring(firstBrace).trim()
+        return JsonStreamSanitizer.extractJsonCandidate(raw)
     }
 
-    /**
-     * 輕量級串流 JSON 自動修復器：
-     * 自動補齊未封閉的字串引號與大括號/中括號堆疊，產出可被 kotlinx.serialization 解析的合法 JSON
-     */
+    /** 便捷提供靜態語法修復接口 */
     fun repairPartialJson(candidate: String): String {
-        val trimmed = candidate.trim()
-        if (trimmed.isEmpty() || !trimmed.startsWith('{')) return "{}"
-
-        val stack = mutableListOf<Char>()
-        var inString = false
-        var isEscaped = false
-
-        for (ch in trimmed) {
-            if (isEscaped) {
-                isEscaped = false
-                continue
-            }
-            if (ch == '\\') {
-                isEscaped = true
-                continue
-            }
-            if (ch == '"') {
-                inString = !inString
-                continue
-            }
-            if (!inString) {
-                when (ch) {
-                    '{', '[' -> stack.add(ch)
-                    '}' -> if (stack.isNotEmpty() && stack.last() == '{') stack.removeAt(stack.size - 1)
-                    ']' -> if (stack.isNotEmpty() && stack.last() == '[') stack.removeAt(stack.size - 1)
-                }
-            }
-        }
-
-        val sb = StringBuilder(trimmed)
-        if (inString) {
-            sb.append('"') // 補閉未封閉的字串
-        }
-
-        // 依後進先出順序閉合括號
-        while (stack.isNotEmpty()) {
-            val open = stack.removeAt(stack.size - 1)
-            if (open == '{') sb.append('}')
-            else if (open == '[') sb.append(']')
-        }
-
-        return sb.toString()
+        return JsonStreamRepairer.repairPartialJson(candidate)
     }
 
     /**
@@ -99,7 +51,7 @@ object JsonStreamPipeline {
             if (chunk.isEmpty()) return@collect
             buffer.append(chunk)
 
-            val candidate = extractJsonSubstring(buffer.toString())
+            val candidate = JsonStreamSanitizer.extractJsonCandidate(buffer.toString())
             if (candidate.isEmpty() || !candidate.startsWith('{')) return@collect
 
             val now = System.currentTimeMillis()
@@ -107,7 +59,7 @@ object JsonStreamPipeline {
 
             if (shouldAttempt) {
                 try {
-                    val repaired = repairPartialJson(candidate)
+                    val repaired = JsonStreamRepairer.repairPartialJson(candidate)
                     val jsonElement = json.parseToJsonElement(repaired)
                     if (jsonElement is JsonObject) {
                         currentData = mapper(jsonElement)
@@ -128,10 +80,10 @@ object JsonStreamPipeline {
         }
 
         // 串流結束時的最終 Flush 解析
-        val finalCandidate = extractJsonSubstring(buffer.toString())
+        val finalCandidate = JsonStreamSanitizer.extractJsonCandidate(buffer.toString())
         if (finalCandidate.isNotEmpty() && finalCandidate.startsWith('{')) {
             try {
-                val repaired = repairPartialJson(finalCandidate)
+                val repaired = JsonStreamRepairer.repairPartialJson(finalCandidate)
                 val jsonElement = json.parseToJsonElement(repaired)
                 if (jsonElement is JsonObject) {
                     currentData = mapper(jsonElement)
