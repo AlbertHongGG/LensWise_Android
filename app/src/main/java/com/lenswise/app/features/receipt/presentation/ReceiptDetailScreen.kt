@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -127,11 +128,12 @@ fun ReceiptDetailScreen(
                 }
             )
 
-            // 預留底部 FAB 空間 (100.dp)
-            Spacer(modifier = Modifier.height(100.dp))
+            // 預留底部 FAB 與系統導航列安全空間 (140.dp)
+            Spacer(modifier = Modifier.height(140.dp))
         }
 
         // 底部懸浮雙圓形按鈕組 (1:1 對齊 Flutter 的 FloatingActionButton Row)
+        // 嚴格配置 navigationBarsPadding 與 28.dp 留白，確保絕不誤觸 Android 系統手勢與導航按鍵
         val isDrawerOpen = showImageSheet || showChatSheet
         val fabAlpha by animateFloatAsState(
             targetValue = if (isDrawerOpen) 0f else 1f,
@@ -141,7 +143,8 @@ fun ReceiptDetailScreen(
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 16.dp)
+                .navigationBarsPadding()
+                .padding(bottom = 28.dp)
                 .alpha(fabAlpha)
         ) {
             Row(

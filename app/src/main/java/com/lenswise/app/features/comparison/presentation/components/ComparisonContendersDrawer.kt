@@ -66,9 +66,9 @@ fun ComparisonContendersDrawer(
     val isDark = isSystemInDarkTheme()
     val products = record.products
 
-    // 參賽選手大於 2 個時支援兩段式滑動 (初始露出 2 個選項，上滑展開至 85%)；若只有 2 個選手則自然 wrap content
+    // 設置 skipPartiallyExpanded = true，直接展開至完整高度，杜絕滑動清單時將外層抽屜往上扯起之巢狀衝突缺陷
     val sheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = products.size <= 2
+        skipPartiallyExpanded = true
     )
 
     ModalBottomSheet(
@@ -85,9 +85,16 @@ fun ComparisonContendersDrawer(
         }
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 24.dp)
+            modifier = if (products.size > 2) {
+                Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight()
+                    .padding(bottom = 24.dp)
+            } else {
+                Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp)
+            }
         ) {
             // 1. 標題列
             Padding(
@@ -126,8 +133,15 @@ fun ComparisonContendersDrawer(
             Spacer(modifier = Modifier.height(16.dp))
 
             // 2. 橫幅商品卡片清單 (每張高度 140dp，間距 16dp)
+            // 配置 weight(1f)，讓清單獲得明確視口約束，在內部平滑滾動，杜絕手勢衝突
             LazyColumn(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = if (products.size > 2) {
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                } else {
+                    Modifier.fillMaxWidth()
+                },
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 4.dp)
             ) {
                 itemsIndexed(products) { index, product ->
