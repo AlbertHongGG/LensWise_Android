@@ -1,4 +1,4 @@
-﻿package com.lenswise.app.features.settings
+package com.lenswise.app.features.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -87,7 +87,7 @@ fun AiDispatchCenterContent(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 8.dp)
+                    .padding(horizontal = 24.dp)
             ) {
                 // 1. 全域供應商配置
                 GlobalProvidersCard(

@@ -1,4 +1,4 @@
-﻿package com.lenswise.app.features.log.components
+package com.lenswise.app.presentation.components.trash
 
 import android.util.Log
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -190,4 +190,3 @@ fun <T> Modifier.draggableToTrash(
             )
         }
 }
-

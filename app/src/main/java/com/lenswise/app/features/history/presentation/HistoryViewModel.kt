@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.lenswise.app.LensWiseApplication
 import com.lenswise.app.domain.model.comparison.ProductComparisonRecord
+import com.lenswise.app.domain.model.history.IHistoryRecord
 import com.lenswise.app.domain.model.menu.MenuScannerRecord
 import com.lenswise.app.domain.model.product.ProductLensRecord
 import com.lenswise.app.domain.model.receipt.ReceiptScannerRecord
@@ -14,6 +15,8 @@ import com.lenswise.app.features.comparison.data.ComparisonHistoryRepository
 import com.lenswise.app.features.menu.data.MenuHistoryRepository
 import com.lenswise.app.features.product.data.ProductHistoryRepository
 import com.lenswise.app.features.receipt.data.ReceiptHistoryRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -43,8 +46,15 @@ class HistoryViewModel(
     private val productRepo: ProductHistoryRepository,
     private val comparisonRepo: ComparisonHistoryRepository,
     private val menuRepo: MenuHistoryRepository,
-    initialTab: Int = 0
+    initialTab: Int = 0,
+    scope: CoroutineScope? = null
 ) : ViewModel() {
+
+    private val vmScope = scope ?: runCatching {
+        val s = viewModelScope
+        Dispatchers.Main.immediate.isDispatchNeeded(kotlin.coroutines.EmptyCoroutineContext)
+        s
+    }.getOrElse { CoroutineScope(Dispatchers.Default) }
 
     private val _uiState = MutableStateFlow(HistoryUiState(selectedTabIndex = initialTab))
     val uiState: StateFlow<HistoryUiState> = _uiState.asStateFlow()
@@ -66,8 +76,19 @@ class HistoryViewModel(
         _uiState.update { it.copy(showClearDrawer = false) }
     }
 
+    fun deleteRecord(record: IHistoryRecord) {
+        vmScope.launch {
+            when (record) {
+                is ReceiptScannerRecord -> receiptRepo.delete(record.id)
+                is ProductLensRecord -> productRepo.delete(record.id)
+                is ProductComparisonRecord -> comparisonRepo.delete(record.id)
+                is MenuScannerRecord -> menuRepo.delete(record.id)
+            }
+        }
+    }
+
     fun clearCurrentTab() {
-        viewModelScope.launch {
+        vmScope.launch {
             when (_uiState.value.selectedTabIndex) {
                 0 -> receiptRepo.clearAll()
                 1 -> productRepo.clearAll()

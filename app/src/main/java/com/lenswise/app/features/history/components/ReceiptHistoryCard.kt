@@ -1,4 +1,4 @@
-﻿package com.lenswise.app.features.history.components
+package com.lenswise.app.features.history.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -47,7 +47,7 @@ import java.util.Locale
 @Composable
 fun ReceiptHistoryCard(
     record: ReceiptScannerRecord,
-    onClick: () -> Unit,
+    onClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()

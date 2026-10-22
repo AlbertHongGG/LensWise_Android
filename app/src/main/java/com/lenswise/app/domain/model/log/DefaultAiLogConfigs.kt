@@ -24,7 +24,7 @@ object DefaultAiLogConfigs {
             tabIcon = Icons.Default.SmartToy,
             agentType = null,
             emptyStateTitle = "尚無任何 AI 日誌",
-            emptyStateDescription = "系統調度與所有模型請求的歷程數據，\n都會有條理地記錄在此。",
+            emptyStateDescription = "尚未產生任何 AI 模型請求紀錄",
             emptyStateIcon = Icons.Default.SmartToy
         ),
         AiLogTabConfig(
@@ -33,7 +33,7 @@ object DefaultAiLogConfigs {
             tabIcon = Icons.AutoMirrored.Filled.ReceiptLong,
             agentType = AiAgentType.RECEIPT_SCANNER,
             emptyStateTitle = "尚無收據掃描日誌",
-            emptyStateDescription = "所有發票與收據之 OCR 辨識與結構化請求，\n都會有條理地記錄在此。",
+            emptyStateDescription = "尚未產生發票辨識與解析歷程",
             emptyStateIcon = Icons.AutoMirrored.Filled.ReceiptLong
         ),
         AiLogTabConfig(
@@ -42,7 +42,7 @@ object DefaultAiLogConfigs {
             tabIcon = Icons.Default.DocumentScanner,
             agentType = AiAgentType.MENU_SCANNER,
             emptyStateTitle = "尚無菜單掃描日誌",
-            emptyStateDescription = "拍攝菜單之文字擷取與結構化推論歷程，\n都會有條理地記錄在此。",
+            emptyStateDescription = "尚未產生菜單結構化擷取歷程",
             emptyStateIcon = Icons.Default.DocumentScanner
         ),
         AiLogTabConfig(
@@ -51,7 +51,7 @@ object DefaultAiLogConfigs {
             tabIcon = Icons.Default.Translate,
             agentType = AiAgentType.MENU_TRANSLATION,
             emptyStateTitle = "尚無菜單翻譯日誌",
-            emptyStateDescription = "各國餐點菜式多語言翻譯與推薦之歷程，\n都會有條理地記錄在此。",
+            emptyStateDescription = "尚未產生多語言菜單翻譯歷程",
             emptyStateIcon = Icons.Default.Translate
         ),
         AiLogTabConfig(
@@ -60,7 +60,7 @@ object DefaultAiLogConfigs {
             tabIcon = Icons.AutoMirrored.Filled.CompareArrows,
             agentType = AiAgentType.PRODUCT_COMPARISON,
             emptyStateTitle = "尚無商品比對日誌",
-            emptyStateDescription = "雙重商品規格、成分與性價比分析推論歷程，\n都會有條理地記錄在此。",
+            emptyStateDescription = "尚未產生商品規格比對歷程",
             emptyStateIcon = Icons.AutoMirrored.Filled.CompareArrows
         ),
         AiLogTabConfig(
@@ -69,7 +69,7 @@ object DefaultAiLogConfigs {
             tabIcon = Icons.Default.CenterFocusStrong,
             agentType = AiAgentType.PRODUCT_LENS,
             emptyStateTitle = "尚無商品分析日誌",
-            emptyStateDescription = "實體商品影像辨識與特徵反查之請求歷程，\n都會有條理地記錄在此。",
+            emptyStateDescription = "尚未產生商品特徵辨識歷程",
             emptyStateIcon = Icons.Default.CenterFocusStrong
         ),
         AiLogTabConfig(
@@ -78,7 +78,7 @@ object DefaultAiLogConfigs {
             tabIcon = Icons.Outlined.SmartToy,
             agentType = AiAgentType.AI_CHAT,
             emptyStateTitle = "尚無深度探討日誌",
-            emptyStateDescription = "AI 深度探討與進階提問的模型對話歷程，\n都會有條理地記錄在此。",
+            emptyStateDescription = "尚未產生 AI 深度諮詢對話歷程",
             emptyStateIcon = Icons.Outlined.SmartToy
         )
     )

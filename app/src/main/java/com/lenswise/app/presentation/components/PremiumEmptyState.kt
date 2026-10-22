@@ -83,7 +83,9 @@ fun PremiumEmptyState(
                 text = description,
                 style = AppTypography.emptyStateDesc.copy(
                     color = baseColor.copy(alpha = 0.50f)
-                )
+                ),
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
         }
     }

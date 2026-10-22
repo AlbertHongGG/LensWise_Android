@@ -1,4 +1,4 @@
-﻿package com.lenswise.app.features.settings.components
+package com.lenswise.app.features.settings.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -66,7 +66,7 @@ fun GlobalProvidersCard(
         Text(
             text = "GLOBAL PROVIDER PROFILES",
             style = AppTypography.sectionHeader.copy(color = textSecondaryColor),
-            modifier = Modifier.padding(start = 16.dp, bottom = 10.dp)
+            modifier = Modifier.padding(start = 16.dp, bottom = 10.dp, top = 22.dp)
         )
 
         Box(

@@ -1,15 +1,19 @@
 package com.lenswise.app.presentation.components
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -18,24 +22,29 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.lenswise.app.presentation.theme.AppColors
 import com.lenswise.app.presentation.theme.AppTypography
+import kotlin.math.roundToInt
 
 /**
  * LensWise 經典膠囊分頁欄元件 (LensWisePillTabBar)。
- * 100% 復刻 LensWise Flutter 版統一膠囊分頁規範：
- * - 圓角 16dp 槽體、4dp 內襯、半透明底槽。
- * - 橫向滑動列（horizontalScroll，間距 4dp）。
- * - 項目：高 38dp、圓角 12dp、圖標 16dp、間距 6dp。
- * - 選中：淺色模式白底+4dp陰影、深色模式 15% 白透明底；主色或白高亮 (SemiBold w600)。
- * - 未選中：透明底、54% 次要文字灰 (Normal w400)。
+ * 1:1 絕對復刻 LensWise Flutter 版 unified_history_page.dart 之 TabBar 規範：
+ *
+ * 核心保證：
+ * 1. 固定 3 席次寬度：tabWidth = (availableWidth - 8dp) / 3，在螢幕上永遠剛好呈現 3 個項目。
+ * 2. 懸浮白底滑動指示器 (Sliding Pill Indicator)：以 spring 動態平滑位移，取代突兀的靜態切換。
+ * 3. 自動滾動居中 (Auto-Scroll)：切換至邊界外項目時自動滑順滾動至中央視角，邊界處理極致滑順。
  */
 @Composable
 fun <T> LensWisePillTabBar(
@@ -47,8 +56,10 @@ fun <T> LensWisePillTabBar(
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
+    val scrollState = rememberScrollState()
+    val density = LocalDensity.current
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 14.dp)
@@ -59,56 +70,97 @@ fun <T> LensWisePillTabBar(
             )
             .padding(4.dp)
     ) {
-        Row(
+        val totalWidth = maxWidth
+        // 保持一次剛好顯示 3 個選項 (1:1 對齊 Flutter: (screenWidth - 32) / 3)
+        val tabWidth = totalWidth / 3f
+        val tabHeight = 38.dp
+        val safeSelectedIndex = selectedIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+
+        // 選取項目變更時，平滑自動滾動使該項目居中顯示
+        LaunchedEffect(safeSelectedIndex, tabWidth) {
+            val tabWidthPx = with(density) { tabWidth.toPx() }
+            val viewportWidthPx = with(density) { totalWidth.toPx() }
+            val targetScrollPx = (safeSelectedIndex * tabWidthPx) - (viewportWidthPx - tabWidthPx) / 2f
+            val maxScroll = scrollState.maxValue.toFloat()
+            val clampedScroll = targetScrollPx.coerceIn(0f, maxScroll)
+            scrollState.animateScrollTo(clampedScroll.roundToInt())
+        }
+
+        val indicatorOffset by animateDpAsState(
+            targetValue = tabWidth * safeSelectedIndex,
+            animationSpec = spring(dampingRatio = 0.82f, stiffness = 420f),
+            label = "tabIndicatorOffset"
+        )
+
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                .horizontalScroll(scrollState)
         ) {
-            items.forEachIndexed { index, item ->
-                val isSelected = selectedIndex == index
-                val tabBg = when {
-                    isSelected && isDark -> Color.White.copy(alpha = 0.15f)
-                    isSelected -> Color.White
-                    else -> Color.Transparent
-                }
-                val tabTextColor = when {
-                    isSelected && isDark -> Color.White
-                    isSelected -> AppColors.primary
-                    isDark -> Color.White.copy(alpha = 0.54f)
-                    else -> Color.Black.copy(alpha = 0.54f)
-                }
-
+            // 1. 懸浮平滑滑動指示器 (Sliding Pill Indicator)
+            if (items.isNotEmpty()) {
                 Box(
                     modifier = Modifier
-                        .height(38.dp)
+                        .offset(x = indicatorOffset)
+                        .width(tabWidth)
+                        .height(tabHeight)
                         .shadow(
-                            elevation = if (isSelected && !isDark) 4.dp else 0.dp,
+                            elevation = if (isDark) 0.dp else 4.dp,
                             shape = RoundedCornerShape(12.dp),
                             spotColor = Color.Black.copy(alpha = 0.08f)
                         )
                         .clip(RoundedCornerShape(12.dp))
-                        .background(tabBg)
-                        .clickable { onItemSelected(index) }
-                        .padding(horizontal = 16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = itemIcon(item),
-                            contentDescription = null,
-                            tint = tabTextColor,
-                            modifier = Modifier.size(16.dp)
+                        .background(
+                            if (isDark) Color.White.copy(alpha = 0.15f)
+                            else Color.White
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = itemTitle(item),
-                            style = if (isSelected) {
-                                AppTypography.tabSelected.copy(color = tabTextColor)
-                            } else {
-                                AppTypography.tabUnselected.copy(color = tabTextColor)
-                            }
-                        )
+                )
+            }
+
+            // 2. Tab 點擊與內容列
+            Row {
+                items.forEachIndexed { index, item ->
+                    val isSelected = safeSelectedIndex == index
+                    val tabTextColor = when {
+                        isSelected && isDark -> Color.White
+                        isSelected -> AppColors.primary
+                        isDark -> Color.White.copy(alpha = 0.54f)
+                        else -> Color.Black.copy(alpha = 0.54f)
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .width(tabWidth)
+                            .height(tabHeight)
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { onItemSelected(index) }
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        ) {
+                            Icon(
+                                imageVector = itemIcon(item),
+                                contentDescription = null,
+                                tint = tabTextColor,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = itemTitle(item),
+                                maxLines = 1,
+                                style = if (isSelected) {
+                                    AppTypography.tabSelected.copy(color = tabTextColor)
+                                } else {
+                                    AppTypography.tabUnselected.copy(color = tabTextColor)
+                                }
+                            )
+                        }
                     }
                 }
             }

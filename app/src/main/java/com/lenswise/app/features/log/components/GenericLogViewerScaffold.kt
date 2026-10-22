@@ -1,4 +1,4 @@
-﻿package com.lenswise.app.features.log.components
+package com.lenswise.app.features.log.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -32,6 +32,10 @@ import com.lenswise.app.domain.model.log.DeletableLog
 import com.lenswise.app.presentation.components.SwipeToConfirmDrawer
 import com.lenswise.app.presentation.theme.AppColors
 import com.lenswise.app.presentation.theme.AppTypography
+import com.lenswise.app.presentation.components.trash.DragDropTrashContainer
+import com.lenswise.app.presentation.components.trash.GlassmorphicTrashControl
+import com.lenswise.app.presentation.components.trash.draggableToTrash
+import com.lenswise.app.presentation.components.trash.rememberDragDropTrashState
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.haze
 import kotlinx.coroutines.launch

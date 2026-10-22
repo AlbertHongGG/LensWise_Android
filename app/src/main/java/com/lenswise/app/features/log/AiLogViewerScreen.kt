@@ -1,4 +1,4 @@
-﻿package com.lenswise.app.features.log
+package com.lenswise.app.features.log
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -65,9 +65,10 @@ import com.lenswise.app.features.ai.domain.AiAgentType
 import com.lenswise.app.presentation.components.PremiumEmptyState
 import com.lenswise.app.presentation.theme.AppTypography
 import com.lenswise.app.presentation.components.SwipeToConfirmDrawer
-import com.lenswise.app.features.log.components.DragDropTrashContainer
-import com.lenswise.app.features.log.components.draggableToTrash
-import com.lenswise.app.features.log.components.rememberDragDropTrashState
+import com.lenswise.app.presentation.components.trash.DragDropTrashContainer
+import com.lenswise.app.presentation.components.trash.GlassmorphicTrashControl
+import com.lenswise.app.presentation.components.trash.draggableToTrash
+import com.lenswise.app.presentation.components.trash.rememberDragDropTrashState
 import com.lenswise.app.presentation.theme.AppColors
 import kotlinx.coroutines.launch
 

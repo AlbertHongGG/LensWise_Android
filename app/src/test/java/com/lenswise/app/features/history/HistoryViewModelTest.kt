@@ -5,6 +5,8 @@ import com.lenswise.app.features.history.presentation.HistoryViewModel
 import com.lenswise.app.features.menu.data.MenuHistoryRepository
 import com.lenswise.app.features.product.data.ProductHistoryRepository
 import com.lenswise.app.features.receipt.data.ReceiptHistoryRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -32,7 +34,8 @@ class HistoryViewModelTest {
             productRepo = productRepo,
             comparisonRepo = comparisonRepo,
             menuRepo = menuRepo,
-            initialTab = 0
+            initialTab = 0,
+            scope = CoroutineScope(Dispatchers.Unconfined)
         )
     }
 
@@ -57,6 +60,34 @@ class HistoryViewModelTest {
         viewModel.openClearDrawer()
         assertTrue(viewModel.uiState.value.showClearDrawer)
         viewModel.closeClearDrawer()
+        assertFalse(viewModel.uiState.value.showClearDrawer)
+    }
+
+    @Test
+    fun `deleteRecord dispatches to correct repository`() = kotlinx.coroutines.runBlocking {
+        val receiptRecord = com.lenswise.app.domain.model.receipt.ReceiptScannerRecord(id = "rec-1")
+        viewModel.deleteRecord(receiptRecord)
+        Mockito.verify(receiptRepo).delete("rec-1")
+
+        val productRecord = com.lenswise.app.domain.model.product.ProductLensRecord(id = "prod-1")
+        viewModel.deleteRecord(productRecord)
+        Mockito.verify(productRepo).delete("prod-1")
+    }
+
+    @Test
+    fun `clearCurrentTab only clears active repository and closes drawer`() = kotlinx.coroutines.runBlocking {
+        viewModel.selectTab(0)
+        viewModel.openClearDrawer()
+        viewModel.clearCurrentTab()
+        Mockito.verify(receiptRepo).clearAll()
+        Mockito.verify(productRepo, Mockito.never()).clearAll()
+        assertFalse(viewModel.uiState.value.showClearDrawer)
+
+        viewModel.selectTab(2)
+        viewModel.openClearDrawer()
+        viewModel.clearCurrentTab()
+        Mockito.verify(comparisonRepo).clearAll()
+        Mockito.verify(menuRepo, Mockito.never()).clearAll()
         assertFalse(viewModel.uiState.value.showClearDrawer)
     }
 }

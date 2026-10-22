@@ -1,4 +1,4 @@
-﻿package com.lenswise.app.features.log.components
+package com.lenswise.app.presentation.components.trash
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
@@ -60,21 +60,9 @@ fun GlassmorphicTrashControl(
         )
     } else {
         SolidColor(
-            if (isDark) Color.White.copy(alpha = 0.12f)
-            else Color.Black.copy(alpha = 0.10f)
+            if (isDark) Color.White.copy(alpha = 0.15f)
+            else Color.Black.copy(alpha = 0.08f)
         )
-    }
-
-    val shadowAmbient = if (isHovering) {
-        Color(0xFFEF4444).copy(alpha = 0.50f)
-    } else {
-        Color.Black.copy(alpha = if (isDark) 0.35f else 0.08f)
-    }
-
-    val shadowSpot = if (isHovering) {
-        Color(0xFFEF4444).copy(alpha = 0.70f)
-    } else {
-        Color.Black.copy(alpha = if (isDark) 0.50f else 0.12f)
     }
 
     Box(
@@ -83,10 +71,10 @@ fun GlassmorphicTrashControl(
             .padding(bottom = bottomSafetyPadding)
             .size(size)
             .shadow(
-                elevation = if (isHovering) 20.dp else 10.dp,
+                elevation = if (isHovering) 20.dp else 8.dp,
                 shape = CircleShape,
-                ambientColor = shadowAmbient,
-                spotColor = shadowSpot
+                ambientColor = if (isHovering) Color(0xFFEF4444).copy(alpha = 0.50f) else Color.Black.copy(alpha = 0.25f),
+                spotColor = if (isHovering) Color(0xFFEF4444).copy(alpha = 0.70f) else Color.Black.copy(alpha = 0.25f)
             )
             .clip(CircleShape)
             .then(
@@ -99,17 +87,12 @@ fun GlassmorphicTrashControl(
                 } else if (hazeState != null) {
                     Modifier.hazeChild(state = hazeState) {
                         blurRadius = 24.dp
-                        noiseFactor = 0.08f
-                        backgroundColor = if (isDark) {
-                            Color.Black.copy(alpha = 0.60f)
-                        } else {
-                            Color.White.copy(alpha = 0.80f)
-                        }
+                        noiseFactor = 0f
+                        backgroundColor = if (isDark) Color(0xFF1E1E1E).copy(alpha = 0.85f) else Color.White.copy(alpha = 0.85f)
                     }
                 } else {
                     Modifier.background(
-                        if (isDark) Color(0xFF1E1E20).copy(alpha = 0.85f)
-                        else Color.White.copy(alpha = 0.90f)
+                        if (isDark) Color(0xFF1E1E1E) else Color.White
                     )
                 }
             )
@@ -127,16 +110,9 @@ fun GlassmorphicTrashControl(
     ) {
         Icon(
             imageVector = if (isHovering) Icons.Filled.DeleteForever else Icons.Outlined.DeleteOutline,
-            contentDescription = "清空日誌",
-            tint = if (isHovering) {
-                Color.White
-            } else if (isDark) {
-                Color.White.copy(alpha = 0.70f)
-            } else {
-                Color.Black.copy(alpha = 0.54f)
-            },
-            modifier = Modifier.size(if (isHovering) 28.dp else 24.dp)
+            contentDescription = "清空紀錄",
+            tint = if (isHovering) Color.White else (if (isDark) Color.White.copy(alpha = 0.75f) else Color.Black.copy(alpha = 0.70f)),
+            modifier = Modifier.size(24.dp)
         )
     }
 }
-
