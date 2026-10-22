@@ -81,4 +81,18 @@ class GoogleAiStudioPayloadTest {
         assertEquals("image/jpeg", inlineData?.get("mimeType")?.jsonPrimitive?.content)
         assertTrue(inlineData?.get("data")?.jsonPrimitive?.content?.isNotEmpty() == true)
     }
+
+    @Test
+    fun testGenerateStream_closesWithIoExceptionWhenApiKeyIsBlank() = kotlinx.coroutines.runBlocking {
+        val provider = GoogleAiStudioProvider(apiKey = "")
+        var capturedError: Throwable? = null
+        try {
+            provider.generateStream(GenerateRequest("test")).collect {}
+        } catch (e: Exception) {
+            capturedError = e
+        }
+        assertNotNull(capturedError)
+        assertTrue(capturedError is java.io.IOException)
+        assertTrue(capturedError?.message?.contains("API Key 未設定") == true)
+    }
 }

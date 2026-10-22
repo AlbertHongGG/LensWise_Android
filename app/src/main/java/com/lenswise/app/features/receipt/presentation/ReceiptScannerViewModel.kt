@@ -120,13 +120,17 @@ class ReceiptScannerViewModel(
             activeAgent.executeStreamSnapshot(images)
                 .catch { error ->
                     Log.e("ReceiptScannerVM", "Receipt analysis failed", error)
+                    val rawMsg = error.localizedMessage?.takeIf { it.isNotBlank() }
+                        ?: error.message?.takeIf { it.isNotBlank() }
+                        ?: error.javaClass.simpleName
+                    val displayError = "收據解析失敗：$rawMsg"
                     _uiState.update {
                         it.copy(
                             status = ReceiptScannerStatus.ERROR,
-                            errorMessage = error.localizedMessage ?: "收據解析過程發生異常"
+                            errorMessage = displayError
                         )
                     }
-                    NotificationController.showError("收據分析失敗: ${error.localizedMessage}")
+                    NotificationController.showError("收據分析失敗: $rawMsg")
                 }
                 .collect { snapshot ->
                     val isDone = snapshot.isComplete

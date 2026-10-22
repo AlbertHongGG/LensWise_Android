@@ -11,7 +11,12 @@ import com.lenswise.app.domain.model.receipt.ReceiptScannerRecord
 import com.lenswise.app.domain.model.settings.TargetLanguage
 import com.lenswise.app.features.ai.domain.AiAgentType
 import com.lenswise.app.features.receipt.domain.IReceiptScannerAgent
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 
@@ -31,7 +36,7 @@ class ReceiptScannerAgent(
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
-    override fun executeStreamSnapshot(input: List<AppImageEntity>): Flow<StreamingSnapshot<ReceiptScannerRecord>> {
+    override fun executeStreamSnapshot(input: List<AppImageEntity>): Flow<StreamingSnapshot<ReceiptScannerRecord>> = flow {
         val request = GenerateRequest(
             prompt = ReceiptScannerPrompts.buildUserPrompt(),
             systemPrompt = ReceiptScannerPrompts.buildSystemPrompt(targetLanguage),
@@ -39,14 +44,16 @@ class ReceiptScannerAgent(
             language = targetLanguage.code
         )
 
-        return executeStreamingPipeline(
-            request = request,
-            mapper = ReceiptScannerPayloadParser::parseStreamingSnapshot,
-            initialData = ReceiptScannerRecord.empty()
+        emitAll(
+            executeStreamingPipeline(
+                request = request,
+                mapper = ReceiptScannerPayloadParser::parseStreamingSnapshot,
+                initialData = ReceiptScannerRecord.empty()
+            )
         )
-    }
+    }.flowOn(Dispatchers.IO)
 
-    override suspend fun execute(input: List<AppImageEntity>): ReceiptScannerRecord {
+    override suspend fun execute(input: List<AppImageEntity>): ReceiptScannerRecord = withContext(Dispatchers.IO) {
         val request = GenerateRequest(
             prompt = ReceiptScannerPrompts.buildUserPrompt(),
             systemPrompt = ReceiptScannerPrompts.buildSystemPrompt(targetLanguage),
@@ -58,6 +65,6 @@ class ReceiptScannerAgent(
         val candidate = JsonStreamPipeline.extractJsonSubstring(response.text)
         val repaired = JsonStreamPipeline.repairPartialJson(candidate)
         val parsedJson = json.parseToJsonElement(repaired).jsonObject
-        return ReceiptScannerPayloadParser.parseStreamingSnapshot(parsedJson)
+        ReceiptScannerPayloadParser.parseStreamingSnapshot(parsedJson)
     }
 }

@@ -9,6 +9,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -83,26 +84,28 @@ class VertexAiProvider(
 
         try {
             val response = call.execute()
-            if (!response.isSuccessful) {
-                val err = response.body?.string().orEmpty()
-                close(IOException("Vertex AI stream error (${response.code}): $err"))
-                return@callbackFlow
-            }
+            response.use { resp ->
+                if (!resp.isSuccessful) {
+                    val err = resp.body?.string().orEmpty()
+                    close(IOException("Vertex AI stream error (${resp.code}): $err"))
+                    return@callbackFlow
+                }
 
-            response.body?.source()?.let { source ->
-                while (!source.exhausted() && isActive) {
-                    val line = source.readUtf8Line() ?: break
-                    val trimmed = line.trim()
-                    if (trimmed.isEmpty()) continue
+                resp.body?.source()?.let { source ->
+                    while (!source.exhausted() && isActive) {
+                        val line = source.readUtf8Line() ?: break
+                        val trimmed = line.trim()
+                        if (trimmed.isEmpty()) continue
 
-                    if (trimmed.startsWith("data: ")) {
-                        val jsonString = trimmed.removePrefix("data: ").trim()
-                        if (jsonString.isEmpty()) continue
-                        runCatching {
-                            val json = jsonParser.parseToJsonElement(jsonString).jsonObject
-                            val text = extractText(json)
-                            if (text.isNotEmpty()) {
-                                trySend(GenerateResponse(text = text, isDone = false))
+                        if (trimmed.startsWith("data: ")) {
+                            val jsonString = trimmed.removePrefix("data: ").trim()
+                            if (jsonString.isEmpty()) continue
+                            runCatching {
+                                val json = jsonParser.parseToJsonElement(jsonString).jsonObject
+                                val text = extractText(json)
+                                if (text.isNotEmpty()) {
+                                    trySend(GenerateResponse(text = text, isDone = false))
+                                }
                             }
                         }
                     }
@@ -117,7 +120,7 @@ class VertexAiProvider(
         awaitClose {
             call.cancel()
         }
-    }
+    }.flowOn(Dispatchers.IO)
 
     private fun applyAuth(builder: Request.Builder) {
         if (apiKey.isBlank()) return

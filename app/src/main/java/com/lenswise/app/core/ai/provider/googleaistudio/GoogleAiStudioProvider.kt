@@ -10,11 +10,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
@@ -99,28 +101,30 @@ class GoogleAiStudioProvider(
 
         try {
             val response = call.execute()
-            if (!response.isSuccessful) {
-                val err = response.body?.string().orEmpty()
-                val message = parseErrorMessage(err)
-                close(IOException("Google AI Studio stream error (${response.code}): $message"))
-                return@callbackFlow
-            }
+            response.use { resp ->
+                if (!resp.isSuccessful) {
+                    val err = resp.body?.string().orEmpty()
+                    val message = parseErrorMessage(err)
+                    close(IOException("Google AI Studio stream error (${resp.code}): $message"))
+                    return@callbackFlow
+                }
 
-            response.body?.source()?.let { source ->
-                while (!source.exhausted() && isActive) {
-                    val line = source.readUtf8Line() ?: break
-                    val trimmed = line.trim()
-                    if (trimmed.isEmpty()) continue
+                resp.body?.source()?.let { source ->
+                    while (!source.exhausted() && isActive) {
+                        val line = source.readUtf8Line() ?: break
+                        val trimmed = line.trim()
+                        if (trimmed.isEmpty()) continue
 
-                    if (trimmed.startsWith("data: ")) {
-                        val jsonString = trimmed.removePrefix("data: ").trim()
-                        if (jsonString.isEmpty() || jsonString == "[DONE]") continue
+                        if (trimmed.startsWith("data: ")) {
+                            val jsonString = trimmed.removePrefix("data: ").trim()
+                            if (jsonString.isEmpty() || jsonString == "[DONE]") continue
 
-                        runCatching {
-                            val json = jsonParser.parseToJsonElement(jsonString).jsonObject
-                            val text = extractText(json)
-                            if (text.isNotEmpty()) {
-                                trySend(GenerateResponse(text = text, isDone = false))
+                            runCatching {
+                                val json = jsonParser.parseToJsonElement(jsonString).jsonObject
+                                val text = extractText(json)
+                                if (text.isNotEmpty()) {
+                                    trySend(GenerateResponse(text = text, isDone = false))
+                                }
                             }
                         }
                     }
@@ -135,7 +139,7 @@ class GoogleAiStudioProvider(
         awaitClose {
             call.cancel()
         }
-    }
+    }.flowOn(Dispatchers.IO)
 
     internal fun buildPayload(request: GenerateRequest): JsonObject {
         val parts = buildJsonArray {
@@ -201,6 +205,13 @@ class GoogleAiStudioProvider(
         if (candidates.isEmpty()) return ""
         val content = candidates[0].jsonObject["content"]?.jsonObject ?: return ""
         val parts = content["parts"]?.jsonArray ?: return ""
-        return parts.mapNotNull { it.jsonObject["text"]?.jsonPrimitive?.content }.joinToString("")
+        return parts.mapNotNull { part ->
+            val partObj = part.jsonObject
+            if (partObj["thought"]?.jsonPrimitive?.booleanOrNull == true) {
+                null
+            } else {
+                partObj["text"]?.jsonPrimitive?.content
+            }
+        }.joinToString("")
     }
 }

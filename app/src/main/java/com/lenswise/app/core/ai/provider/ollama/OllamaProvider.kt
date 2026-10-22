@@ -9,6 +9,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.add
@@ -75,23 +76,25 @@ class OllamaProvider(
 
         try {
             val response = call.execute()
-            if (!response.isSuccessful) {
-                val err = response.body?.string().orEmpty()
-                close(IOException("Ollama stream error (${response.code}): $err"))
-                return@callbackFlow
-            }
+            response.use { resp ->
+                if (!resp.isSuccessful) {
+                    val err = resp.body?.string().orEmpty()
+                    close(IOException("Ollama stream error (${resp.code}): $err"))
+                    return@callbackFlow
+                }
 
-            response.body?.source()?.let { source ->
-                while (!source.exhausted() && isActive) {
-                    val line = source.readUtf8Line() ?: break
-                    val trimmed = line.trim()
-                    if (trimmed.isEmpty()) continue
-                    runCatching {
-                        val json = jsonParser.parseToJsonElement(trimmed).jsonObject
-                        val chunk = json["response"]?.jsonPrimitive?.content.orEmpty()
-                        val isDone = json["done"]?.jsonPrimitive?.booleanOrNull == true
-                        if (chunk.isNotEmpty() || isDone) {
-                            trySend(GenerateResponse(text = chunk, isDone = isDone))
+                resp.body?.source()?.let { source ->
+                    while (!source.exhausted() && isActive) {
+                        val line = source.readUtf8Line() ?: break
+                        val trimmed = line.trim()
+                        if (trimmed.isEmpty()) continue
+                        runCatching {
+                            val json = jsonParser.parseToJsonElement(trimmed).jsonObject
+                            val chunk = json["response"]?.jsonPrimitive?.content.orEmpty()
+                            val isDone = json["done"]?.jsonPrimitive?.booleanOrNull == true
+                            if (chunk.isNotEmpty() || isDone) {
+                                trySend(GenerateResponse(text = chunk, isDone = isDone))
+                            }
                         }
                     }
                 }
@@ -104,7 +107,7 @@ class OllamaProvider(
         awaitClose {
             call.cancel()
         }
-    }
+    }.flowOn(Dispatchers.IO)
 
     private fun buildPayload(request: GenerateRequest, stream: Boolean) = buildJsonObject {
         put("model", modelName)

@@ -5,9 +5,12 @@ import com.lenswise.app.core.ai.model.GenerateRequest
 import com.lenswise.app.core.ai.model.GenerateResponse
 import com.lenswise.app.core.ai.provider.AiProvider
 import com.lenswise.app.core.ai.provider.geminiflow.dto.GeminiFlowChatRequestDto
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -46,7 +49,7 @@ class GeminiFlowProvider(
         encodeDefaults = true
     }
 
-    override suspend fun generate(request: GenerateRequest): GenerateResponse {
+    override suspend fun generate(request: GenerateRequest): GenerateResponse = withContext(Dispatchers.IO) {
         val sanitizedBaseUrl = baseUrl.trimEnd('/')
         val url = "$sanitizedBaseUrl/chat"
         val payloadJson = buildPayloadJson(request)
@@ -63,7 +66,7 @@ class GeminiFlowProvider(
             val text = json["text"]?.jsonPrimitive?.content
                 ?: json["response"]?.jsonPrimitive?.content
                 ?: ""
-            return GenerateResponse(text = text, isDone = true)
+            GenerateResponse(text = text, isDone = true)
         }
     }
 
@@ -122,7 +125,7 @@ class GeminiFlowProvider(
         awaitClose {
             eventSource.cancel()
         }
-    }
+    }.flowOn(Dispatchers.IO)
 
     internal fun buildPayloadJson(request: GenerateRequest): String {
         val imagesBase64 = request.images?.map {
