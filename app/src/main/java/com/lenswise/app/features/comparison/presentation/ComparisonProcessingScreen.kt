@@ -1,5 +1,6 @@
 package com.lenswise.app.features.comparison.presentation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -16,9 +18,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.CloudOff
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -58,8 +62,14 @@ fun ComparisonProcessingScreen(
     val state by viewModel.uiState.collectAsState()
     var hasNavigated by remember { mutableStateOf(false) }
 
+    BackHandler {
+        viewModel.reset()
+        onNavigateBack()
+    }
+
     LaunchedEffect(Unit) {
-        if (viewModel.uiState.value.status == ProductComparisonStatus.IDLE) {
+        val currentStatus = viewModel.uiState.value.status
+        if (currentStatus != ProductComparisonStatus.CONNECTING && currentStatus != ProductComparisonStatus.STREAMING) {
             viewModel.reset()
             viewModel.analyzeComparison(images)
         }
@@ -127,13 +137,43 @@ fun ComparisonProcessingScreen(
                 Spacer(modifier = Modifier.height(36.dp))
 
                 Button(
-                    onClick = onNavigateBack,
+                    onClick = {
+                        viewModel.reset()
+                        viewModel.analyzeComparison(images)
+                    },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = AppColors.primary,
                         contentColor = Color.White
                     ),
                     shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.height(48.dp)
+                    modifier = Modifier
+                        .fillMaxWidth(0.7f)
+                        .height(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Refresh,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.size(8.dp))
+                    Text(
+                        text = "重新嘗試",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedButton(
+                    onClick = {
+                        viewModel.reset()
+                        onNavigateBack()
+                    },
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth(0.7f)
+                        .height(48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ArrowBack,

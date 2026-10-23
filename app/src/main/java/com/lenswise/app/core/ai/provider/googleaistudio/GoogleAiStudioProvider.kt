@@ -36,7 +36,7 @@ import java.util.concurrent.TimeUnit
  * 原生 Google AI Studio (Gemini API) 供應商實作。
  * 透過 Google Generative Language API 端點與 API Key 直接通訊：
  * - 支援標準多模態 inlineData 傳輸
- * - 支援系統指令 (systemInstruction) 與思考等級 (thinkingConfig)
+ * - 支援系統指令 (systemInstruction) 與思考等級 (thinkingConfig.thinkingLevel)
  * - 支援單次 generate 與 streamGenerateContent (SSE) 漸進輸出
  * - 支援 Google REST 結構化錯誤解析與安全調用
  */
@@ -175,22 +175,16 @@ class GoogleAiStudioProvider(
             putJsonObject("generationConfig") {
                 request.temperature?.let { put("temperature", it) }
                 val effectiveThinking = if (thinkingLevel.isNotEmpty()) thinkingLevel else request.thinking
-                val budget = resolveThinkingBudget(effectiveThinking)
-                if (budget != null) {
-                    putJsonObject("thinkingConfig") {
-                        put("thinkingBudget", budget)
-                    }
+                val level = resolveThinkingLevel(effectiveThinking)
+                putJsonObject("thinkingConfig") {
+                    put("thinkingLevel", level)
                 }
             }
         }
     }
 
-    private fun resolveThinkingBudget(level: String): Int? {
-        return when (GeminiThinkingLevel.fromValue(level)) {
-            GeminiThinkingLevel.LOW -> 1024
-            GeminiThinkingLevel.MEDIUM -> 2048
-            GeminiThinkingLevel.HIGH -> 8192
-        }
+    private fun resolveThinkingLevel(level: String): String {
+        return GeminiThinkingLevel.fromValue(level).value
     }
 
     private fun parseErrorMessage(rawError: String): String {

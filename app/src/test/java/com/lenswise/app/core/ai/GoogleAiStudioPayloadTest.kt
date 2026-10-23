@@ -50,7 +50,7 @@ class GoogleAiStudioPayloadTest {
         assertEquals("0.5", genConfig?.get("temperature")?.jsonPrimitive?.content)
         val thinkingConfig = genConfig?.get("thinkingConfig")?.jsonObject
         assertNotNull(thinkingConfig)
-        assertEquals("1024", thinkingConfig?.get("thinkingBudget")?.jsonPrimitive?.content)
+        assertEquals("low", thinkingConfig?.get("thinkingLevel")?.jsonPrimitive?.content)
     }
 
     @Test
