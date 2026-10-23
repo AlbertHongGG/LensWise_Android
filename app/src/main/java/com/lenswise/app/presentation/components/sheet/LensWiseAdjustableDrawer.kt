@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -189,11 +190,12 @@ fun LensWiseAdjustableDrawer(
                 // Header 槽位 (傳入拖曳感應 Modifier)
                 headerContent(dragModifier)
 
-                // Body 槽位 (權重 1f，內部滾動完全解耦)
+                // Body 槽位 (權重 1f，內部滾動完全解耦，嚴格幾何邊界裁切，絕對不遮擋 Header 拉桿)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
+                        .clipToBounds()
                 ) {
                     content()
                 }

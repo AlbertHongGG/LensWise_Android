@@ -1,6 +1,6 @@
 package com.lenswise.app.presentation.components
 
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,7 +24,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,6 +38,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.lenswise.app.presentation.theme.AppColors
 import com.lenswise.app.presentation.theme.AppTypography
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 /**
@@ -43,8 +47,10 @@ import kotlin.math.roundToInt
  *
  * 核心保證：
  * 1. 固定 3 席次寬度：tabWidth = (availableWidth - 8dp) / 3，在螢幕上永遠剛好呈現 3 個項目。
- * 2. 懸浮白底滑動指示器 (Sliding Pill Indicator)：以 spring 動態平滑位移，取代突兀的靜態切換。
- * 3. 自動滾動居中 (Auto-Scroll)：切換至邊界外項目時自動滑順滾動至中央視角，邊界處理極致滑順。
+ * 2. 懸浮白底滑動指示器 (Sliding Pill Indicator)：使用者主動切換以 spring 動態平滑位移。
+ * 3. 零閃爍瞬態快拍 (Instant Snap on Mount)：首次進入或頁面返回重建時，以 snapTo 與 scrollTo 瞬時就位，
+ *    杜絕任何 0 到 target 的過渡動畫引起的視覺跳動與閃爍。
+ * 4. 自動滾動居中 (Auto-Scroll)：切換至邊界外項目時自動滑順滾動至中央視角，邊界處理極致滑順。
  */
 @Composable
 fun <T> LensWisePillTabBar(
@@ -56,7 +62,6 @@ fun <T> LensWisePillTabBar(
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
-    val scrollState = rememberScrollState()
     val density = LocalDensity.current
 
     BoxWithConstraints(
@@ -76,21 +81,39 @@ fun <T> LensWisePillTabBar(
         val tabHeight = 38.dp
         val safeSelectedIndex = selectedIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
 
-        // 選取項目變更時，平滑自動滾動使該項目居中顯示
+        val tabWidthPx = with(density) { tabWidth.toPx() }
+        val viewportWidthPx = with(density) { totalWidth.toPx() }
+        val targetScrollPx = ((safeSelectedIndex * tabWidthPx) - (viewportWidthPx - tabWidthPx) / 2f).coerceAtLeast(0f)
+        val targetOffsetPx = with(density) { (tabWidth * safeSelectedIndex).toPx() }
+
+        // 首幀同步初值注入 (Synchronous Initial Value Injection)：
+        // 初值直接為當前 selectedIndex 計算之 offset 與 scroll，首幀繪製即在精準目標位置，
+        // 徹底消除從 0f 瞬態跳動造成的白色方塊閃爍！
+        val indicatorAnimatable = remember(safeSelectedIndex, tabWidth) { Animatable(targetOffsetPx) }
+        val scrollState = rememberScrollState(initial = targetScrollPx.roundToInt())
+        var lastSelectedIndex by remember { mutableIntStateOf(safeSelectedIndex) }
+
+        // 唯有使用者手動點擊切換 Tab 時，才啟動 Spring 平滑動畫與滾動
         LaunchedEffect(safeSelectedIndex, tabWidth) {
-            val tabWidthPx = with(density) { tabWidth.toPx() }
-            val viewportWidthPx = with(density) { totalWidth.toPx() }
-            val targetScrollPx = (safeSelectedIndex * tabWidthPx) - (viewportWidthPx - tabWidthPx) / 2f
-            val maxScroll = scrollState.maxValue.toFloat()
-            val clampedScroll = targetScrollPx.coerceIn(0f, maxScroll)
-            scrollState.animateScrollTo(clampedScroll.roundToInt())
+            if (lastSelectedIndex != safeSelectedIndex) {
+                lastSelectedIndex = safeSelectedIndex
+                launch {
+                    val maxScroll = scrollState.maxValue.toFloat()
+                    val clampedScroll = targetScrollPx.coerceIn(0f, maxScroll)
+                    scrollState.animateScrollTo(clampedScroll.roundToInt())
+                }
+                launch {
+                    indicatorAnimatable.animateTo(
+                        targetValue = targetOffsetPx,
+                        animationSpec = spring(dampingRatio = 0.82f, stiffness = 420f)
+                    )
+                }
+            } else {
+                indicatorAnimatable.snapTo(targetOffsetPx)
+            }
         }
 
-        val indicatorOffset by animateDpAsState(
-            targetValue = tabWidth * safeSelectedIndex,
-            animationSpec = spring(dampingRatio = 0.82f, stiffness = 420f),
-            label = "tabIndicatorOffset"
-        )
+        val indicatorOffset = with(density) { indicatorAnimatable.value.toDp() }
 
         Box(
             modifier = Modifier

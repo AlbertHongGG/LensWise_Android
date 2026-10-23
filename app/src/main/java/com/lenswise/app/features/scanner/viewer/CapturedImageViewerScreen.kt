@@ -1,4 +1,4 @@
-﻿package com.lenswise.app.features.scanner.viewer
+package com.lenswise.app.features.scanner.viewer
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -26,9 +26,9 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.lenswise.app.features.scanner.ScannerViewModel
+import com.lenswise.app.features.scanner.viewer.components.LensWiseZoomableImageViewer
 import com.lenswise.app.features.scanner.viewer.components.ViewerThumbnailFilmstrip
 import com.lenswise.app.features.scanner.viewer.components.ViewerTopBar
-import com.lenswise.app.features.scanner.viewer.components.ZoomableAsyncImage
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -102,7 +102,7 @@ fun CapturedImageViewerScreen(
         ) { pageIndex ->
             val entity = images.getOrNull(pageIndex)
             if (entity != null) {
-                ZoomableAsyncImage(
+                LensWiseZoomableImageViewer(
                     model = entity.file,
                     contentDescription = "照片大圖 ${pageIndex + 1}",
                     isSelected = pageIndex == pagerState.currentPage,

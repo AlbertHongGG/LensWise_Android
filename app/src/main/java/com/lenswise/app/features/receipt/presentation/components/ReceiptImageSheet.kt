@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material3.Icon
@@ -23,11 +24,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.lenswise.app.features.scanner.viewer.components.ZoomableAsyncImage
+import com.lenswise.app.features.scanner.viewer.components.LensWiseZoomableImageViewer
 import com.lenswise.app.presentation.components.sheet.LensWiseAdjustableDrawer
 import com.lenswise.app.presentation.components.sheet.LensWiseSheetHandle
 import com.lenswise.app.presentation.theme.OutfitFontFamily
@@ -85,27 +87,37 @@ fun ReceiptImageSheet(
                 }
             } else {
                 val pagerState = rememberPagerState(pageCount = { imageFiles.size })
+                var isCurrentPageZoomed by remember { mutableStateOf(false) }
 
                 Box(modifier = Modifier.fillMaxSize()) {
                     HorizontalPager(
                         state = pagerState,
+                        userScrollEnabled = !isCurrentPageZoomed,
                         modifier = Modifier.fillMaxSize()
                     ) { pageIndex ->
                         val file = imageFiles[pageIndex]
-                        var isZoomed by remember { mutableStateOf(false) }
 
-                        // 滿版全寬展示：無左右內縮，貼合螢幕左右兩側
+                        // 1:1 對齊 Flutter 版 ReceiptImageCarousel (圖三規範)：
+                        // 左右各 16dp 邊距、底部 24dp 留白、16dp 圓角裁切，保持收據全寬精緻卡片排版
                         Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(start = 16.dp, end = 16.dp, bottom = 24.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Color.Black),
+                            contentAlignment = Alignment.TopCenter
                         ) {
-                            ZoomableAsyncImage(
+                            LensWiseZoomableImageViewer(
                                 model = file,
                                 contentDescription = "照片 $pageIndex",
-                                contentScale = ContentScale.FillWidth,
                                 isSelected = pagerState.currentPage == pageIndex,
-                                onIsZoomedChanged = { isZoomed = it },
-                                onToggleControls = {}
+                                onIsZoomedChanged = { zoomed ->
+                                    if (pagerState.currentPage == pageIndex) {
+                                        isCurrentPageZoomed = zoomed
+                                    }
+                                },
+                                onToggleControls = {},
+                                modifier = Modifier.fillMaxSize()
                             )
                         }
                     }

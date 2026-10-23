@@ -40,6 +40,8 @@ import androidx.compose.ui.unit.dp
 import com.lenswise.app.core.image.SessionImageResolver
 import com.lenswise.app.domain.model.receipt.ReceiptScannerRecord
 import com.lenswise.app.features.receipt.agent.ReceiptChatPrompts
+import com.lenswise.app.features.receipt.presentation.components.ReceiptEditBottomSheet
+import com.lenswise.app.features.receipt.presentation.components.ReceiptEditTarget
 import com.lenswise.app.features.receipt.presentation.components.ReceiptImageSheet
 import com.lenswise.app.features.receipt.presentation.components.ReceiptPaperCard
 import com.lenswise.app.presentation.components.chat.AiChatBottomSheet
@@ -68,6 +70,7 @@ fun ReceiptDetailScreen(
 
     var showChatSheet by remember { mutableStateOf(false) }
     var showImageSheet by remember { mutableStateOf(false) }
+    var activeEditTarget by remember { mutableStateOf<ReceiptEditTarget?>(null) }
 
     val liveState by viewModel?.uiState?.collectAsState()
         ?: remember { mutableStateOf(ReceiptScannerUiState(receiptRecord = record)) }
@@ -97,6 +100,7 @@ fun ReceiptDetailScreen(
     // 攔截系統返回鍵
     BackHandler(enabled = true) {
         when {
+            activeEditTarget != null -> activeEditTarget = null
             showImageSheet -> showImageSheet = false
             showChatSheet -> showChatSheet = false
             else -> onNavigateBack?.invoke()
@@ -125,6 +129,9 @@ fun ReceiptDetailScreen(
                 onUpdate = { updated ->
                     localRecord = updated
                     viewModel?.updateAndPersistRecord(updated)
+                },
+                onEditTarget = { target ->
+                    activeEditTarget = target
                 }
             )
 
@@ -134,7 +141,7 @@ fun ReceiptDetailScreen(
 
         // 底部懸浮雙圓形按鈕組 (1:1 對齊 Flutter 的 FloatingActionButton Row)
         // 嚴格配置 navigationBarsPadding 與 28.dp 留白，確保絕不誤觸 Android 系統手勢與導航按鍵
-        val isDrawerOpen = showImageSheet || showChatSheet
+        val isDrawerOpen = showImageSheet || showChatSheet || activeEditTarget != null
         val fabAlpha by animateFloatAsState(
             targetValue = if (isDrawerOpen) 0f else 1f,
             animationSpec = tween(durationMillis = 200),
@@ -215,6 +222,37 @@ fun ReceiptDetailScreen(
                     viewModel?.updateRecord(updated)
                 },
                 onDismissRequest = { showChatSheet = false }
+            )
+        }
+
+        // 發票沉浸式原地編輯抽屜 (1:1 對齊 Flutter 的 _showImmersiveBottomSheet)
+        val editTarget = activeEditTarget
+        if (editTarget != null) {
+            ReceiptEditBottomSheet(
+                target = editTarget,
+                onDismissRequest = { activeEditTarget = null },
+                onSaveStoreName = { newName ->
+                    val updated = currentRecord.copy(storeName = newName)
+                    localRecord = updated
+                    viewModel?.updateAndPersistRecord(updated)
+                    activeEditTarget = null
+                },
+                onSaveItem = { index, newItem ->
+                    val newItems = currentRecord.items.toMutableList()
+                    if (index in newItems.indices) {
+                        newItems[index] = newItem
+                        val updated = currentRecord.copy(items = newItems)
+                        localRecord = updated
+                        viewModel?.updateAndPersistRecord(updated)
+                    }
+                    activeEditTarget = null
+                },
+                onSaveTotalAmount = { newTotal ->
+                    val updated = currentRecord.copy(totalAmount = newTotal)
+                    localRecord = updated
+                    viewModel?.updateAndPersistRecord(updated)
+                    activeEditTarget = null
+                }
             )
         }
     }

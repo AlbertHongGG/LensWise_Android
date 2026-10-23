@@ -16,10 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -53,10 +50,10 @@ import com.lenswise.app.presentation.theme.OutfitFontFamily
 fun ReceiptPaperCard(
     record: ReceiptScannerRecord,
     isStreaming: Boolean,
-    onUpdate: (ReceiptScannerRecord) -> Unit,
+    onUpdate: (ReceiptScannerRecord) -> Unit = {},
+    onEditTarget: (ReceiptEditTarget) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var editingTarget by remember { mutableStateOf<ReceiptEditTarget?>(null) }
     val interactionSource = remember { MutableInteractionSource() }
 
     Box(
@@ -89,7 +86,7 @@ fun ReceiptPaperCard(
                     modifier = Modifier.clickable(
                         interactionSource = interactionSource,
                         indication = null,
-                        onClick = { editingTarget = ReceiptEditTarget.StoreName(record.storeName) }
+                        onClick = { onEditTarget(ReceiptEditTarget.StoreName(record.storeName)) }
                     )
                 )
             }
@@ -167,7 +164,7 @@ fun ReceiptPaperCard(
                     record.items.forEachIndexed { index, item ->
                         ReceiptItemRow(
                             item = item,
-                            onClick = { editingTarget = ReceiptEditTarget.Item(index, item) }
+                            onClick = { onEditTarget(ReceiptEditTarget.Item(index, item)) }
                         )
                     }
                     if (isStreaming) {
@@ -304,33 +301,11 @@ fun ReceiptPaperCard(
                         interactionSource = interactionSource,
                         indication = null,
                         onClick = {
-                            editingTarget = ReceiptEditTarget.TotalAmount(record.totalAmount)
+                            onEditTarget(ReceiptEditTarget.TotalAmount(record.totalAmount, record.currency ?: ""))
                         }
                     )
                 )
             }
         }
-    }
-
-    // 原地編輯工作表
-    val activeTarget = editingTarget
-    if (activeTarget != null) {
-        ReceiptEditBottomSheet(
-            target = activeTarget,
-            onDismissRequest = { editingTarget = null },
-            onSaveStoreName = { newName ->
-                onUpdate(record.copy(storeName = newName))
-            },
-            onSaveItem = { index, newItem ->
-                val newItems = record.items.toMutableList()
-                if (index in newItems.indices) {
-                    newItems[index] = newItem
-                    onUpdate(record.copy(items = newItems))
-                }
-            },
-            onSaveTotalAmount = { newTotal ->
-                onUpdate(record.copy(totalAmount = newTotal))
-            }
-        )
     }
 }
