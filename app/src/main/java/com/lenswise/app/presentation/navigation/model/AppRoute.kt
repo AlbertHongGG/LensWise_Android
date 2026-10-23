@@ -80,7 +80,8 @@ sealed interface AppRoute : Parcelable {
         val isLiveSession: Boolean = false
     ) : AppRoute {
         @IgnoredOnParcel
-        override val key: String = "route_receipt_detail_${record.id}"
+        override val key: String
+            get() = if (isLiveSession) "route_receipt_detail_live" else "route_receipt_detail_${record.id}"
     }
 
     /** 商品深度分析等待處理畫面 (ProductProcessingScreen) */
@@ -99,7 +100,8 @@ sealed interface AppRoute : Parcelable {
         val isLiveSession: Boolean = false
     ) : AppRoute {
         @IgnoredOnParcel
-        override val key: String = "route_product_detail_${record.id}"
+        override val key: String
+            get() = if (isLiveSession) "route_product_detail_live" else "route_product_detail_${record.id}"
     }
 
     /** 商品比對等待處理畫面 (ComparisonProcessingScreen) */
@@ -118,7 +120,8 @@ sealed interface AppRoute : Parcelable {
         val isLiveSession: Boolean = false
     ) : AppRoute {
         @IgnoredOnParcel
-        override val key: String = "route_comparison_result_${record.id}"
+        override val key: String
+            get() = if (isLiveSession) "route_comparison_result_live" else "route_comparison_result_${record.id}"
     }
 
     /** 菜單掃描等待處理畫面 (MenuProcessingScreen) */
@@ -137,7 +140,8 @@ sealed interface AppRoute : Parcelable {
         val isLiveSession: Boolean = false
     ) : AppRoute {
         @IgnoredOnParcel
-        override val key: String = "route_menu_result_${record.id}"
+        override val key: String
+            get() = if (isLiveSession) "route_menu_result_live" else "route_menu_result_${record.id}"
     }
 
     /** AI 代理調度中心畫面 (AiDispatchCenterScreen) */

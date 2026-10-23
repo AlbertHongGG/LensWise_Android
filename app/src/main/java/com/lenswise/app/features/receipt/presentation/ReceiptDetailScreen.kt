@@ -241,7 +241,7 @@ fun ReceiptDetailScreen(
                     val newItems = currentRecord.items.toMutableList()
                     if (index in newItems.indices) {
                         newItems[index] = newItem
-                        val updated = currentRecord.copy(items = newItems)
+                        val updated = currentRecord.copy(items = newItems).recalculateTotals()
                         localRecord = updated
                         viewModel?.updateAndPersistRecord(updated)
                     }

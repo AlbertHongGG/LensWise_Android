@@ -212,13 +212,15 @@ class ZoomableImageState(
         val dstBottom = min(vH, panY + totalH)
 
         if (dstRight <= dstLeft || dstBottom <= dstTop) {
-            // 防禦處理：若因浮點極限誤差出現負尺寸，退回至置中安全直繪，絕不掉幀
+            // 防禦處理：若因浮點極限誤差出現負尺寸，退回至置中安全直繪，絕不掉幀、絕不偏頂
             val fallbackW = min(vW, totalW)
             val fallbackH = min(vH, totalH)
+            val fallbackLeft = if (totalW < vW) (vW - totalW) / 2f else 0f
+            val fallbackTop = if (totalH < vH) (vH - totalH) / 2f else 0f
             return DrawRects(
                 srcOffset = IntOffset.Zero,
                 srcSize = IntSize(rawW.roundToInt(), rawH.roundToInt()),
-                dstOffset = IntOffset(0, 0),
+                dstOffset = IntOffset(fallbackLeft.roundToInt(), fallbackTop.roundToInt()),
                 dstSize = IntSize(fallbackW.roundToInt().coerceAtLeast(1), fallbackH.roundToInt().coerceAtLeast(1))
             )
         }
@@ -340,14 +342,18 @@ class ZoomableImageState(
                 // 2D 慣性
                 val animX = Animatable(panX)
                 val animY = Animatable(panY)
-                launch {
-                    animX.animateDecay(velocity.x, decay) {
-                        panX = value.coerceIn(xRange)
+                if (xRange.start != xRange.endInclusive && abs(velocity.x) > 200f) {
+                    launch {
+                        animX.animateDecay(velocity.x, decay) {
+                            panX = value.coerceIn(xRange)
+                        }
                     }
                 }
-                launch {
-                    animY.animateDecay(velocity.y, decay) {
-                        panY = value.coerceIn(yRange)
+                if (yRange.start != yRange.endInclusive && abs(velocity.y) > 200f) {
+                    launch {
+                        animY.animateDecay(velocity.y, decay) {
+                            panY = value.coerceIn(yRange)
+                        }
                     }
                 }
             } else {

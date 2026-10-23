@@ -86,6 +86,7 @@ fun CupertinoSwipeBackContainer(
                 }
                 override fun replace(route: AppRoute) {
                     scope.launch {
+                        state.snapToIdle()
                         val popped = backStack.lastOrNull()
                         onReplaceRoute(route)
                         if (popped != null) {

@@ -1,4 +1,4 @@
-﻿package com.lenswise.app.features.receipt.agent
+package com.lenswise.app.features.receipt.agent
 
 import com.lenswise.app.domain.model.receipt.ReceiptFeeItem
 import com.lenswise.app.domain.model.receipt.ReceiptItem
@@ -151,33 +151,25 @@ object ReceiptScannerPayloadParser {
             }
         }
 
-        val itemsSum = completeItems.sumOf { it.price }
-        val discountsSum = completeDiscounts.sumOf { it.amount }
-        val taxesSum = completeTaxes.sumOf { it.amount }
-
-        val subtotal = if (dataNode.containsKey("subtotal")) {
+        val rawSubtotal = if (dataNode.containsKey("subtotal")) {
             parseDouble(dataNode["subtotal"])
         } else {
-            itemsSum
+            completeItems.sumOf { it.price }
         }
 
-        val totalAmount = if (dataNode.containsKey("totalAmount")) {
-            parseDouble(dataNode["totalAmount"])
-        } else {
-            subtotal + taxesSum - discountsSum
-        }
-
-        return ReceiptScannerRecord(
+        val baseRecord = ReceiptScannerRecord(
             storeName = rawStoreName,
             receiptDate = receiptDate,
             currency = currency,
-            subtotal = subtotal,
+            subtotal = rawSubtotal,
             items = completeItems,
             discounts = completeDiscounts,
             taxes = completeTaxes,
-            totalAmount = totalAmount,
+            totalAmount = 0.0,
             imagePaths = emptyList()
         )
+
+        return baseRecord.recalculateTotals()
     }
 }
 

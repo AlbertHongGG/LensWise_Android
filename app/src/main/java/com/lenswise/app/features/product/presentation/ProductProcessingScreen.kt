@@ -59,8 +59,10 @@ fun ProductProcessingScreen(
     var hasNavigated by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        viewModel.reset()
-        viewModel.analyzeProduct(images)
+        if (viewModel.uiState.value.status == ProductLensStatus.IDLE) {
+            viewModel.reset()
+            viewModel.analyzeProduct(images)
+        }
     }
 
     LaunchedEffect(state.status) {

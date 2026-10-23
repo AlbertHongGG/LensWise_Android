@@ -76,7 +76,10 @@ fun LensWiseZoomableImageViewer(
             return@LaunchedEffect
         }
 
-        isLoading = true
+        // 若已有點陣圖則保留既有畫面渲染，防止新圖片解析過程出現黑幀頻閃
+        if (imageBitmap == null) {
+            isLoading = true
+        }
         try {
             val loader = context.imageLoader
             val request = ImageRequest.Builder(context)
@@ -137,7 +140,7 @@ fun LensWiseZoomableImageViewer(
             .pointerInput(state, isSelected) {
                 val velocityTracker = VelocityTracker()
                 awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val down = awaitFirstDown(requireUnconsumed = true)
                     velocityTracker.resetTracking()
                     velocityTracker.addPosition(down.uptimeMillis, down.position)
 

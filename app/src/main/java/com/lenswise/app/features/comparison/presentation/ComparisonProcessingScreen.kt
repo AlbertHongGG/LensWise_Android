@@ -59,8 +59,10 @@ fun ComparisonProcessingScreen(
     var hasNavigated by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        viewModel.reset()
-        viewModel.analyzeComparison(images)
+        if (viewModel.uiState.value.status == ProductComparisonStatus.IDLE) {
+            viewModel.reset()
+            viewModel.analyzeComparison(images)
+        }
     }
 
     LaunchedEffect(state.status) {

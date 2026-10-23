@@ -65,8 +65,10 @@ fun ReceiptProcessingScreen(
     var hasNavigated by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        viewModel.reset()
-        viewModel.analyzeReceipt(images)
+        if (viewModel.uiState.value.status == ReceiptScannerStatus.IDLE) {
+            viewModel.reset()
+            viewModel.analyzeReceipt(images)
+        }
     }
 
     LaunchedEffect(state.status) {

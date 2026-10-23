@@ -50,11 +50,15 @@ class CupertinoSwipeBackState(
         get() = if (screenWidthPx > 0f) (currentOffset / screenWidthPx).coerceIn(0f, 1f) else 0f
 
     suspend fun push(target: AppRoute, onCommit: (AppRoute) -> Unit) {
-        if (isTransitioning || screenWidthPx <= 0f) return
+        if (screenWidthPx <= 0f) {
+            onCommit(target)
+            return
+        }
 
+        // 立即提交目標路由至 backStack，保證 Single Source of Truth，杜絕異步競態倒置
         motionState = CupertinoMotionState.PUSHING
-        pushTarget = target
         currentOffset = screenWidthPx
+        onCommit(target)
 
         val anim = Animatable(screenWidthPx)
         anim.animateTo(
@@ -64,9 +68,16 @@ class CupertinoSwipeBackState(
             currentOffset = value
         }
 
-        onCommit(target)
-        pushTarget = null
         currentOffset = 0f
+        motionState = CupertinoMotionState.IDLE
+    }
+
+    /**
+     * 重設所有過渡狀態回到 IDLE，防止競態條件或 replace 時遺留過渡殘影。
+     */
+    fun snapToIdle() {
+        currentOffset = 0f
+        pushTarget = null
         motionState = CupertinoMotionState.IDLE
     }
 

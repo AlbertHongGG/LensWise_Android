@@ -38,17 +38,10 @@ class ReceiptScannerService(
             savedImagePaths.add(imageFile.absolutePath)
         }
 
-        val calculatedSubtotal = parsedRecord.items.sumOf { it.price }
-        val sumTaxes = parsedRecord.taxes.sumOf { it.amount }
-        val sumDiscounts = parsedRecord.discounts.sumOf { it.amount }
-        val calculatedTotal = calculatedSubtotal + sumTaxes + sumDiscounts
-
-        val finalRecord = parsedRecord.copy(
+        val finalRecord = parsedRecord.recalculateTotals().copy(
             id = recordId,
             timestamp = if (parsedRecord.timestamp > 0) parsedRecord.timestamp else System.currentTimeMillis(),
-            imagePaths = savedImagePaths,
-            subtotal = if (calculatedSubtotal > 0.0) calculatedSubtotal else parsedRecord.subtotal,
-            totalAmount = if (calculatedTotal > 0.0) calculatedTotal else parsedRecord.totalAmount
+            imagePaths = savedImagePaths
         )
 
         historyRepository.save(finalRecord)

@@ -39,6 +39,24 @@ data class ReceiptScannerRecord(
             "無金額資訊"
         }
 
+    /**
+     * 依據商品清單、稅金與折扣嚴格計算小計與總額 (Single Source of Truth)：
+     * 小計 = 若品項清單非空則以品項累加，否則保留既有小計。
+     * 稅金 = 累加所有稅額絕對值 (+)。
+     * 折扣 = 累加所有折扣額絕對值並扣除 (-)。
+     * 總額 = 小計 + 稅金 - 折扣 (保底 >= 0.0)。
+     */
+    fun recalculateTotals(): ReceiptScannerRecord {
+        val itemsSubtotal = if (items.isNotEmpty()) items.sumOf { it.price } else subtotal
+        val taxesSum = taxes.sumOf { kotlin.math.abs(it.amount) }
+        val discountsSum = discounts.sumOf { kotlin.math.abs(it.amount) }
+        val calculatedTotal = (itemsSubtotal + taxesSum - discountsSum).coerceAtLeast(0.0)
+        return copy(
+            subtotal = itemsSubtotal,
+            totalAmount = calculatedTotal
+        )
+    }
+
     companion object {
         fun empty(): ReceiptScannerRecord = ReceiptScannerRecord()
     }

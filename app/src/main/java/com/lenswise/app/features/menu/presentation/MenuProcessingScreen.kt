@@ -59,8 +59,10 @@ fun MenuProcessingScreen(
     var hasNavigated by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        viewModel.reset()
-        viewModel.analyzeMenu(images)
+        if (viewModel.uiState.value.status == MenuScannerStatus.IDLE) {
+            viewModel.reset()
+            viewModel.analyzeMenu(images)
+        }
     }
 
     LaunchedEffect(state.status) {
