@@ -64,6 +64,9 @@ class HistoryViewModel(
     val comparisons: StateFlow<List<ProductComparisonRecord>> = comparisonRepo.comparisonsFlow
     val menus: StateFlow<List<MenuScannerRecord>> = menuRepo.menusFlow
 
+    private val _deletingRecordIds = MutableStateFlow<Set<String>>(emptySet())
+    val deletingRecordIds: StateFlow<Set<String>> = _deletingRecordIds.asStateFlow()
+
     fun selectTab(index: Int) {
         _uiState.update { it.copy(selectedTabIndex = index) }
     }
@@ -77,12 +80,17 @@ class HistoryViewModel(
     }
 
     fun deleteRecord(record: IHistoryRecord) {
+        _deletingRecordIds.update { it + record.id }
         vmScope.launch {
-            when (record) {
-                is ReceiptScannerRecord -> receiptRepo.delete(record.id)
-                is ProductLensRecord -> productRepo.delete(record.id)
-                is ProductComparisonRecord -> comparisonRepo.delete(record.id)
-                is MenuScannerRecord -> menuRepo.delete(record.id)
+            try {
+                when (record) {
+                    is ReceiptScannerRecord -> receiptRepo.delete(record.id)
+                    is ProductLensRecord -> productRepo.delete(record.id)
+                    is ProductComparisonRecord -> comparisonRepo.delete(record.id)
+                    is MenuScannerRecord -> menuRepo.delete(record.id)
+                }
+            } finally {
+                _deletingRecordIds.update { it - record.id }
             }
         }
     }

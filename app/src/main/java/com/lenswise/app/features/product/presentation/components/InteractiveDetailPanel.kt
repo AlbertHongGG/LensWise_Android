@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -27,11 +28,8 @@ import androidx.compose.material.icons.outlined.PeopleOutline
 import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,18 +46,19 @@ import androidx.compose.ui.unit.sp
 import dev.chrisbanes.haze.HazeState
 import com.lenswise.app.domain.model.product.ProductLensRecord
 import com.lenswise.app.presentation.components.GlassActionButton
+import com.lenswise.app.presentation.components.sheet.LensWiseAdjustableDrawer
+import com.lenswise.app.presentation.components.sheet.LensWiseSheetHandle
 import com.lenswise.app.presentation.theme.AppColors
 
 /**
  * 商品右上方浮動操作互動面板 (InteractiveDetailPanel)。
  * 1:1 對齊 LensWise Flutter 版與圖一：
  * 水平並排 3 顆極致毛玻璃按鈕（成分與過敏原、適合對象分析、AI 深度對話）。
- * 支援細粒度 derivedStateOf 響應式隔離與 Haze 即時高斯模糊。
+ * 支援串流即時響應（直接讀取屬性，絕不靜態快取）與 Haze 即時高斯模糊。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InteractiveDetailPanel(
-    recordProvider: () -> ProductLensRecord,
+    record: ProductLensRecord,
     onOpenChat: () -> Unit,
     modifier: Modifier = Modifier,
     hazeState: HazeState? = null
@@ -67,19 +66,9 @@ fun InteractiveDetailPanel(
     var showIngredientsSheet by remember { mutableStateOf(false) }
     var showProsConsSheet by remember { mutableStateOf(false) }
 
-    val hasIngredients by remember {
-        derivedStateOf {
-            val r = recordProvider()
-            r.ingredients.isNotEmpty() || r.allergenAlerts.isNotEmpty()
-        }
-    }
-
-    val hasProsCons by remember {
-        derivedStateOf {
-            val r = recordProvider()
-            r.whenRecommended.isNotEmpty() || r.whenNotRecommended.isNotEmpty()
-        }
-    }
+    // 直接依據 record 屬性動態判定，徹底消除 derivedStateOf 靜態鎖死導致串流無法顯現的根本缺陷
+    val hasIngredients = record.ingredients.isNotEmpty() || record.allergenAlerts.isNotEmpty()
+    val hasProsCons = record.whenRecommended.isNotEmpty() || record.whenNotRecommended.isNotEmpty()
 
     Row(
         modifier = modifier,
@@ -113,77 +102,105 @@ fun InteractiveDetailPanel(
     }
 
     if (showIngredientsSheet) {
-        val currentRecord = recordProvider()
-        ModalBottomSheet(
+        val isDark = isSystemInDarkTheme()
+        LensWiseAdjustableDrawer(
             onDismissRequest = { showIngredientsSheet = false },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = if (isSystemInDarkTheme()) Color(0xFF1E1E1E) else Color.White,
-            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
-        ) {
-            DetailSheetContent(
-                title = "成分與過敏原",
-                icon = Icons.Outlined.Science
-            ) {
-                IngredientsSheetBody(record = currentRecord)
+            defaultHeightRatio = 0.65f,
+            maxHeightRatio = 0.90f,
+            hasScrim = true,
+            headerContent = { dragModifier ->
+                Column(
+                    modifier = dragModifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                ) {
+                    LensWiseSheetHandle(isDark = isDark)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Science,
+                            contentDescription = null,
+                            tint = AppColors.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "成分與過敏原",
+                            style = androidx.compose.ui.text.TextStyle(
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) Color.White else Color(0xFF111418),
+                                letterSpacing = 0.5.sp
+                            )
+                        )
+                    }
+                }
+            },
+            content = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 36.dp)
+                ) {
+                    IngredientsSheetBody(record = record)
+                }
             }
-        }
+        )
     }
 
     if (showProsConsSheet) {
-        val currentRecord = recordProvider()
-        ModalBottomSheet(
+        val isDark = isSystemInDarkTheme()
+        LensWiseAdjustableDrawer(
             onDismissRequest = { showProsConsSheet = false },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = if (isSystemInDarkTheme()) Color(0xFF1E1E1E) else Color.White,
-            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
-        ) {
-            DetailSheetContent(
-                title = "適合對象分析",
-                icon = Icons.Outlined.PeopleOutline
-            ) {
-                ProsConsSheetBody(record = currentRecord)
+            defaultHeightRatio = 0.65f,
+            maxHeightRatio = 0.90f,
+            hasScrim = true,
+            headerContent = { dragModifier ->
+                Column(
+                    modifier = dragModifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                ) {
+                    LensWiseSheetHandle(isDark = isDark)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.PeopleOutline,
+                            contentDescription = null,
+                            tint = AppColors.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "適合對象分析",
+                            style = androidx.compose.ui.text.TextStyle(
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) Color.White else Color(0xFF111418),
+                                letterSpacing = 0.5.sp
+                            )
+                        )
+                    }
+                }
+            },
+            content = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 36.dp)
+                ) {
+                    ProsConsSheetBody(record = record)
+                }
             }
-        }
-    }
-}
-
-@Composable
-private fun DetailSheetContent(
-    title: String,
-    icon: ImageVector,
-    content: @Composable () -> Unit
-) {
-    val isDark = isSystemInDarkTheme()
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp)
-            .padding(bottom = 36.dp)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(bottom = 24.dp)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = AppColors.primary,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = title,
-                style = androidx.compose.ui.text.TextStyle(
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isDark) Color.White else Color(0xFF111418),
-                    letterSpacing = 0.5.sp
-                )
-            )
-        }
-
-        content()
+        )
     }
 }
 

@@ -35,9 +35,6 @@ import com.lenswise.app.domain.model.comparison.ProductComparisonRecord
 import com.lenswise.app.presentation.theme.AppColors
 import com.lenswise.app.presentation.theme.AppTypography
 import com.lenswise.app.presentation.theme.OutfitFontFamily
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /**
  * 商品比對歷史紀錄卡片元件 (ComparisonHistoryCard)。
@@ -50,10 +47,6 @@ fun ComparisonHistoryCard(
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
-    val formattedDate = remember(record.timestamp) {
-        val date = if (record.timestamp > 0) Date(record.timestamp) else Date()
-        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(date)
-    }
 
     Box(
         modifier = modifier
@@ -111,24 +104,15 @@ fun ComparisonHistoryCard(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "${record.products.size} 款商品比對",
-                        style = AppTypography.itemValue.copy(
-                            fontSize = 14.sp,
-                            color = AppColors.primary
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    Text(
-                        text = formattedDate,
-                        fontFamily = OutfitFontFamily,
-                        fontSize = 12.sp,
-                        color = if (isDark) Color.White.copy(alpha = 0.40f) else Color.Black.copy(alpha = 0.40f)
-                    )
-                }
+                Text(
+                    text = "${record.products.size} 款商品比對",
+                    style = AppTypography.itemValue.copy(
+                        fontSize = 14.sp,
+                        color = AppColors.primary
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
 
             Icon(

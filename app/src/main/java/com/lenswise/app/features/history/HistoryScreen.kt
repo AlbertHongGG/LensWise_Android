@@ -115,12 +115,26 @@ fun HistoryScreen(
     val products by vm.products.collectAsState()
     val comparisons by vm.comparisons.collectAsState()
     val menus by vm.menus.collectAsState()
+    val deletingRecordIds by vm.deletingRecordIds.collectAsState()
+
+    val visibleReceipts = remember(receipts, deletingRecordIds) {
+        receipts.filter { it.id !in deletingRecordIds }
+    }
+    val visibleProducts = remember(products, deletingRecordIds) {
+        products.filter { it.id !in deletingRecordIds }
+    }
+    val visibleComparisons = remember(comparisons, deletingRecordIds) {
+        comparisons.filter { it.id !in deletingRecordIds }
+    }
+    val visibleMenus = remember(menus, deletingRecordIds) {
+        menus.filter { it.id !in deletingRecordIds }
+    }
 
     val hasActiveRecords = when (selectedTabIndex) {
-        0 -> receipts.isNotEmpty()
-        1 -> products.isNotEmpty()
-        2 -> comparisons.isNotEmpty()
-        3 -> menus.isNotEmpty()
+        0 -> visibleReceipts.isNotEmpty()
+        1 -> visibleProducts.isNotEmpty()
+        2 -> visibleComparisons.isNotEmpty()
+        3 -> visibleMenus.isNotEmpty()
         else -> false
     }
 
@@ -160,7 +174,7 @@ fun HistoryScreen(
                 Box(modifier = Modifier.weight(1f)) {
                     when (selectedTabIndex) {
                         0 -> {
-                            if (receipts.isEmpty()) {
+                            if (visibleReceipts.isEmpty()) {
                                 PremiumEmptyState(
                                     icon = currentTab.emptyStateIcon,
                                     title = currentTab.emptyStateTitle,
@@ -171,12 +185,13 @@ fun HistoryScreen(
                                     modifier = Modifier.fillMaxSize(),
                                     contentPadding = PaddingValues(top = 4.dp, bottom = 100.dp)
                                 ) {
-                                    items(receipts, key = { it.id }) { record ->
+                                    items(visibleReceipts, key = { it.id }) { record ->
                                         val isBeingDragged = dragDropState.isDragging && dragDropState.activeItem?.id == record.id
                                         ReceiptHistoryCard(
                                             record = record,
                                             onClick = { onNavigateToReceiptDetail(record) },
                                             modifier = Modifier
+                                                .animateItem()
                                                 .alpha(if (isBeingDragged) 0.3f else 1.0f)
                                                 .draggableToTrash(
                                                     item = record,
@@ -189,7 +204,7 @@ fun HistoryScreen(
                             }
                         }
                         1 -> {
-                            if (products.isEmpty()) {
+                            if (visibleProducts.isEmpty()) {
                                 PremiumEmptyState(
                                     icon = currentTab.emptyStateIcon,
                                     title = currentTab.emptyStateTitle,
@@ -200,12 +215,13 @@ fun HistoryScreen(
                                     modifier = Modifier.fillMaxSize(),
                                     contentPadding = PaddingValues(top = 4.dp, bottom = 100.dp)
                                 ) {
-                                    items(products, key = { it.id }) { record ->
+                                    items(visibleProducts, key = { it.id }) { record ->
                                         val isBeingDragged = dragDropState.isDragging && dragDropState.activeItem?.id == record.id
                                         ProductHistoryCard(
                                             record = record,
                                             onClick = { onNavigateToProductDetail(record) },
                                             modifier = Modifier
+                                                .animateItem()
                                                 .alpha(if (isBeingDragged) 0.3f else 1.0f)
                                                 .draggableToTrash(
                                                     item = record,
@@ -218,7 +234,7 @@ fun HistoryScreen(
                             }
                         }
                         2 -> {
-                            if (comparisons.isEmpty()) {
+                            if (visibleComparisons.isEmpty()) {
                                 PremiumEmptyState(
                                     icon = currentTab.emptyStateIcon,
                                     title = currentTab.emptyStateTitle,
@@ -229,12 +245,13 @@ fun HistoryScreen(
                                     modifier = Modifier.fillMaxSize(),
                                     contentPadding = PaddingValues(top = 4.dp, bottom = 100.dp)
                                 ) {
-                                    items(comparisons, key = { it.id }) { record ->
+                                    items(visibleComparisons, key = { it.id }) { record ->
                                         val isBeingDragged = dragDropState.isDragging && dragDropState.activeItem?.id == record.id
                                         ComparisonHistoryCard(
                                             record = record,
                                             onClick = { onNavigateToComparisonResult(record) },
                                             modifier = Modifier
+                                                .animateItem()
                                                 .alpha(if (isBeingDragged) 0.3f else 1.0f)
                                                 .draggableToTrash(
                                                     item = record,
@@ -247,7 +264,7 @@ fun HistoryScreen(
                             }
                         }
                         3 -> {
-                            if (menus.isEmpty()) {
+                            if (visibleMenus.isEmpty()) {
                                 PremiumEmptyState(
                                     icon = currentTab.emptyStateIcon,
                                     title = currentTab.emptyStateTitle,
@@ -258,12 +275,13 @@ fun HistoryScreen(
                                     modifier = Modifier.fillMaxSize(),
                                     contentPadding = PaddingValues(top = 4.dp, bottom = 100.dp)
                                 ) {
-                                    items(menus, key = { it.id }) { record ->
+                                    items(visibleMenus, key = { it.id }) { record ->
                                         val isBeingDragged = dragDropState.isDragging && dragDropState.activeItem?.id == record.id
                                         MenuHistoryCard(
                                             record = record,
                                             onClick = { onNavigateToMenuResult(record) },
                                             modifier = Modifier
+                                                .animateItem()
                                                 .alpha(if (isBeingDragged) 0.3f else 1.0f)
                                                 .draggableToTrash(
                                                     item = record,

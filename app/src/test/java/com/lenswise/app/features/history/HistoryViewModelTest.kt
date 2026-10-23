@@ -64,7 +64,7 @@ class HistoryViewModelTest {
     }
 
     @Test
-    fun `deleteRecord dispatches to correct repository`() = kotlinx.coroutines.runBlocking {
+    fun `deleteRecord dispatches to correct repository and updates deletingRecordIds`() = kotlinx.coroutines.runBlocking {
         val receiptRecord = com.lenswise.app.domain.model.receipt.ReceiptScannerRecord(id = "rec-1")
         viewModel.deleteRecord(receiptRecord)
         Mockito.verify(receiptRepo).delete("rec-1")

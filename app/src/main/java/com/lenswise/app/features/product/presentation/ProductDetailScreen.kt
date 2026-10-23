@@ -66,17 +66,22 @@ fun ProductDetailScreen(
     val isDark = isSystemInDarkTheme()
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
 
-    val state = viewModel?.uiState?.collectAsState()?.value
+    val liveState by viewModel?.uiState?.collectAsState()
+        ?: remember { mutableStateOf(ProductLensUiState(record = record)) }
     var localRecord by remember(record) { mutableStateOf(record) }
 
-    val effectiveRecord = if (isLiveSession && state != null && state.record.productName.isNotBlank()) {
-        state.record
+    val effectiveRecord = if (isLiveSession) {
+        if (liveState.record.productName.isNotBlank() || liveState.record.summary.isNotBlank()) {
+            liveState.record
+        } else {
+            localRecord
+        }
     } else {
         localRecord
     }
 
     // 雙軌圖片來源解析器，以 File 原生類型供 Coil 毫秒級載入
-    val capturedImages = state?.capturedImages ?: viewModel?.uiState?.value?.capturedImages
+    val capturedImages = liveState.capturedImages
     val imageResolver = remember(effectiveRecord.imagePaths, capturedImages) {
         SessionImageResolver(
             memoryImages = capturedImages,
@@ -157,7 +162,7 @@ fun ProductDetailScreen(
 
             // 3. 右上角浮動按鈕群 (InteractiveDetailPanel, 對齊圖一：水平 3 顆毛玻璃 FAB，無返回鍵)
             InteractiveDetailPanel(
-                recordProvider = { effectiveRecord },
+                record = effectiveRecord,
                 onOpenChat = { showChatSheet = true },
                 hazeState = hazeState,
                 modifier = Modifier

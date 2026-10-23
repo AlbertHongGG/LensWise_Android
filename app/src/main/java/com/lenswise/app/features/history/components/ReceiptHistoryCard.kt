@@ -36,8 +36,6 @@ import com.lenswise.app.domain.model.receipt.ReceiptScannerRecord
 import com.lenswise.app.presentation.theme.AppColors
 import com.lenswise.app.presentation.theme.AppTypography
 import com.lenswise.app.presentation.theme.OutfitFontFamily
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 
 /**
@@ -51,10 +49,6 @@ fun ReceiptHistoryCard(
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
-    val formattedDate = remember(record.timestamp) {
-        val date = if (record.timestamp > 0) Date(record.timestamp) else Date()
-        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(date)
-    }
 
     val amountText = remember(record.totalAmount, record.currency) {
         val curr = if (!record.currency.isNullOrEmpty()) "${record.currency} " else ""
@@ -120,24 +114,15 @@ fun ReceiptHistoryCard(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = amountText,
-                        style = AppTypography.itemValue.copy(
-                            fontSize = 14.sp,
-                            color = AppColors.primary
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    Text(
-                        text = formattedDate,
-                        fontFamily = OutfitFontFamily,
-                        fontSize = 12.sp,
-                        color = if (isDark) Color.White.copy(alpha = 0.40f) else Color.Black.copy(alpha = 0.40f)
-                    )
-                }
+                Text(
+                    text = amountText,
+                    style = AppTypography.itemValue.copy(
+                        fontSize = 14.sp,
+                        color = AppColors.primary
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
 
             Icon(

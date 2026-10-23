@@ -10,8 +10,10 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -26,6 +28,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import kotlinx.coroutines.launch
 import kotlin.math.hypot
 import kotlin.math.roundToInt
 
@@ -33,6 +36,9 @@ private const val TAG = "DragDropTrash"
 
 class DragDropTrashState<T> {
     var isDragging by mutableStateOf(false)
+    var isDropping by mutableStateOf(false)
+    var dropScale by mutableFloatStateOf(1f)
+    var dropAlpha by mutableFloatStateOf(0.85f)
     var activeItem by mutableStateOf<T?>(null)
     var dragPositionInWindow by mutableStateOf(Offset.Zero)
     var touchOffsetInItem by mutableStateOf(Offset.Zero)
@@ -42,6 +48,32 @@ class DragDropTrashState<T> {
     var containerBoundsInWindow by mutableStateOf(Rect.Zero)
     var feedbackContent by mutableStateOf<(@Composable () -> Unit)?>(null)
     var onDropAction: ((T) -> Unit)? = null
+
+    suspend fun animateDropToTrash() {
+        isDropping = true
+        val anim = androidx.compose.animation.core.Animatable(1f)
+        anim.animateTo(
+            targetValue = 0f,
+            animationSpec = androidx.compose.animation.core.tween(
+                durationMillis = 140,
+                easing = androidx.compose.animation.core.FastOutSlowInEasing
+            )
+        ) {
+            dropScale = value
+            dropAlpha = value * 0.85f
+        }
+        clearDrag()
+    }
+
+    fun clearDrag() {
+        isDragging = false
+        isDropping = false
+        activeItem = null
+        isHoveringTrash = false
+        feedbackContent = null
+        dropScale = 1f
+        dropAlpha = 0.85f
+    }
 }
 
 @Composable
@@ -91,11 +123,11 @@ fun <T> DragDropTrashContainer(
                         .offset { IntOffset(relativeX.roundToInt(), relativeY.roundToInt()) }
                         .then(sizeModifier)
                         .graphicsLayer {
-                            alpha = 0.85f
-                            shadowElevation = 24.dp.toPx()
-                            scaleX = 1.02f
-                            scaleY = 1.02f
-                            rotationZ = -1.5f
+                            alpha = state.dropAlpha
+                            shadowElevation = 24.dp.toPx() * state.dropScale
+                            scaleX = 1.02f * state.dropScale
+                            scaleY = 1.02f * state.dropScale
+                            rotationZ = -1.5f * state.dropScale
                         }
                 ) {
                     state.feedbackContent?.invoke()
@@ -112,6 +144,7 @@ fun <T> Modifier.draggableToTrash(
     feedback: @Composable () -> Unit
 ): Modifier {
     val haptic = LocalHapticFeedback.current
+    val coroutineScope = rememberCoroutineScope()
     var itemBoundsInWindow by remember(item) { mutableStateOf(Rect.Zero) }
 
     return this
@@ -123,6 +156,9 @@ fun <T> Modifier.draggableToTrash(
                 onDragStart = { localOffset ->
                     Log.d(TAG, "onDragStart: item=$item, localOffset=$localOffset")
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    state.dropScale = 1f
+                    state.dropAlpha = 0.85f
+                    state.isDropping = false
                     state.isDragging = true
                     state.activeItem = item
                     state.touchOffsetInItem = localOffset
@@ -174,18 +210,16 @@ fun <T> Modifier.draggableToTrash(
                     if (wasHovering && droppedItem != null) {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         state.onDropAction?.invoke(droppedItem)
+                        coroutineScope.launch {
+                            state.animateDropToTrash()
+                        }
+                    } else {
+                        state.clearDrag()
                     }
-                    state.isDragging = false
-                    state.activeItem = null
-                    state.isHoveringTrash = false
-                    state.feedbackContent = null
                 },
                 onDragCancel = {
                     Log.d(TAG, "onDragCancel")
-                    state.isDragging = false
-                    state.activeItem = null
-                    state.isHoveringTrash = false
-                    state.feedbackContent = null
+                    state.clearDrag()
                 }
             )
         }
