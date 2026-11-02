@@ -1,12 +1,15 @@
-﻿package com.lenswise.app.features.scanner.gallery
+package com.lenswise.app.features.scanner.gallery
 
 import android.net.Uri
+import androidx.compose.runtime.Immutable
 import com.lenswise.app.core.media.GalleryUiItem
 
 /**
  * 相簿選擇器不可變 UI 狀態 (GalleryUiState)。
  * 純淨狀態機模型，無任何殘留屬性或人為上限設限。
+ * 標註 @Immutable 確保 Compose 編譯器判定為絕對穩定跳過型別。
  */
+@Immutable
 data class GalleryUiState(
     val items: List<GalleryUiItem> = emptyList(),
     val selectedIds: Set<Long> = emptySet(),

@@ -1,5 +1,6 @@
 package com.lenswise.app.core.media
 
+import androidx.compose.runtime.Immutable
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -13,6 +14,7 @@ import java.util.concurrent.ConcurrentHashMap
  * 2. 實作 Comparable，由新至舊 (Descending) 高效有序排序。
  * 3. 預先產生不可變 displayTitle 與 key，杜絕滑動時格式化字串的運算消耗。
  */
+@Immutable
 data class DateBucket(
     val year: Int,
     val month: Int

@@ -92,4 +92,48 @@ class GalleryPickerDomainTest {
         assertEquals(3L, photo3.asset.id)
         assertFalse(photo3.isSelected)
     }
+
+    @Test
+    fun `MediaAccessManager isPermissionGranted should return true if any permission granted`() {
+        // Android 14+ Partial Access scenario: READ_MEDIA_IMAGES denied, READ_MEDIA_VISUAL_USER_SELECTED granted
+        val partialMap = mapOf(
+            "android.permission.READ_MEDIA_IMAGES" to false,
+            "android.permission.READ_MEDIA_VISUAL_USER_SELECTED" to true
+        )
+        assertTrue(MediaAccessManager.isPermissionGranted(partialMap))
+
+        // Full access
+        val fullMap = mapOf(
+            "android.permission.READ_MEDIA_IMAGES" to true,
+            "android.permission.READ_MEDIA_VISUAL_USER_SELECTED" to false
+        )
+        assertTrue(MediaAccessManager.isPermissionGranted(fullMap))
+
+        // All denied
+        val deniedMap = mapOf(
+            "android.permission.READ_MEDIA_IMAGES" to false,
+            "android.permission.READ_MEDIA_VISUAL_USER_SELECTED" to false
+        )
+        assertFalse(MediaAccessManager.isPermissionGranted(deniedMap))
+
+        // Empty
+        assertFalse(MediaAccessManager.isPermissionGranted(emptyMap()))
+    }
+
+    @Test
+    fun `MediaAsset sorting by dateTakenMs should prioritize recent items even with zero dateTaken`() {
+        val mockUri = mock(Uri::class.java)
+        val bucket = DateBucket(2026, 11)
+
+        // Photo 1: Taken in 2024 (e.g. 1700000000000L)
+        val oldPhoto = MediaAsset(id = 1L, contentUri = mockUri, dateTakenMs = 1700000000000L, bucket = bucket)
+        // Photo 2: Screenshot taken today with fallback timestamp (1790000000000L)
+        val newScreenshot = MediaAsset(id = 2L, contentUri = mockUri, dateTakenMs = 1790000000000L, bucket = bucket)
+
+        val list = mutableListOf(oldPhoto, newScreenshot)
+        list.sortByDescending { it.dateTakenMs }
+
+        assertEquals(2L, list[0].id)
+        assertEquals(1L, list[1].id)
+    }
 }

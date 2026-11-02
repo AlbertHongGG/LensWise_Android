@@ -1,4 +1,4 @@
-﻿package com.lenswise.app.features.scanner
+package com.lenswise.app.features.scanner
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -21,6 +21,7 @@ import androidx.core.content.ContextCompat
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.haze
 import com.lenswise.app.core.camera.CameraManager
+import com.lenswise.app.core.media.MediaAccessManager
 import com.lenswise.app.features.scanner.components.CameraViewfinder
 import com.lenswise.app.features.scanner.components.ScannerBottomControls
 import com.lenswise.app.features.scanner.components.ScannerTopBar
@@ -59,17 +60,11 @@ fun ScannerScreen(
         }
     }
 
-    // 2. 媒體相簿權限請求器
-    val mediaPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        Manifest.permission.READ_MEDIA_IMAGES
-    } else {
-        Manifest.permission.READ_EXTERNAL_STORAGE
-    }
-
+    // 2. 媒體相簿權限請求器 (統一委託 MediaAccessManager 跨版本管理)
     val mediaPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { resultMap ->
+        if (MediaAccessManager.isPermissionGranted(resultMap)) {
             showCustomGallery = true
         } else {
             NotificationController.showError("需要相簿讀取權限才能挑選照片")
@@ -104,10 +99,10 @@ fun ScannerScreen(
                 }
             },
             onPickGallery = {
-                if (ContextCompat.checkSelfPermission(context, mediaPermission) == PackageManager.PERMISSION_GRANTED) {
+                if (MediaAccessManager.hasPermission(context)) {
                     showCustomGallery = true
                 } else {
-                    mediaPermissionLauncher.launch(mediaPermission)
+                    mediaPermissionLauncher.launch(MediaAccessManager.getRequiredPermissions())
                 }
             },
             onOpenViewer = onNavigateToViewer,

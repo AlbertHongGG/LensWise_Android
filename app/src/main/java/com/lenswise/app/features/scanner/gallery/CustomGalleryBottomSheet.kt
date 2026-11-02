@@ -1,4 +1,4 @@
-﻿package com.lenswise.app.features.scanner.gallery
+package com.lenswise.app.features.scanner.gallery
 
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
@@ -36,6 +36,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -63,18 +64,29 @@ import com.lenswise.app.presentation.theme.OutfitFontFamily
  * 2. 採用 In-Hierarchy GPU 渲染層彈窗：展開與收起 120 FPS 絲滑無阻。
  * 3. 展平清單 (Flattened Stream)：單一 LazyVerticalGrid 配合 GridItemSpan，完美達成 Compose 視圖複用。
  * 4. 快速滑動月份浮動徽章 (Floating Fast-Scroll Date Pill)：滑動時即時指示當前年月，停滑淡出。
+ * 5. 會話生命週期連動：每次進入即啟動最新相簿觀察流，退出（確認或取消）徹底清除狀態機。
  */
 @Composable
 fun CustomGalleryBottomSheet(
     onDismiss: () -> Unit,
     onConfirmSelection: (List<Uri>) -> Unit,
-    viewModel: GalleryPickerViewModel = viewModel()
+    viewModel: GalleryPickerViewModel = viewModel(factory = GalleryPickerViewModel.Factory)
 ) {
     val isDark = isSystemInDarkTheme()
     val state by viewModel.uiState.collectAsState()
 
+    // 每次開啟彈窗時，啟動會話並獲取最新相簿流
+    LaunchedEffect(Unit) {
+        viewModel.onSessionStart()
+    }
+
+    val handleDismiss: () -> Unit = {
+        viewModel.onSessionDismiss()
+        onDismiss()
+    }
+
     IsolatedHandleBottomSheet(
-        onDismiss = onDismiss,
+        onDismiss = handleDismiss,
         heightRatio = 0.88f,
         header = {
             Column(
@@ -118,8 +130,7 @@ fun CustomGalleryBottomSheet(
                         onClick = {
                             if (state.canConfirm) {
                                 onConfirmSelection(state.selectedUris)
-                                viewModel.clearSelection()
-                                onDismiss()
+                                handleDismiss()
                             }
                         },
                         enabled = state.canConfirm,
@@ -197,6 +208,7 @@ fun CustomGalleryBottomSheet(
                             is GalleryUiItem.Photo -> {
                                 GalleryPhotoCell(
                                     photo = item,
+                                    isSelected = state.selectedIds.contains(item.asset.id),
                                     onToggle = { asset -> viewModel.togglePhotoSelection(asset) }
                                 )
                             }
@@ -261,6 +273,7 @@ private fun GalleryHeaderCell(
 @Composable
 private fun GalleryPhotoCell(
     photo: GalleryUiItem.Photo,
+    isSelected: Boolean,
     onToggle: (MediaAsset) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -280,7 +293,7 @@ private fun GalleryPhotoCell(
             modifier = Modifier.fillMaxSize()
         )
 
-        if (photo.isSelected) {
+        if (isSelected) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()

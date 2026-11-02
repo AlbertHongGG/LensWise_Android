@@ -1,6 +1,7 @@
 package com.lenswise.app.core.media
 
 import android.net.Uri
+import androidx.compose.runtime.Immutable
 
 /**
  * 相簿媒體檔案不可變領域實體 (MediaAsset)。
@@ -10,6 +11,7 @@ import android.net.Uri
  * @param dateTakenMs 照片拍攝/建立之毫秒級時間戳。
  * @param bucket 預先歸類的月份時間桶。
  */
+@Immutable
 data class MediaAsset(
     val id: Long,
     val contentUri: Uri,
