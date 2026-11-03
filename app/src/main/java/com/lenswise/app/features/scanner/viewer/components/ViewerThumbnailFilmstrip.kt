@@ -1,4 +1,4 @@
-﻿package com.lenswise.app.features.scanner.viewer.components
+package com.lenswise.app.features.scanner.viewer.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -28,7 +28,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -59,17 +58,6 @@ fun ViewerThumbnailFilmstrip(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color.Transparent,
-                        Color.Black.copy(alpha = 0.65f),
-                        Color.Black.copy(alpha = 0.90f),
-                        Color.Black,
-                        Color.Black
-                    )
-                )
-            )
             .navigationBarsPadding()
             .padding(top = 18.dp, bottom = 14.dp)
     ) {
