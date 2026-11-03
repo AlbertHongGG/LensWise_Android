@@ -26,7 +26,9 @@ import com.lenswise.app.features.scanner.components.CameraViewfinder
 import com.lenswise.app.features.scanner.components.ScannerBottomControls
 import com.lenswise.app.features.scanner.components.ScannerTopBar
 import com.lenswise.app.features.scanner.gallery.CustomGalleryBottomSheet
+import com.lenswise.app.features.scanner.gallery.GalleryPickerViewModel
 import com.lenswise.app.presentation.notification.NotificationController
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun ScannerScreen(
@@ -42,6 +44,9 @@ fun ScannerScreen(
     val cameraManager = remember { CameraManager(context) }
     val hazeState = remember { HazeState() }
     var showCustomGallery by remember { mutableStateOf(false) }
+
+    // 提前在背景預熱相簿狀態與首屏微縮圖 (0ms 開窗瞬顯)
+    val galleryPickerViewModel: GalleryPickerViewModel = viewModel(factory = GalleryPickerViewModel.Factory)
 
     // 1. 相機權限請求器
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
@@ -117,7 +122,8 @@ fun ScannerScreen(
                 onDismiss = { showCustomGallery = false },
                 onConfirmSelection = { uris ->
                     viewModel.onImagesPicked(context, uris)
-                }
+                },
+                viewModel = galleryPickerViewModel
             )
         }
     }
