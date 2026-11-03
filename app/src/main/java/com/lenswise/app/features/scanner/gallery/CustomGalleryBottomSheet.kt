@@ -1,10 +1,6 @@
 package com.lenswise.app.features.scanner.gallery
 
 import android.net.Uri
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -24,7 +20,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -34,12 +29,10 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -53,6 +46,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.lenswise.app.core.media.GalleryUiItem
 import com.lenswise.app.core.media.MediaAsset
+import com.lenswise.app.features.scanner.gallery.fastscroll.GalleryTimelineFastScroller
 import com.lenswise.app.presentation.components.IsolatedHandleBottomSheet
 import com.lenswise.app.presentation.theme.AppColors
 import com.lenswise.app.presentation.theme.OutfitFontFamily
@@ -204,61 +198,14 @@ fun CustomGalleryBottomSheet(
                     }
                 }
 
-                // 快速滑動月份浮動徽章 (重組隔離至獨立 Composable，確保高頻滑動零重組穿透)
-                FloatingFastScrollMonthBadge(
+                // Google 相簿風格時間軸快速滑動條 (主動拖曳穿梭 + 懸浮年月氣泡 + 零重組渲染)
+                GalleryTimelineFastScroller(
                     gridState = gridState,
                     items = state.items,
                     isDark = isDark,
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 10.dp)
+                    modifier = Modifier.fillMaxSize()
                 )
             }
-        }
-    }
-}
-
-/**
- * 快速滑動月份浮動徽章 (Fast-Scroll Floating Month Badge)。
- * 透過獨立組件隔離 [LazyGridState.isScrollInProgress] 狀態觀察，
- * 確保母層 LazyVerticalGrid 與容器 Box 於滑動期間完全不被觸發重組。
- */
-@Composable
-private fun FloatingFastScrollMonthBadge(
-    gridState: LazyGridState,
-    items: List<GalleryUiItem>,
-    isDark: Boolean,
-    modifier: Modifier = Modifier
-) {
-    val isScrolling = gridState.isScrollInProgress
-    val currentMonthTitle = remember(gridState.firstVisibleItemIndex, items) {
-        val item = items.getOrNull(gridState.firstVisibleItemIndex)
-        when (item) {
-            is GalleryUiItem.Header -> item.bucket.displayTitle
-            is GalleryUiItem.Photo -> item.asset.bucket.displayTitle
-            null -> ""
-        }
-    }
-
-    AnimatedVisibility(
-        visible = isScrolling && currentMonthTitle.isNotEmpty(),
-        enter = fadeIn(tween(150)),
-        exit = fadeOut(tween(300)),
-        modifier = modifier
-    ) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = if (isDark) Color(0xFF2A2A2A).copy(alpha = 0.85f) else Color(0xFF202020).copy(alpha = 0.75f),
-            contentColor = Color.White,
-            shadowElevation = 4.dp
-        ) {
-            Text(
-                text = currentMonthTitle,
-                fontFamily = OutfitFontFamily,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
-            )
         }
     }
 }
