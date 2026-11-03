@@ -1,5 +1,7 @@
-﻿package com.lenswise.app.features.settings
+package com.lenswise.app.features.settings
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -8,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -19,27 +22,28 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.SettingsBackupRestore
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import com.lenswise.app.presentation.components.AppSwitch
-import com.lenswise.app.presentation.components.PremiumConfigHeader
-import com.lenswise.app.features.settings.components.SettingsDivider
-import com.lenswise.app.features.settings.components.SettingsSection
-import com.lenswise.app.features.settings.components.SettingsTile
-import com.lenswise.app.presentation.notification.NotificationController
-import com.lenswise.app.presentation.theme.AppColors
-
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.lenswise.app.features.settings.components.SettingsDivider
+import com.lenswise.app.features.settings.components.SettingsSection
+import com.lenswise.app.features.settings.components.SettingsTile
+import com.lenswise.app.presentation.components.AppSwitch
+import com.lenswise.app.presentation.components.PremiumConfigHeader
 import com.lenswise.app.presentation.components.picker.LanguagePickerBottomSheet
+import com.lenswise.app.presentation.notification.NotificationController
+import com.lenswise.app.presentation.theme.AppColors
 
 /**
  * LensWise 經典偏好設定頁面 (SettingsScreen)。
- * 1:1 還原原版 LensWise 排版與三大分組設計（系統、AI 解析與引擎設定、資料備份與還原），支援全手勢向右滑動返回。
+ * 1:1 還原原版 LensWise 排版與三大分組設計（系統、AI 解析與引擎設定、資料備份與還原），
+ * 整合 SAF (Storage Access Framework) 原生 ZIP 歷史與日誌備份匯出/匯入引擎。
  */
 @Composable
 fun SettingsScreen(
@@ -54,6 +58,24 @@ fun SettingsScreen(
     val isDark = isSystemInDarkTheme()
     val uiState by viewModel.uiState.collectAsState()
     var showLanguagePicker by remember { mutableStateOf(false) }
+
+    // SAF 匯出檔案選擇器 (CreateDocument)
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/zip")
+    ) { uri ->
+        if (uri != null) {
+            viewModel.exportBackupToUri(uri)
+        }
+    }
+
+    // SAF 匯入檔案選擇器 (OpenDocument)
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.importBackupFromUri(uri)
+        }
+    }
 
     if (showLanguagePicker) {
         LanguagePickerBottomSheet(
@@ -156,9 +178,20 @@ fun SettingsScreen(
                     icon = Icons.Default.UploadFile,
                     iconColor = AppColors.primary,
                     title = "匯出歷史紀錄",
-                    subtitle = "打包為 ZIP 檔",
+                    subtitle = if (uiState.isBackupInProgress) uiState.backupOperationMessage ?: "處理中..." else "打包為 ZIP 檔",
+                    trailing = if (uiState.isBackupInProgress) {
+                        {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = AppColors.primary,
+                                strokeWidth = 2.dp
+                            )
+                        }
+                    } else null,
                     onTap = onExportBackup ?: {
-                        NotificationController.showInfo("匯出備份功能即將於後續版本推出")
+                        if (!uiState.isBackupInProgress) {
+                            exportLauncher.launch(viewModel.getDefaultBackupFileName())
+                        }
                     }
                 )
                 SettingsDivider()
@@ -166,9 +199,20 @@ fun SettingsScreen(
                     icon = Icons.Default.SettingsBackupRestore,
                     iconColor = AppColors.primary,
                     title = "匯入歷史紀錄",
-                    subtitle = "從 ZIP 檔還原",
+                    subtitle = if (uiState.isBackupInProgress) uiState.backupOperationMessage ?: "處理中..." else "從 ZIP 檔還原",
+                    trailing = if (uiState.isBackupInProgress) {
+                        {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = AppColors.primary,
+                                strokeWidth = 2.dp
+                            )
+                        }
+                    } else null,
                     onTap = onImportBackup ?: {
-                        NotificationController.showInfo("匯入還原功能即將於後續版本推出")
+                        if (!uiState.isBackupInProgress) {
+                            importLauncher.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
+                        }
                     }
                 )
             }
@@ -178,4 +222,3 @@ fun SettingsScreen(
         }
     }
 }
-

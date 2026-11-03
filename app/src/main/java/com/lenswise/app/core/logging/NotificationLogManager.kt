@@ -3,15 +3,18 @@ package com.lenswise.app.core.logging
 import android.content.Context
 import android.util.Log
 import com.lenswise.app.domain.model.log.NotificationLogEntry
+import com.lenswise.app.domain.model.log.NotificationLogRecord
 import com.lenswise.app.presentation.notification.NotificationType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -21,6 +24,7 @@ import kotlin.random.Random
 /**
  * 系統通知日誌管理器 (NotificationLogManager)。
  * 負責將 App 發布之各項通知（成功、錯誤、警告、資訊）非同步持久化至本地 JSON。
+ * 全面採用 kotlinx.serialization 強型別模型 [NotificationLogRecord]，消除舊式 JSONObject。
  */
 class NotificationLogManager(private val context: Context) {
 
@@ -31,11 +35,16 @@ class NotificationLogManager(private val context: Context) {
     }
 
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    private val logDir = File(context.filesDir, "logs/notifications").apply {
+    val logDir = File(context.filesDir, "logs/notifications").apply {
         if (!exists()) mkdirs()
     }
 
-    private val scope = CoroutineScope(Dispatchers.IO)
+    private val json = Json {
+        prettyPrint = true
+        ignoreUnknownKeys = true
+    }
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val _logsFlow = MutableStateFlow<List<NotificationLogEntry>>(emptyList())
     val logsFlow: StateFlow<List<NotificationLogEntry>> = _logsFlow.asStateFlow()
 
@@ -64,13 +73,13 @@ class NotificationLogManager(private val context: Context) {
                 val file = File(logDir, fileName)
 
                 val isoTimestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.US).format(now)
-                val json = JSONObject().apply {
-                    put("timestamp", isoTimestamp)
-                    put("type", type.name.lowercase(Locale.US))
-                    put("message", message)
-                }
+                val record = NotificationLogRecord(
+                    timestamp = isoTimestamp,
+                    type = type.name.lowercase(Locale.US),
+                    message = message
+                )
 
-                file.writeText(json.toString(2))
+                file.writeText(json.encodeToString(record))
                 reload()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to write notification log: ${e.message}", e)
@@ -89,23 +98,19 @@ class NotificationLogManager(private val context: Context) {
         val files = logDir.listFiles { f -> f.extension == "json" } ?: emptyArray()
         return files.mapNotNull { file ->
             try {
-                val content = file.readText()
-                val json = JSONObject(content)
-                val typeStr = json.optString("type", "info")
-                val type = when (typeStr.lowercase(Locale.US)) {
+                val record = json.decodeFromString<NotificationLogRecord>(file.readText())
+                val type = when (record.type.lowercase(Locale.US)) {
                     "success" -> NotificationType.SUCCESS
                     "error" -> NotificationType.ERROR
                     "warning" -> NotificationType.WARNING
                     else -> NotificationType.INFO
                 }
-                val message = json.optString("message", "")
-                val timestampStr = json.optString("timestamp", "")
                 val fileModified = file.lastModified()
 
-                var displayTime = timestampStr
-                if (timestampStr.isNotEmpty()) {
+                var displayTime = record.timestamp
+                if (record.timestamp.isNotEmpty()) {
                     try {
-                        val parsedDate = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).parse(timestampStr)
+                        val parsedDate = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).parse(record.timestamp)
                         if (parsedDate != null) {
                             displayTime = SimpleDateFormat("yyyy/MM/dd HH:mm:ss", Locale.US).format(parsedDate)
                         }
@@ -116,7 +121,7 @@ class NotificationLogManager(private val context: Context) {
                     id = file.name,
                     file = file,
                     type = type,
-                    message = message,
+                    message = record.message,
                     timestampStr = displayTime,
                     timestampMillis = fileModified
                 )

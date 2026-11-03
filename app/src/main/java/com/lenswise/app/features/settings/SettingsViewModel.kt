@@ -1,18 +1,21 @@
-﻿package com.lenswise.app.features.settings
+package com.lenswise.app.features.settings
 
-import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.lenswise.app.LensWiseApplication
+import com.lenswise.app.core.backup.BackupRestoreManager
+import com.lenswise.app.core.backup.model.RestoreStrategy
 import com.lenswise.app.core.storage.SettingsPreferencesDataSource
 import com.lenswise.app.core.storage.SettingsPreferencesRepository
 import com.lenswise.app.domain.model.settings.TargetLanguage
 import com.lenswise.app.features.ai.config.AiConfigState
 import com.lenswise.app.features.ai.config.IAiConfigRepository
 import com.lenswise.app.features.ai.domain.AiAgentType
+import com.lenswise.app.presentation.notification.NotificationController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,10 +31,17 @@ import kotlinx.coroutines.launch
 class SettingsViewModel(
     private val preferencesDataSource: SettingsPreferencesDataSource,
     private val aiConfigRepository: IAiConfigRepository = createDefaultAiConfigRepository(),
+    private val backupRestoreManager: BackupRestoreManager? = null,
     scope: CoroutineScope? = null
 ) : ViewModel() {
 
-    constructor() : this(createDefaultPreferencesDataSource(), createDefaultAiConfigRepository())
+    constructor() : this(createDefaultPreferencesDataSource(), createDefaultAiConfigRepository(), null, null)
+
+    constructor(
+        preferencesDataSource: SettingsPreferencesDataSource,
+        aiConfigRepository: IAiConfigRepository,
+        scope: CoroutineScope?
+    ) : this(preferencesDataSource, aiConfigRepository, null, scope)
 
     private val vmScope = scope ?: runCatching {
         val s = viewModelScope
@@ -83,6 +93,62 @@ class SettingsViewModel(
         preferencesDataSource.setTargetLanguage(language)
     }
 
+    fun getDefaultBackupFileName(): String {
+        return BackupRestoreManager.generateDefaultBackupFileName()
+    }
+
+    fun exportBackupToUri(uri: Uri) {
+        if (_uiState.value.isBackupInProgress) return
+        val manager = backupRestoreManager ?: run {
+            NotificationController.showError("備份服務未初始化")
+            return
+        }
+
+        _uiState.update { it.copy(isBackupInProgress = true, backupOperationMessage = "正在打包匯出備份資料...") }
+        vmScope.launch {
+            try {
+                val result = manager.exportToUri(uri)
+                result.onSuccess { summary ->
+                    val meta = summary.manifest
+                    NotificationController.showSuccess(
+                        "備份成功：已匯出 ${meta.totalRecords} 筆歷史、${meta.totalPhotos} 張照片與 ${meta.totalLogs} 筆日誌"
+                    )
+                }.onFailure { e ->
+                    NotificationController.showError("備份匯出失敗：${e.localizedMessage ?: e.message}")
+                }
+            } finally {
+                _uiState.update { it.copy(isBackupInProgress = false, backupOperationMessage = null) }
+            }
+        }
+    }
+
+    fun importBackupFromUri(
+        uri: Uri,
+        strategy: RestoreStrategy = RestoreStrategy.MERGE_OVERWRITE
+    ) {
+        if (_uiState.value.isBackupInProgress) return
+        val manager = backupRestoreManager ?: run {
+            NotificationController.showError("備份還原服務未初始化")
+            return
+        }
+
+        _uiState.update { it.copy(isBackupInProgress = true, backupOperationMessage = "正在解壓驗證並還原資料...") }
+        vmScope.launch {
+            try {
+                val result = manager.importFromUri(uri, strategy)
+                result.onSuccess { summary ->
+                    NotificationController.showSuccess(
+                        "還原成功：已還原 ${summary.totalRecordsRestored} 筆歷史、${summary.totalPhotosRestored} 張照片與 ${summary.totalLogsRestored} 筆日誌"
+                    )
+                }.onFailure { e ->
+                    NotificationController.showError("還原失敗：${e.localizedMessage ?: e.message}")
+                }
+            } finally {
+                _uiState.update { it.copy(isBackupInProgress = false, backupOperationMessage = null) }
+            }
+        }
+    }
+
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
@@ -90,7 +156,8 @@ class SettingsViewModel(
                     ?: LensWiseApplication.instance
                 val preferencesRepository = SettingsPreferencesRepository(application)
                 val aiConfigRepo = application.aiConfigRepository
-                SettingsViewModel(preferencesRepository, aiConfigRepo)
+                val backupManager = application.backupRestoreManager
+                SettingsViewModel(preferencesRepository, aiConfigRepo, backupManager)
             }
         }
     }
@@ -182,4 +249,3 @@ private fun createDefaultAiConfigRepository(): IAiConfigRepository {
         DefaultInMemoryAiConfigRepository()
     }
 }
-

@@ -1,4 +1,4 @@
-﻿package com.lenswise.app.features.settings
+package com.lenswise.app.features.settings
 
 import com.lenswise.app.domain.model.settings.TargetLanguage
 
@@ -10,6 +10,7 @@ data class SettingsUiState(
     val isNotificationLogEnabled: Boolean = true,
     val isApiLogEnabled: Boolean = true,
     val isAiAgentEnabled: Boolean = true,
-    val targetLanguage: TargetLanguage = TargetLanguage.TRADITIONAL_CHINESE
+    val targetLanguage: TargetLanguage = TargetLanguage.TRADITIONAL_CHINESE,
+    val isBackupInProgress: Boolean = false,
+    val backupOperationMessage: String? = null
 )
-

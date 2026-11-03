@@ -27,6 +27,10 @@ class LensWiseApplication : Application(), ImageLoaderFactory {
         CoilGalleryPreloadManager(this, coil.Coil.imageLoader(this))
     }
 
+    val backupRestoreManager: com.lenswise.app.core.backup.BackupRestoreManager by lazy {
+        com.lenswise.app.core.backup.BackupRestoreManager.createDefault(this)
+    }
+
     lateinit var notificationLogManager: com.lenswise.app.core.logging.NotificationLogManager
         private set
     lateinit var apiLogManager: com.lenswise.app.core.logging.ApiLogManager

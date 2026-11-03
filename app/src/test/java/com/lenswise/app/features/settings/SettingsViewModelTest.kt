@@ -140,5 +140,16 @@ class SettingsViewModelTest {
         assertEquals("한국어", viewModel.uiState.value.targetLanguage.displayName)
         assertEquals(TargetLanguage.KOREAN, fakeSource.getTargetLanguage())
     }
+
+    @Test
+    fun testDefaultBackupFileName_matchesExpectedPattern() {
+        val fakeSource = FakeSettingsPreferencesDataSource()
+        val fakeAiRepo = FakeAiConfigRepository()
+        val viewModel = SettingsViewModel(fakeSource, fakeAiRepo)
+
+        val fileName = viewModel.getDefaultBackupFileName()
+        assertTrue(fileName.startsWith("LensWise_Backup_"))
+        assertTrue(fileName.endsWith(".zip"))
+    }
 }
 

@@ -80,4 +80,36 @@ class SessionImageResolverTest {
         assertEquals(path1, resolver.getDiskPath(0))
         assertEquals(path2, resolver.getDiskPath(1))
     }
+
+    @Test
+    fun `relative path resolution resolves against provided baseDir`() {
+        val baseDir = File.createTempFile("base_test", "").apply {
+            delete()
+            mkdirs()
+            deleteOnExit()
+        }
+
+        val relPath1 = "history/receipt_images/rec_1_0.jpg"
+        val relPath2 = "history/receipt_images/rec_1_1.jpg"
+
+        val expectedFile1 = File(baseDir, relPath1)
+        val expectedFile2 = File(baseDir, relPath2)
+
+        val resolver = SessionImageResolver(
+            imagePaths = listOf(relPath1, relPath2),
+            baseDir = baseDir
+        )
+
+        assertFalse(resolver.isMemorySource)
+        assertTrue(resolver.hasImages)
+        assertEquals(2, resolver.count)
+
+        assertEquals(expectedFile1, resolver.resolveFile(0))
+        assertEquals(expectedFile2, resolver.resolveFile(1))
+
+        val allFiles = resolver.getAllFiles()
+        assertEquals(2, allFiles.size)
+        assertEquals(expectedFile1, allFiles[0])
+        assertEquals(expectedFile2, allFiles[1])
+    }
 }
