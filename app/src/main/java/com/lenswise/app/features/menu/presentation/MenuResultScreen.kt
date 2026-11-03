@@ -41,6 +41,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.lenswise.app.core.image.SessionImageResolver
+import com.lenswise.app.core.scanner.ScanAnalysisStatus
 import com.lenswise.app.domain.model.menu.MenuScannerRecord
 import com.lenswise.app.features.menu.agent.MenuChatPrompts
 import com.lenswise.app.features.menu.presentation.components.MenuHeaderSection
@@ -68,11 +69,11 @@ fun MenuResultScreen(
 ) {
     val isDark = isSystemInDarkTheme()
     val state = viewModel?.uiState?.collectAsState()?.value
-    val isStreaming = isLiveSession && (state?.status == MenuScannerStatus.STREAMING)
+    val isStreaming = isLiveSession && (state?.status == ScanAnalysisStatus.STREAMING)
 
     var localRecord by remember(record) { mutableStateOf(record) }
 
-    val effectiveRecord = if (isLiveSession && state != null && state.record.items.isNotEmpty()) {
+    val effectiveRecord = if (isLiveSession && state != null) {
         state.record
     } else {
         localRecord

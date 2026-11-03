@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.haze
 import com.lenswise.app.core.image.SessionImageResolver
+import com.lenswise.app.core.scanner.ScanAnalysisStatus
 import com.lenswise.app.domain.model.comparison.ProductComparisonRecord
 import com.lenswise.app.features.comparison.agent.ComparisonChatPrompts
 import com.lenswise.app.features.comparison.presentation.components.AiVerdictBottomSheet
@@ -69,11 +70,11 @@ fun ComparisonResultScreen(
 ) {
     val isDark = isSystemInDarkTheme()
     val state = viewModel?.uiState?.collectAsState()?.value
-    val isStreaming = isLiveSession && (state?.status == ProductComparisonStatus.STREAMING)
+    val isStreaming = isLiveSession && (state?.status == ScanAnalysisStatus.STREAMING)
 
     var localRecord by remember(record) { mutableStateOf(record) }
 
-    val effectiveRecord = if (isLiveSession && state != null && state.record.comparisonPoints.isNotEmpty()) {
+    val effectiveRecord = if (isLiveSession && state != null) {
         state.record
     } else {
         localRecord

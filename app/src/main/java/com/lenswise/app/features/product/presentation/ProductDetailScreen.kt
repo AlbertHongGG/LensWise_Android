@@ -36,6 +36,7 @@ import coil.compose.AsyncImage
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.haze
 import com.lenswise.app.core.image.SessionImageResolver
+import com.lenswise.app.core.scanner.ScanSessionUiState
 import com.lenswise.app.domain.model.product.ProductLensRecord
 import com.lenswise.app.features.product.presentation.components.ImmersiveBackground
 import com.lenswise.app.features.product.agent.ProductChatPrompts
@@ -67,15 +68,11 @@ fun ProductDetailScreen(
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
 
     val liveState by viewModel?.uiState?.collectAsState()
-        ?: remember { mutableStateOf(ProductLensUiState(record = record)) }
+        ?: remember { mutableStateOf(ScanSessionUiState(record = record)) }
     var localRecord by remember(record) { mutableStateOf(record) }
 
     val effectiveRecord = if (isLiveSession) {
-        if (liveState.record.productName.isNotBlank() || liveState.record.summary.isNotBlank()) {
-            liveState.record
-        } else {
-            localRecord
-        }
+        liveState.record
     } else {
         localRecord
     }

@@ -27,6 +27,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,6 +39,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.lenswise.app.core.image.SessionImageResolver
+import com.lenswise.app.core.scanner.ScanAnalysisStatus
+import com.lenswise.app.core.scanner.ScanSessionUiState
 import com.lenswise.app.domain.model.receipt.ReceiptScannerRecord
 import com.lenswise.app.features.receipt.agent.ReceiptChatPrompts
 import com.lenswise.app.features.receipt.presentation.components.ReceiptEditBottomSheet
@@ -73,21 +76,25 @@ fun ReceiptDetailScreen(
     var activeEditTarget by remember { mutableStateOf<ReceiptEditTarget?>(null) }
 
     val liveState by viewModel?.uiState?.collectAsState()
-        ?: remember { mutableStateOf(ReceiptScannerUiState(receiptRecord = record)) }
+        ?: remember { mutableStateOf(ScanSessionUiState(record = record)) }
 
     var localRecord by remember(record) { mutableStateOf(record) }
 
     val currentRecord = if (isLiveSession) {
-        if (liveState.receiptRecord.storeName.isNotEmpty() || liveState.receiptRecord.items.isNotEmpty()) {
-            liveState.receiptRecord
-        } else {
-            localRecord
-        }
+        liveState.record
     } else {
         localRecord
     }
 
-    val isStreaming = isLiveSession && liveState.status == ReceiptScannerStatus.STREAMING
+    val isStreaming = isLiveSession && liveState.status == ScanAnalysisStatus.STREAMING
+
+    DisposableEffect(isLiveSession) {
+        onDispose {
+            if (isLiveSession) {
+                viewModel?.reset()
+            }
+        }
+    }
 
     // 解析相片實體檔案（透過 SessionImageResolver 雙軌統一抽象）
     val imageFiles = remember(liveState.capturedImages, currentRecord.imagePaths) {

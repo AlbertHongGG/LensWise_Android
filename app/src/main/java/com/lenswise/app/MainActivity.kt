@@ -171,15 +171,19 @@ fun AppNavigation(
                     onStartAnalysis = { mode, images ->
                         when (mode) {
                             ScannerMode.RECEIPT -> {
+                                receiptScannerViewModel.startAnalysis(images)
                                 navigator.push(AppRoute.ReceiptProcessing(images))
                             }
                             ScannerMode.PRODUCT -> {
+                                productLensViewModel.startAnalysis(images)
                                 navigator.push(AppRoute.ProductProcessing(images))
                             }
                             ScannerMode.COMPARISON -> {
+                                productComparisonViewModel.startAnalysis(images)
                                 navigator.push(AppRoute.ComparisonProcessing(images))
                             }
                             ScannerMode.MENU -> {
+                                menuScannerViewModel.startAnalysis(images)
                                 navigator.push(AppRoute.MenuProcessing(images))
                             }
                         }
