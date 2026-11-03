@@ -58,6 +58,9 @@ class GalleryPickerViewModelTest {
         override suspend fun reconcileActiveAssets(activeAssetIds: Set<Long>) {
             lastReconciledIds = activeAssetIds
         }
+        override fun getMemoryMicroThumbnail(assetId: Long): Bitmap? = null
+        override fun putMemoryMicroThumbnail(assetId: Long, bitmap: Bitmap) {}
+        override suspend fun getOrGenerateMicroThumbnail(asset: MediaAsset): Bitmap? = null
     }
 
     private class FakeGalleryPreloadManager : GalleryPreloadManager {

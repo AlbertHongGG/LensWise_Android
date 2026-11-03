@@ -40,6 +40,14 @@ class GalleryThumbnailFetcher(
             return null
         }
 
+        // 若記憶體尚無 L1 微縮圖，同步降採樣寫入 RAM 供下次 0ms 直讀
+        if (cacheRepo.getMemoryMicroThumbnail(asset.id) == null) {
+            runCatching {
+                val microBmp = Bitmap.createScaledBitmap(bitmap, 24, 24, true)
+                cacheRepo.putMemoryMicroThumbnail(asset.id, microBmp)
+            }
+        }
+
         return DrawableResult(
             drawable = BitmapDrawable(context.resources, bitmap),
             isSampled = false,

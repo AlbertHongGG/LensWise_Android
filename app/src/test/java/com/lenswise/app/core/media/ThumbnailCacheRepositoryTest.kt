@@ -167,6 +167,34 @@ class ThumbnailCacheRepositoryTest {
     }
 
     @Test
+    fun `reconcileActiveAssets should delete both standard and micro thumbnail files for deleted assets`() = runBlocking {
+        val repo = DiskThumbnailCacheRepository(
+            context = mockContext,
+            cacheDirName = "test_thumbs",
+            boundedDispatcher = Dispatchers.Default
+        )
+
+        val cacheDir = File(tempFolder.root, "test_thumbs")
+        cacheDir.mkdirs()
+
+        // 建立 ID 100 的標準檔與 micro 檔
+        val standardFile = File(cacheDir, "100_1000.jpg").apply { writeBytes(byteArrayOf(1, 2, 3)) }
+        val microFile = File(cacheDir, "100_1000_micro.jpg").apply { writeBytes(byteArrayOf(4, 5, 6)) }
+
+        // 建立保留照片 ID 200 的檔案
+        val keepStandard = File(cacheDir, "200_2000.jpg").apply { writeBytes(byteArrayOf(7, 8, 9)) }
+        val keepMicro = File(cacheDir, "200_2000_micro.jpg").apply { writeBytes(byteArrayOf(10, 11, 12)) }
+
+        // 僅保留 200，100 被刪除
+        repo.reconcileActiveAssets(activeAssetIds = setOf(200L))
+
+        assertFalse("Standard file of deleted asset must be deleted", standardFile.exists())
+        assertFalse("Micro file of deleted asset must be deleted", microFile.exists())
+        assertTrue("Active asset standard file should remain", keepStandard.exists())
+        assertTrue("Active asset micro file should remain", keepMicro.exists())
+    }
+
+    @Test
     fun `MediaAssetKeyer should generate unique deterministic cache key`() {
         val keyer = MediaAssetKeyer()
         val mockUri = mock(Uri::class.java)
