@@ -98,26 +98,23 @@ class SettingsViewModel(
     }
 
     fun exportBackupToUri(uri: Uri) {
-        if (_uiState.value.isBackupInProgress) return
+        if (_uiState.value.backupState.isInProgress) return
         val manager = backupRestoreManager ?: run {
             NotificationController.showError("備份服務未初始化")
             return
         }
 
-        _uiState.update { it.copy(isBackupInProgress = true, backupOperationMessage = "正在打包匯出備份資料...") }
+        _uiState.update { it.copy(backupState = BackupOperationState.Exporting) }
         vmScope.launch {
             try {
                 val result = manager.exportToUri(uri)
-                result.onSuccess { summary ->
-                    val meta = summary.manifest
-                    NotificationController.showSuccess(
-                        "備份成功：已匯出 ${meta.totalRecords} 筆歷史、${meta.totalPhotos} 張照片與 ${meta.totalLogs} 筆日誌"
-                    )
+                result.onSuccess {
+                    NotificationController.showSuccess("歷史紀錄匯出成功")
                 }.onFailure { e ->
-                    NotificationController.showError("備份匯出失敗：${e.localizedMessage ?: e.message}")
+                    NotificationController.showError("匯出失敗：${e.localizedMessage ?: e.message}")
                 }
             } finally {
-                _uiState.update { it.copy(isBackupInProgress = false, backupOperationMessage = null) }
+                _uiState.update { it.copy(backupState = BackupOperationState.Idle) }
             }
         }
     }
@@ -126,25 +123,23 @@ class SettingsViewModel(
         uri: Uri,
         strategy: RestoreStrategy = RestoreStrategy.MERGE_OVERWRITE
     ) {
-        if (_uiState.value.isBackupInProgress) return
+        if (_uiState.value.backupState.isInProgress) return
         val manager = backupRestoreManager ?: run {
             NotificationController.showError("備份還原服務未初始化")
             return
         }
 
-        _uiState.update { it.copy(isBackupInProgress = true, backupOperationMessage = "正在解壓驗證並還原資料...") }
+        _uiState.update { it.copy(backupState = BackupOperationState.Importing) }
         vmScope.launch {
             try {
                 val result = manager.importFromUri(uri, strategy)
-                result.onSuccess { summary ->
-                    NotificationController.showSuccess(
-                        "還原成功：已還原 ${summary.totalRecordsRestored} 筆歷史、${summary.totalPhotosRestored} 張照片與 ${summary.totalLogsRestored} 筆日誌"
-                    )
+                result.onSuccess {
+                    NotificationController.showSuccess("歷史紀錄還原成功")
                 }.onFailure { e ->
                     NotificationController.showError("還原失敗：${e.localizedMessage ?: e.message}")
                 }
             } finally {
-                _uiState.update { it.copy(isBackupInProgress = false, backupOperationMessage = null) }
+                _uiState.update { it.copy(backupState = BackupOperationState.Idle) }
             }
         }
     }

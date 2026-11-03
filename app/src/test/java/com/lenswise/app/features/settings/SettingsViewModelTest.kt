@@ -151,5 +151,28 @@ class SettingsViewModelTest {
         assertTrue(fileName.startsWith("LensWise_Backup_"))
         assertTrue(fileName.endsWith(".zip"))
     }
+
+    @Test
+    fun testBackupOperationState_initialStateIsIdleAndMutuallyExclusive() {
+        val fakeSource = FakeSettingsPreferencesDataSource()
+        val fakeAiRepo = FakeAiConfigRepository()
+        val viewModel = SettingsViewModel(fakeSource, fakeAiRepo)
+
+        assertEquals(BackupOperationState.Idle, viewModel.uiState.value.backupState)
+        assertFalse(viewModel.uiState.value.backupState.isInProgress)
+        assertFalse(viewModel.uiState.value.backupState.isExporting)
+        assertFalse(viewModel.uiState.value.backupState.isImporting)
+
+        // Verify state properties are strictly mutually exclusive
+        val exporting = BackupOperationState.Exporting
+        assertTrue(exporting.isInProgress)
+        assertTrue(exporting.isExporting)
+        assertFalse(exporting.isImporting)
+
+        val importing = BackupOperationState.Importing
+        assertTrue(importing.isInProgress)
+        assertFalse(importing.isExporting)
+        assertTrue(importing.isImporting)
+    }
 }
 

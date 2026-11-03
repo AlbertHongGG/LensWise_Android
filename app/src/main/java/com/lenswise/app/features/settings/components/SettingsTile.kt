@@ -1,4 +1,4 @@
-﻿package com.lenswise.app.features.settings.components
+package com.lenswise.app.features.settings.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -39,6 +40,7 @@ fun SettingsTile(
     subtitle: String? = null,
     trailing: (@Composable () -> Unit)? = null,
     onTap: (() -> Unit)? = null,
+    enabled: Boolean = true,
     isDestructive: Boolean = false
 ) {
     val isDark = isSystemInDarkTheme()
@@ -53,7 +55,8 @@ fun SettingsTile(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(enabled = onTap != null) { onTap?.invoke() }
+            .alpha(if (enabled) 1f else 0.45f)
+            .clickable(enabled = enabled && onTap != null) { onTap?.invoke() }
             .padding(horizontal = 16.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -115,4 +118,3 @@ fun SettingsTile(
         }
     }
 }
-

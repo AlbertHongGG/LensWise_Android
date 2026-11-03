@@ -174,12 +174,17 @@ fun SettingsScreen(
 
             // 4. 第三分組：資料備份與還原 (1:1 復刻 LensWise backup_settings_section)
             SettingsSection(title = "資料備份與還原") {
+                val isExporting = uiState.backupState.isExporting
+                val isImporting = uiState.backupState.isImporting
+                val isBusy = uiState.backupState.isInProgress
+
                 SettingsTile(
                     icon = Icons.Default.UploadFile,
                     iconColor = AppColors.primary,
                     title = "匯出歷史紀錄",
-                    subtitle = if (uiState.isBackupInProgress) uiState.backupOperationMessage ?: "處理中..." else "打包為 ZIP 檔",
-                    trailing = if (uiState.isBackupInProgress) {
+                    subtitle = if (isExporting) "正在打包匯出..." else "打包為 ZIP 檔",
+                    enabled = !isImporting,
+                    trailing = if (isExporting) {
                         {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(18.dp),
@@ -189,7 +194,7 @@ fun SettingsScreen(
                         }
                     } else null,
                     onTap = onExportBackup ?: {
-                        if (!uiState.isBackupInProgress) {
+                        if (!isBusy) {
                             exportLauncher.launch(viewModel.getDefaultBackupFileName())
                         }
                     }
@@ -199,8 +204,9 @@ fun SettingsScreen(
                     icon = Icons.Default.SettingsBackupRestore,
                     iconColor = AppColors.primary,
                     title = "匯入歷史紀錄",
-                    subtitle = if (uiState.isBackupInProgress) uiState.backupOperationMessage ?: "處理中..." else "從 ZIP 檔還原",
-                    trailing = if (uiState.isBackupInProgress) {
+                    subtitle = if (isImporting) "正在解壓還原..." else "從 ZIP 檔還原",
+                    enabled = !isExporting,
+                    trailing = if (isImporting) {
                         {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(18.dp),
@@ -210,7 +216,7 @@ fun SettingsScreen(
                         }
                     } else null,
                     onTap = onImportBackup ?: {
-                        if (!uiState.isBackupInProgress) {
+                        if (!isBusy) {
                             importLauncher.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
                         }
                     }
