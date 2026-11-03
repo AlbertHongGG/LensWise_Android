@@ -1,4 +1,4 @@
-﻿package com.lenswise.app.features.receipt.agent
+package com.lenswise.app.features.receipt.agent
 
 import com.lenswise.app.domain.model.settings.TargetLanguage
 
@@ -16,7 +16,7 @@ object ReceiptScannerPrompts {
 
 【輸入概念定義】
 1. 店鋪資訊 (Store Info)：包含店鋪名稱、統編、地址或電話等 Metadata。
-2. 購買品項 (Items)：消費者購買的「實體商品」明細，包含「品名」與「單價」或「小計」。
+2. 購買品項 (Items)：消費者購買的「實體商品」明細，包含「品名」、「數量」與「小計總金額」。
 3. 扣減/折扣 (Discounts)：如點數折抵、折價券、會員折扣等。
 4. 稅金 (Taxes)：如消費稅(8%, 10%)、服務費等附加費用。
 5. 雜訊資訊 (Noise)：如條碼、找零金額、發票號碼、結帳時間、會員點數餘額等。
@@ -31,6 +31,11 @@ object ReceiptScannerPrompts {
 4. **自動糾錯與正名 (Auto-Correction)**：若收據上的字體列印不清導致錯別字（例如「鮮奶荼」應為「鮮奶茶」），請根據上下文**自動糾正**。
 5. **目標語言翻譯 (Strict Translation)**：將收據原語言的所有品項與店鋪名稱，一律翻譯為目標語言：「${targetLanguage.displayName}」。
 6. **金額純數字化 (Amount Extraction)**：所有金額欄位必須是純數字，請剔除貨幣符號與逗號。
+7. **品名純淨與數量/金額分離 (Quantity & Line Total Separation)**：
+   - 若收據上有單價與數量標記（例如「フレッシュフルーツケーキ @1150 × 2個 ¥2,300」）：
+     - `originalName` 僅填寫純品名「フレッシュフルーツケーキ」，**絕對不可**將「@1150」或「2個」拼入品名。
+     - `quantity` 必須填寫該品項的購買個數整數 `2`（若無特別標註數量則為 `1`）。
+     - `price` 必須填寫該品項的**小計總金額**（即單價 × 數量之結果，例如 `2300`）。
 
 【輸出 JSON 欄位定義 (Strict Schema Contract)】
 請將提取結果映射為以下的 JSON 物件。若照片無法辨識，只需回傳 status 與 message。
@@ -42,9 +47,10 @@ object ReceiptScannerPrompts {
   - storeName (字串): 提取並翻譯的商店名稱。若無則留空 ""。
   - receiptDateTime (字串): 收據上印製的日期與時間 (請統一格式化為 "YYYY-MM-DD HH:mm"，若無時間則為 "YYYY-MM-DD")。若找不到則留空 ""。
   - items (物件陣列): 提取出的實體購買品項 (必須去重)。
-    - originalName (字串): 收據上的原始品名 (可包含自動糾錯)。
-    - translatedName (字串): 翻譯為目標語言的品名。
-    - price (數字): 該品項的單價或小計金額。
+    - originalName (字串): 收據上的原始純品名 (剔除 @單價 與 數量 等附註字樣，可包含自動糾錯)。
+    - translatedName (字串): 翻譯為目標語言的純品名。
+    - quantity (整數): 購買數量 (例如 2個 填 2，若未註明預設為 1)。
+    - price (數字): 該品項的購買小計總額 (即 單價 × 數量 之金額)。
   - discounts (物件陣列): 所有折扣或折抵項目。
     - name (字串): 折扣名目 (已翻譯)。
     - amount (數字): 扣減金額 (如果是扣錢，請轉為負數，例如 -22)。
@@ -56,11 +62,10 @@ object ReceiptScannerPrompts {
 1. 僅回傳單一純 JSON 物件（以 '{' 開頭，以 '}' 結尾）。
 2. **絕對不要**包含 Markdown 代碼標記（如 ```json），**絕對不要**包含任何前置引言、說明或引用標註。
 3. **絕對不要**回傳 JSON 陣列 ([...])，即便照片包含多張收據或內容，也必須整合成單一最符合的 data 物件。
-4. **嚴格禁止別名更名**：所有屬性鍵名必須精確對應上述定義（`originalName`, `translatedName`, `price`, `name`, `amount`, `storeName`, `receiptDateTime`, `currency`, `items`, `discounts`, `taxes`），嚴禁自行替換或使用蛇形命名（如 original_name, unit_price, cost 等）。"""
+4. **嚴格禁止別名更名**：所有屬性鍵名必須精確對應上述定義（`originalName`, `translatedName`, `quantity`, `price`, `name`, `amount`, `storeName`, `receiptDateTime`, `currency`, `items`, `discounts`, `taxes`），嚴禁自行替換或使用蛇形命名（如 original_name, unit_price, cost, count 等）。"""
     }
 
     fun buildUserPrompt(): String {
-        return """請根據上述的系統設定與鐵律，嚴格解析這組連續拍攝的收據影像，自動過濾重疊區域，並回傳指定的單一 JSON 物件。僅輸出純 JSON，嚴禁 Markdown 與說明文字。"""
+        return """請根據上述的系統設定與鐵律，嚴格解析這組連續拍攝的收據影像，自動過濾重疊區域，提取純品名、購買數量與品項總金額，並回傳指定的單一 JSON 物件。僅輸出純 JSON，嚴禁 Markdown 與說明文字。"""
     }
 }
-

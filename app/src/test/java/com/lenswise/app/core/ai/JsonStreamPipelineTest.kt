@@ -1,4 +1,4 @@
-﻿package com.lenswise.app.core.ai
+package com.lenswise.app.core.ai
 
 import com.lenswise.app.core.ai.streaming.JsonStreamPipeline
 import com.lenswise.app.features.receipt.agent.ReceiptFeeItemDto
@@ -47,15 +47,19 @@ class JsonStreamPipelineTest {
         val partialDto = ReceiptItemDto.fromJson(partialObj)
         assertFalse("未包含 price 結尾欄位的品項不應視為完整", partialDto.isComplete)
 
-        // 完整品項 (嚴格依據契約 originalName, translatedName, price)
+        // 完整品項 (嚴格依據契約 originalName, translatedName, quantity, price)
         val completeObj = json.parseToJsonElement(
-            """{"originalName": "咖啡", "translatedName": "Coffee", "price": 55.0}"""
+            """{"originalName": "咖啡", "translatedName": "Coffee", "quantity": 2, "price": 110.0}"""
         ).jsonObject
         val completeDto = ReceiptItemDto.fromJson(completeObj)
         assertTrue("包含 originalName, translatedName 與 price 的品項應為完整", completeDto.isComplete)
         assertEquals("咖啡", completeDto.originalName)
         assertEquals("Coffee", completeDto.translatedName)
-        assertEquals(55.0, completeDto.price, 0.001)
+        assertEquals(2, completeDto.quantity)
+        assertEquals(110.0, completeDto.price, 0.001)
+        val domain = completeDto.toDomain()
+        assertEquals(2, domain.quantity)
+        assertEquals(55.0, domain.unitPrice, 0.001)
     }
 
     @Test

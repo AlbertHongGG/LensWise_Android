@@ -1,4 +1,4 @@
-﻿package com.lenswise.app.features.receipt.agent
+package com.lenswise.app.features.receipt.agent
 
 import com.lenswise.app.domain.model.receipt.ReceiptScannerRecord
 
@@ -10,11 +10,12 @@ object ReceiptChatPrompts {
 
     fun buildSystemPrompt(record: ReceiptScannerRecord): String {
         val itemsStr = record.items.joinToString("\n") { e ->
-            if (e.translatedName.isNotBlank() && e.translatedName != e.originalName) {
-                "- ${e.originalName} / ${e.translatedName}: ${e.price}"
+            val nameDisplay = if (e.translatedName.isNotBlank() && e.translatedName != e.originalName) {
+                "${e.originalName} / ${e.translatedName}"
             } else {
-                "- ${e.originalName}: ${e.price}"
+                e.originalName
             }
+            "- $nameDisplay (數量: ${e.safeQuantity}, 小計: ${e.price})"
         }
         val discountsStr = record.discounts.joinToString("\n") { e ->
             "- ${e.name}: ${e.amount}"
@@ -45,6 +46,7 @@ object ReceiptChatPrompts {
 - 商店名稱：$storeName
 - 消費日期：$receiptDate
 - 幣別：$currency
+- 總購買件數：${record.totalItemCount} 件
 - 小計：${record.subtotal}
 - 總金額：${record.totalAmount}
 
@@ -62,4 +64,3 @@ $discountsBlock$taxesBlock
         return "我已為您解析完這張收據，想進行帳務整理、計算 AA 制，或了解單一商品的用途嗎？"
     }
 }
-

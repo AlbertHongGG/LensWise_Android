@@ -108,7 +108,8 @@ class SettingsViewModelTest {
     fun testSettingsToggleUpdatesStateAndPersistence() {
         val fakeSource = FakeSettingsPreferencesDataSource()
         val fakeAiRepo = FakeAiConfigRepository(initialEnabled = true)
-        val viewModel = SettingsViewModel(fakeSource, fakeAiRepo)
+        val testScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Unconfined)
+        val viewModel = SettingsViewModel(fakeSource, fakeAiRepo, testScope)
 
         viewModel.setDarkMode(false)
         assertFalse(viewModel.uiState.value.isDarkMode)

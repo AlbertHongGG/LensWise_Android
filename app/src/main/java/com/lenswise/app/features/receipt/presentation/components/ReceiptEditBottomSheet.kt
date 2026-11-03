@@ -176,17 +176,20 @@ fun ReceiptEditBottomSheet(
                     is ReceiptEditTarget.Item -> {
                         var originalName by remember(target) { mutableStateOf(target.item.originalName) }
                         var translatedName by remember(target) { mutableStateOf(target.item.translatedName) }
+                        var quantityText by remember(target) { mutableStateOf(target.item.safeQuantity.toString()) }
                         var priceText by remember(target) {
                             mutableStateOf(if (target.item.price > 0) "%.2f".format(target.item.price) else "")
                         }
 
                         fun doSave() {
                             val priceVal = priceText.toDoubleOrNull() ?: target.item.price
+                            val quantityVal = quantityText.toIntOrNull()?.coerceAtLeast(1) ?: target.item.safeQuantity
                             onSaveItem(
                                 target.index,
                                 target.item.copy(
                                     originalName = originalName.trim(),
                                     translatedName = translatedName.trim(),
+                                    quantity = quantityVal,
                                     price = priceVal
                                 )
                             )
@@ -274,33 +277,69 @@ fun ReceiptEditBottomSheet(
 
                         Spacer(modifier = Modifier.height(14.dp))
 
-                        OutlinedTextField(
-                            value = priceText,
-                            onValueChange = { priceText = it },
-                            label = { Text("金額", fontFamily = OutfitFontFamily) },
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Decimal,
-                                imeAction = ImeAction.Done
-                            ),
-                            keyboardActions = KeyboardActions(onDone = { doSave() }),
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            singleLine = true,
-                            textStyle = TextStyle(
-                                fontFamily = OutfitFontFamily,
-                                fontSize = 16.sp,
-                                color = textColor
-                            ),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = textColor,
-                                unfocusedTextColor = textColor,
-                                focusedBorderColor = AppColors.primary,
-                                unfocusedBorderColor = if (isDark) Color.White.copy(alpha = 0.15f) else Color.Black.copy(alpha = 0.12f),
-                                focusedLabelColor = AppColors.primary,
-                                unfocusedLabelColor = secondaryTextColor,
-                                cursorColor = AppColors.primary
+                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = quantityText,
+                                onValueChange = { input ->
+                                    if (input.all { it.isDigit() }) {
+                                        quantityText = input
+                                    }
+                                },
+                                label = { Text("數量", fontFamily = OutfitFontFamily) },
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Number,
+                                    imeAction = ImeAction.Next
+                                ),
+                                modifier = Modifier.weight(0.35f),
+                                shape = RoundedCornerShape(12.dp),
+                                singleLine = true,
+                                textStyle = TextStyle(
+                                    fontFamily = OutfitFontFamily,
+                                    fontSize = 16.sp,
+                                    color = textColor
+                                ),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = textColor,
+                                    unfocusedTextColor = textColor,
+                                    focusedBorderColor = AppColors.primary,
+                                    unfocusedBorderColor = if (isDark) Color.White.copy(alpha = 0.15f) else Color.Black.copy(alpha = 0.12f),
+                                    focusedLabelColor = AppColors.primary,
+                                    unfocusedLabelColor = secondaryTextColor,
+                                    cursorColor = AppColors.primary
+                                )
                             )
-                        )
+
+                            OutlinedTextField(
+                                value = priceText,
+                                onValueChange = { priceText = it },
+                                label = { Text("小計金額", fontFamily = OutfitFontFamily) },
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Decimal,
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(onDone = { doSave() }),
+                                modifier = Modifier.weight(0.65f),
+                                shape = RoundedCornerShape(12.dp),
+                                singleLine = true,
+                                textStyle = TextStyle(
+                                    fontFamily = OutfitFontFamily,
+                                    fontSize = 16.sp,
+                                    color = textColor
+                                ),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = textColor,
+                                    unfocusedTextColor = textColor,
+                                    focusedBorderColor = AppColors.primary,
+                                    unfocusedBorderColor = if (isDark) Color.White.copy(alpha = 0.15f) else Color.Black.copy(alpha = 0.12f),
+                                    focusedLabelColor = AppColors.primary,
+                                    unfocusedLabelColor = secondaryTextColor,
+                                    cursorColor = AppColors.primary
+                                )
+                            )
+                        }
                     }
 
                     is ReceiptEditTarget.TotalAmount -> {

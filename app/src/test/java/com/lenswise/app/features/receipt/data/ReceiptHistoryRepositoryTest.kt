@@ -27,11 +27,13 @@ class ReceiptHistoryRepositoryTest {
                 ReceiptItem(
                     originalName = "純喫茶紅茶",
                     translatedName = "Pure Tea Black Tea",
-                    price = 25.0
+                    quantity = 2,
+                    price = 50.0
                 ),
                 ReceiptItem(
                     originalName = "御飯糰",
                     translatedName = "Onigiri",
+                    quantity = 1,
                     price = 35.0
                 )
             )
@@ -45,7 +47,10 @@ class ReceiptHistoryRepositoryTest {
         assertEquals(145.0, deserialized.totalAmount, 0.001)
         assertEquals(2, deserialized.items.size)
         assertEquals("純喫茶紅茶", deserialized.items[0].originalName)
-        assertEquals(25.0, deserialized.items[0].price, 0.001)
+        assertEquals(2, deserialized.items[0].quantity)
+        assertEquals(25.0, deserialized.items[0].unitPrice, 0.001)
+        assertEquals(50.0, deserialized.items[0].price, 0.001)
+        assertEquals(3, deserialized.totalItemCount)
         assertEquals("7-Eleven 台北信義門市", deserialized.displayTitle)
         assertTrue(deserialized.displaySubtitle.contains("NT$ 145.00"))
     }

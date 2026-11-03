@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lenswise.app.domain.model.receipt.ReceiptScannerRecord
@@ -115,21 +116,35 @@ fun ReceiptPaperCard(
             // 表頭欄位
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "品項",
                     fontFamily = OutfitFontFamily,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black.copy(alpha = 0.54f)
+                    color = Color.Black.copy(alpha = 0.54f),
+                    modifier = Modifier.weight(1f)
                 )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "數量",
+                    fontFamily = OutfitFontFamily,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black.copy(alpha = 0.54f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.width(48.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "金額",
                     fontFamily = OutfitFontFamily,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black.copy(alpha = 0.54f)
+                    color = Color.Black.copy(alpha = 0.54f),
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.width(80.dp)
                 )
             }
 
@@ -191,8 +206,9 @@ fun ReceiptPaperCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val subtotalLabel = if (record.totalItemCount > 0) "小計 (共 ${record.totalItemCount} 件)" else "小計"
                 Text(
-                    text = "小計",
+                    text = subtotalLabel,
                     fontFamily = OutfitFontFamily,
                     fontSize = 16.sp,
                     color = Color.Black.copy(alpha = 0.87f)

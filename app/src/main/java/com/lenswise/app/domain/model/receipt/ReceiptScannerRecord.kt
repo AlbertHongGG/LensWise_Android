@@ -3,6 +3,7 @@ package com.lenswise.app.domain.model.receipt
 import android.os.Parcelable
 import com.lenswise.app.core.ai.model.ChatMessage
 import com.lenswise.app.domain.model.history.IHistoryRecord
+import kotlinx.parcelize.IgnoredOnParcel
 import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
 import java.util.UUID
@@ -28,9 +29,11 @@ data class ReceiptScannerRecord(
     val chatHistory: List<ChatMessage> = emptyList()
 ) : IHistoryRecord, Parcelable {
 
+    @IgnoredOnParcel
     override val displayTitle: String
         get() = storeName.ifBlank { "未知商家" }
 
+    @IgnoredOnParcel
     override val displaySubtitle: String
         get() = if (totalAmount > 0.0) {
             val curr = currency ?: "$"
@@ -38,6 +41,12 @@ data class ReceiptScannerRecord(
         } else {
             "無金額資訊"
         }
+
+    /**
+     * 整張收據購買的總品項件數 (例如 2個蛋糕 + 1杯牛奶 + 1杯奶茶 = 4件)
+     */
+    val totalItemCount: Int
+        get() = items.sumOf { it.safeQuantity }
 
     /**
      * 依據商品清單、稅金與折扣嚴格計算小計與總額 (Single Source of Truth)：
@@ -62,13 +71,29 @@ data class ReceiptScannerRecord(
     }
 }
 
+/**
+ * 收據單一購買品項實體 (ReceiptItem)。
+ *
+ * @param originalName 原始品名 (例如「フレッシュフルーツケーキ」)
+ * @param translatedName 翻譯品名 (例如「鮮奶油水果蛋糕」)
+ * @param quantity 購買數量 (例如 2)，保證 >= 1
+ * @param price 該品項的小計總金額 (例如 2300.0)
+ */
 @Serializable
 @Parcelize
 data class ReceiptItem(
     val originalName: String,
     val translatedName: String,
+    val quantity: Int = 1,
     val price: Double
-) : Parcelable
+) : Parcelable {
+
+    val safeQuantity: Int
+        get() = quantity.coerceAtLeast(1)
+
+    val unitPrice: Double
+        get() = price / safeQuantity
+}
 
 @Serializable
 @Parcelize

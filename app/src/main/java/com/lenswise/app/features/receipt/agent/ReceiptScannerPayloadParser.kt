@@ -8,17 +8,19 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * 具備原子完整性守門 (Atomic Completeness Guard) 的收據品項 DTO。
- * 嚴格綁定契約欄位 [originalName], [translatedName], [price]，絕無同義詞或別名白名單猜測。
+ * 嚴格綁定契約欄位 [originalName], [translatedName], [quantity], [price]，絕無同義詞或別名白名單猜測。
  */
 class ReceiptItemDto(
     val originalName: String,
     val translatedName: String,
+    val quantity: Int,
     val price: Double,
     val hasPriceField: Boolean
 ) {
@@ -31,6 +33,7 @@ class ReceiptItemDto(
     fun toDomain() = ReceiptItem(
         originalName = originalName,
         translatedName = translatedName,
+        quantity = quantity,
         price = price
     )
 
@@ -38,9 +41,10 @@ class ReceiptItemDto(
         fun fromJson(raw: JsonObject): ReceiptItemDto {
             val originalName = raw["originalName"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
             val translatedName = raw["translatedName"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+            val quantity = parseInt(raw["quantity"], default = 1)
             val hasPrice = raw.containsKey("price")
             val price = parseDouble(raw["price"])
-            return ReceiptItemDto(originalName, translatedName, price, hasPrice)
+            return ReceiptItemDto(originalName, translatedName, quantity, price, hasPrice)
         }
     }
 }
@@ -66,6 +70,22 @@ class ReceiptFeeItemDto(
             val amount = parseDouble(raw["amount"])
             return ReceiptFeeItemDto(name, amount, hasAmount)
         }
+    }
+}
+
+private fun parseInt(element: JsonElement?, default: Int = 1): Int {
+    if (element == null) return default
+    return try {
+        val primitive = element.jsonPrimitive
+        val intVal = primitive.intOrNull
+        if (intVal != null) return intVal.coerceAtLeast(1)
+        val doubleVal = primitive.doubleOrNull
+        if (doubleVal != null) return doubleVal.toInt().coerceAtLeast(1)
+        val str = primitive.contentOrNull?.trim().orEmpty()
+        val digitsOnly = str.replace(Regex("[^0-9]"), "")
+        digitsOnly.toIntOrNull()?.coerceAtLeast(1) ?: default
+    } catch (_: Exception) {
+        default
     }
 }
 
@@ -172,4 +192,3 @@ object ReceiptScannerPayloadParser {
         return baseRecord.recalculateTotals()
     }
 }
-

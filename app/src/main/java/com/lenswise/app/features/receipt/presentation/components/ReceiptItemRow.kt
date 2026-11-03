@@ -25,9 +25,10 @@ import com.lenswise.app.presentation.theme.OutfitFontFamily
 
 /**
  * 發票單一品項列 (ReceiptItemRow)。
- * 1:1 對齊 Flutter 的 receipt_item_row.dart：
+ * 1:1 對齊 LensWise 熱感應發票紙質感佈局：
  * - 左側：翻譯名稱（16sp Bold Black）+ 原始名稱（14sp Black87）。
- * - 右側：純數字金額（16sp Bold Black，品項行不帶貨幣符號）。
+ * - 中間：購買個數（15sp SemiBold Black75，寬度 48.dp 居中對齊）。
+ * - 右側：小計總金額（16sp Bold Black，寬度 80.dp 靠右對齊）。
  * - 點擊觸發品項原地編輯彈窗。
  */
 @Composable
@@ -47,8 +48,7 @@ fun ReceiptItemRow(
                 onClick = onClick
             )
             .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Top
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Column(
             modifier = Modifier.weight(1f),
@@ -78,7 +78,19 @@ fun ReceiptItemRow(
             }
         }
 
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Text(
+            text = "${item.safeQuantity}",
+            fontFamily = OutfitFontFamily,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.Black.copy(alpha = 0.75f),
+            textAlign = TextAlign.Center,
+            modifier = Modifier.width(48.dp)
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
 
         Text(
             text = "%.2f".format(item.price),
@@ -86,7 +98,8 @@ fun ReceiptItemRow(
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
             color = Color.Black,
-            textAlign = TextAlign.End
+            textAlign = TextAlign.End,
+            modifier = Modifier.width(80.dp)
         )
     }
 }
