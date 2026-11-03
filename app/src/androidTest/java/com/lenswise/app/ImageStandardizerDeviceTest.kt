@@ -6,7 +6,6 @@ import android.os.Build
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.lenswise.app.core.image.ImageSource
 import com.lenswise.app.core.image.ImageStandardizer
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
@@ -39,7 +38,7 @@ class ImageStandardizerDeviceTest {
         val uri = Uri.parse("content://media/external/images/media/1000010041")
 
         println("=== REAL TEST EXECUTION START ===")
-        val result = ImageStandardizer.standardizeFromUri(context, uri, ImageSource.GALLERY)
+        val result = ImageStandardizer.standardizeGalleryUri(context, uri)
 
         assertTrue("Standardization should succeed! Error: ${result.exceptionOrNull()?.message}", result.isSuccess)
         val entity = result.getOrThrow()

@@ -1,4 +1,4 @@
-﻿package com.lenswise.app.features.scanner
+package com.lenswise.app.features.scanner
 
 import android.app.Application
 import android.content.Context
@@ -13,7 +13,6 @@ import com.lenswise.app.core.camera.CameraManager
 import com.lenswise.app.core.image.AppImageEntity
 import com.lenswise.app.core.image.CapturedImageRepository
 import com.lenswise.app.core.image.DefaultCapturedImageRepository
-import com.lenswise.app.core.image.ImageSource
 import com.lenswise.app.core.image.ImageStandardizer
 import com.lenswise.app.core.storage.ScannerPreferencesDataSource
 import com.lenswise.app.core.storage.ScannerPreferencesRepository
@@ -79,11 +78,10 @@ class ScannerViewModel(
             _uiState.update { it.copy(isCapturing = true) }
 
             val captureResult = cameraManager.capturePhoto()
-            captureResult.onSuccess { bytes ->
-                val standardizeResult = ImageStandardizer.standardizeFromBytes(
+            captureResult.onSuccess { capture ->
+                val standardizeResult = ImageStandardizer.standardizeCameraCapture(
                     context = context,
-                    bytes = bytes,
-                    source = ImageSource.CAMERA
+                    capture = capture
                 )
 
                 standardizeResult.onSuccess { entity ->
@@ -111,10 +109,9 @@ class ScannerViewModel(
             var failCount = 0
 
             for (uri in uris) {
-                val result = ImageStandardizer.standardizeFromUri(
+                val result = ImageStandardizer.standardizeGalleryUri(
                     context = context,
-                    uri = uri,
-                    source = ImageSource.GALLERY
+                    uri = uri
                 )
                 result.onSuccess { standardizedList.add(it) }
                     .onFailure { error ->

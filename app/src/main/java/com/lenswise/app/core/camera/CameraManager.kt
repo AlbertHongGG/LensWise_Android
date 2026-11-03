@@ -11,6 +11,7 @@ import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.MeteringPoint
 import androidx.camera.core.Preview
+import androidx.camera.core.UseCaseGroup
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
@@ -23,7 +24,7 @@ import kotlin.coroutines.resumeWithException
 
 /**
  * CameraX 硬體管理器。
- * 封裝預覽綁定、縮放手勢、點擊對焦與無閃光燈拍照。
+ * 封裝預覽綁定、縮放手勢、點擊對焦、視口同步與無閃光燈拍照。
  */
 class CameraManager(
     private val context: Context
@@ -31,6 +32,7 @@ class CameraManager(
     private var camera: Camera? = null
     private var imageCapture: ImageCapture? = null
     private var cameraExecutor = Executors.newSingleThreadExecutor()
+    private var boundPreviewView: PreviewView? = null
 
     private fun getExecutor(): java.util.concurrent.ExecutorService {
         if (cameraExecutor.isShutdown) {
@@ -59,19 +61,37 @@ class CameraManager(
                         it.setSurfaceProvider(previewView.surfaceProvider)
                     }
 
-                imageCapture = ImageCapture.Builder()
+                val capture = ImageCapture.Builder()
                     .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
                     .setFlashMode(ImageCapture.FLASH_MODE_OFF) // 依需求無閃光燈
                     .build()
+                imageCapture = capture
 
                 val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
-                camera = cameraProvider.bindToLifecycle(
-                    lifecycleOwner,
-                    cameraSelector,
-                    preview,
-                    imageCapture
-                )
+                val viewPort = previewView.viewPort
+                camera = if (viewPort != null) {
+                    val useCaseGroup = UseCaseGroup.Builder()
+                        .setViewPort(viewPort)
+                        .addUseCase(preview)
+                        .addUseCase(capture)
+                        .build()
+
+                    cameraProvider.bindToLifecycle(
+                        lifecycleOwner,
+                        cameraSelector,
+                        useCaseGroup
+                    )
+                } else {
+                    cameraProvider.bindToLifecycle(
+                        lifecycleOwner,
+                        cameraSelector,
+                        preview,
+                        capture
+                    )
+                }
+
+                boundPreviewView = previewView
 
                 if (continuation.isActive) {
                     continuation.resume(true)
@@ -96,12 +116,19 @@ class CameraManager(
         cameraControl?.startFocusAndMetering(action)
     }
 
-    suspend fun capturePhoto(): Result<ByteArray> = suspendCancellableCoroutine { continuation ->
+    suspend fun capturePhoto(): Result<RawCameraCapture> = suspendCancellableCoroutine { continuation ->
         val capture = imageCapture
         if (capture == null) {
             continuation.resume(Result.failure(IllegalStateException("相機尚未就緒")))
             return@suspendCancellableCoroutine
         }
+
+        // 擷取拍照當下 PreviewView 的實際視口寬高比 (width / height)
+        val viewportAspectRatio = boundPreviewView?.let { pv ->
+            if (pv.width > 0 && pv.height > 0) {
+                pv.width.toFloat() / pv.height.toFloat()
+            } else null
+        } ?: 0f
 
         capture.takePicture(
             getExecutor(),
@@ -112,7 +139,14 @@ class CameraManager(
                         val bytes = ByteArray(buffer.remaining())
                         buffer.get(bytes)
                         if (continuation.isActive) {
-                            continuation.resume(Result.success(bytes))
+                            continuation.resume(
+                                Result.success(
+                                    RawCameraCapture(
+                                        jpegBytes = bytes,
+                                        viewportAspectRatio = viewportAspectRatio
+                                    )
+                                )
+                            )
                         }
                     } catch (e: Exception) {
                         if (continuation.isActive) {
@@ -140,6 +174,7 @@ class CameraManager(
             }
             camera = null
             imageCapture = null
+            boundPreviewView = null
         }, ContextCompat.getMainExecutor(context))
     }
 
@@ -150,5 +185,6 @@ class CameraManager(
         }
         camera = null
         imageCapture = null
+        boundPreviewView = null
     }
 }
