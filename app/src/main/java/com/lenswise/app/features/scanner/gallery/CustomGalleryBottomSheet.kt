@@ -49,9 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.size.Precision
+import androidx.compose.runtime.snapshotFlow
 import com.lenswise.app.LensWiseApplication
 import com.lenswise.app.core.media.GalleryUiItem
 import com.lenswise.app.core.media.MediaAsset
@@ -60,6 +58,8 @@ import com.lenswise.app.features.scanner.gallery.fastscroll.GalleryTimelineFastS
 import com.lenswise.app.presentation.components.IsolatedHandleBottomSheet
 import com.lenswise.app.presentation.theme.AppColors
 import com.lenswise.app.presentation.theme.OutfitFontFamily
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 
 /**
  * 現代化極速自製相簿挑選彈窗 (CustomGalleryBottomSheet)。
@@ -204,7 +204,8 @@ fun CustomGalleryBottomSheet(
                                 GalleryPhotoCell(
                                     photo = item,
                                     isSelected = state.selectedIds.contains(item.asset.id),
-                                    onToggle = onTogglePhoto
+                                    onToggle = onTogglePhoto,
+                                    gridState = gridState
                                 )
                             }
                         }
@@ -243,31 +244,39 @@ private fun GalleryHeaderCell(
 }
 
 /**
- * 獨立高頻重組隔離的照片單元格 (兩階段漸進式載入架構)。
+ * 具備視窗駐留閘門 (Viewport Dwell Gate) 的獨立照片單元格。
  *
  * 核心保證：
- * 1. 第一階段 (L1 模糊微縮圖基底)：雙線性插值放大繪製，0ms 同步直讀 RAM 記憶體快取；未命中時以 inSampleSize=8 (0.08ms) 極速載入，滑動期零磁碟寫入。
- * 2. 第二階段 (L2 高清微縮圖覆蓋)：以固定尺寸 Size(240, 240) 與 Precision.INEXACT 構建 ImageRequest，跳過 Layout 約束等待，RAM 命中第 0 幀直出。
- * 3. 嚴格穩定的參數簽名與 Lambda 記憶化，達成 100% 重組跳過 (Skipped Recomposition)。
+ * 1. 消除滑動期清晰圖無腦搶載：快速滑動 (Flinging) 時，清晰圖閘門 100% 關閉，0 個 L2 請求！
+ *    僅渲染冷啟動順序載入之 L1 模糊微縮圖 (0ms RAM 直出)，消除磁碟 I/O 爭搶與 CPU 解碼海嘯。
+ * 2. 視窗駐留防抖 (Dwell Debounce 120ms)：僅當滾動停止 (!isScrollInProgress) 且在畫面穩定停留 120ms 時，
+ *    才針對可見單元格按需載入 L2 清晰圖。
+ * 3. 滑出即卸載 (Zero-Cost Cancellation)：單元格一旦滑出視窗，掛起之載入協程 0ms 自動取消，杜絕幽靈解碼。
+ * 4. 100% 零重組穿透：透過 [snapshotFlow] 在協程內部被動監聽滾動狀態，滾動開始/停止時不引發任何 Cell 重組。
  */
 @Composable
 private fun GalleryPhotoCell(
     photo: GalleryUiItem.Photo,
     isSelected: Boolean,
     onToggle: (MediaAsset) -> Unit,
+    gridState: androidx.compose.foundation.lazy.grid.LazyGridState,
     thumbnailCacheRepo: ThumbnailCacheRepository? = remember { LensWiseApplication.instance.thumbnailCacheRepository },
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
     val asset = photo.asset
-    val context = LocalContext.current
 
-    // 1. L1 記憶體微縮圖同步直讀 (0ms 延遲回傳)
+    // 1. L1 模糊微縮圖 (冷啟動順序載入，0ms RAM 命中)
     var microBitmap by remember(asset.id) {
         mutableStateOf(thumbnailCacheRepo?.getMemoryMicroThumbnail(asset.id))
     }
 
-    // 若 RAM 中尚未命中，在背景協程中以 inSampleSize=8 極速解碼入 RAM (零磁碟寫入！)
+    // 2. L2 清晰微縮圖 (RAM 命中直出；未命中時等待駐留閘門開啟)
+    var sharpBitmap by remember(asset.id) {
+        mutableStateOf(thumbnailCacheRepo?.getMemorySharpThumbnail(asset.id))
+    }
+
+    // 防禦性補全：若 L1 未在 RAM (極少見)，背景極速加載
     if (microBitmap == null && thumbnailCacheRepo != null) {
         LaunchedEffect(asset.id) {
             val bmp = thumbnailCacheRepo.loadMicroThumbnailFast(asset)
@@ -277,13 +286,23 @@ private fun GalleryPhotoCell(
         }
     }
 
-    // 固定尺寸 ImageRequest：跳過 Compose ConstraintsSizeResolver 排版等待，RAM 命中同步繪製
-    val imageRequest = remember(asset.id, context) {
-        ImageRequest.Builder(context)
-            .data(asset)
-            .size(240, 240)
-            .precision(Precision.INEXACT)
-            .build()
+    // 🌟 核心視窗駐留閘門 (Viewport Dwell Gate)：
+    // 快速滑動時絕不發起 L2 解碼！停留 >= 120ms 時才啟動載入；滑出螢幕立即自動取消卸載！
+    if (sharpBitmap == null && thumbnailCacheRepo != null) {
+        LaunchedEffect(asset.id) {
+            // 等待當前滾動停止
+            snapshotFlow { gridState.isScrollInProgress }
+                .first { !it }
+            // 駐留防抖 120ms
+            delay(120L)
+            // 二次防禦確認：此時仍處於非滑動狀態
+            if (!gridState.isScrollInProgress) {
+                val bmp = thumbnailCacheRepo.loadSharpThumbnail(asset)
+                if (bmp != null) {
+                    sharpBitmap = bmp
+                }
+            }
+        }
     }
 
     Box(
@@ -296,7 +315,7 @@ private fun GalleryPhotoCell(
                 onClick = { onToggle(photo.asset) }
             )
     ) {
-        // 第一層 (L1 模糊微縮圖基底)：雙線性插值 (FilterQuality.Low) 放大繪製，柔和呈現照片色彩與輪廓
+        // 第一層：L1 模糊微縮圖基底 (雙線性插值放大繪製，柔和過渡)
         microBitmap?.let { bmp ->
             Image(
                 bitmap = bmp.asImageBitmap(),
@@ -307,13 +326,16 @@ private fun GalleryPhotoCell(
             )
         }
 
-        // 第二層 (L2 高清微縮圖覆蓋)：非同步載入並平滑覆蓋於 L1 之上
-        AsyncImage(
-            model = imageRequest,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
-        )
+        // 第二層：L2 清晰微縮圖 (駐留載入完成後平滑覆蓋)
+        sharpBitmap?.let { sharp ->
+            Image(
+                bitmap = sharp.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                filterQuality = FilterQuality.Medium,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
 
         if (isSelected) {
             Box(

@@ -95,10 +95,9 @@ class GalleryPickerViewModel(
                 }
                 .collect { assets ->
                     cachedAssets = assets
-                    // 1. 預熱首屏微縮圖至 RAM，並極速加載前 120 張 L1 模糊縮圖至記憶體
-                    preloadManager?.preloadTopThumbnails(assets, count = 21)
+                    // 1. 冷啟動全量快取注入：順序讀取 L1MicroPackStore 載入全相簿模糊圖，並預熱首屏 L2 清晰圖
                     vmScope.launch(Dispatchers.IO) {
-                        thumbnailCacheRepository?.warmMicroThumbnails(assets, limit = 120)
+                        thumbnailCacheRepository?.hydrateCacheOnStartup(assets)
                     }
 
                     // 2. 延遲大掃除 (讓出黃金 I/O 頻寬給首屏解碼)

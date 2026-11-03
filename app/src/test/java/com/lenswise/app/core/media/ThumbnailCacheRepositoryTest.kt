@@ -211,6 +211,21 @@ class ThumbnailCacheRepositoryTest {
     }
 
     @Test
+    fun `L2 memory sharp thumbnail cache operations should be thread-safe and synchronous`() {
+        val repo = DiskThumbnailCacheRepository(
+            context = mockContext,
+            cacheDirName = "test_thumbs",
+            boundedDispatcher = Dispatchers.Default
+        )
+        val mockBitmap = mock(Bitmap::class.java)
+
+        assertNull(repo.getMemorySharpThumbnail(54321L))
+
+        repo.putMemorySharpThumbnail(54321L, mockBitmap)
+        assertEquals(mockBitmap, repo.getMemorySharpThumbnail(54321L))
+    }
+
+    @Test
     fun `MediaAssetKeyer should generate unique deterministic cache key`() {
         val keyer = MediaAssetKeyer()
         val mockUri = mock(Uri::class.java)

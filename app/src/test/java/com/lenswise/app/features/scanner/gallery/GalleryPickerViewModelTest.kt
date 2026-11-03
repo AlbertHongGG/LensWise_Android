@@ -51,6 +51,7 @@ class GalleryPickerViewModelTest {
 
     private class FakeThumbnailCacheRepository : ThumbnailCacheRepository {
         var lastReconciledIds: Set<Long>? = null
+        var lastHydratedAssets: List<MediaAsset>? = null
 
         override fun getThumbnailFile(asset: MediaAsset): File? = null
         override suspend fun saveThumbnail(asset: MediaAsset, bitmap: Bitmap): File = error("Not needed")
@@ -60,7 +61,13 @@ class GalleryPickerViewModelTest {
         }
         override fun getMemoryMicroThumbnail(assetId: Long): Bitmap? = null
         override fun putMemoryMicroThumbnail(assetId: Long, bitmap: Bitmap) {}
+        override fun getMemorySharpThumbnail(assetId: Long): Bitmap? = null
+        override fun putMemorySharpThumbnail(assetId: Long, bitmap: Bitmap) {}
         override suspend fun loadMicroThumbnailFast(asset: MediaAsset): Bitmap? = null
+        override suspend fun loadSharpThumbnail(asset: MediaAsset): Bitmap? = null
+        override suspend fun hydrateCacheOnStartup(assets: List<MediaAsset>) {
+            lastHydratedAssets = assets
+        }
         override suspend fun warmMicroThumbnails(assets: List<MediaAsset>, limit: Int) {}
     }
 
@@ -146,7 +153,7 @@ class GalleryPickerViewModelTest {
     }
 
     @Test
-    fun `emitted assets should trigger preloadManager preloadTopThumbnails`() = runBlocking {
+    fun `emitted assets should trigger thumbnailCacheRepository hydrateCacheOnStartup`() = runBlocking {
         val mockUri = mock(Uri::class.java)
         val bucket = DateBucket(2026, 11)
         val asset1 = MediaAsset(id = 111L, contentUri = mockUri, dateTakenMs = 1000L, bucket = bucket)
@@ -155,12 +162,12 @@ class GalleryPickerViewModelTest {
         fakeRepo.assetsFlow.value = listOf(asset1, asset2)
 
         var attempts = 0
-        while (fakePreloadMgr.preloadedAssets != listOf(asset1, asset2) && attempts < 40) {
+        while (fakeCacheRepo.lastHydratedAssets != listOf(asset1, asset2) && attempts < 40) {
             delay(50)
             attempts++
         }
 
-        assertEquals(listOf(asset1, asset2), fakePreloadMgr.preloadedAssets)
+        assertEquals(listOf(asset1, asset2), fakeCacheRepo.lastHydratedAssets)
     }
 
     @Test
