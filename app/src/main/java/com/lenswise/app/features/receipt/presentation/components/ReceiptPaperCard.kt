@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
@@ -25,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.lenswise.app.core.util.AmountFormatter
 import com.lenswise.app.domain.model.receipt.ReceiptScannerRecord
 import com.lenswise.app.presentation.components.StreamingSkeleton
 import com.lenswise.app.presentation.theme.OutfitFontFamily
@@ -134,7 +136,7 @@ fun ReceiptPaperCard(
                     fontWeight = FontWeight.Bold,
                     color = Color.Black.copy(alpha = 0.54f),
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.width(48.dp)
+                    modifier = Modifier.width(36.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -144,7 +146,7 @@ fun ReceiptPaperCard(
                     fontWeight = FontWeight.Bold,
                     color = Color.Black.copy(alpha = 0.54f),
                     textAlign = TextAlign.End,
-                    modifier = Modifier.width(80.dp)
+                    modifier = Modifier.widthIn(min = 52.dp)
                 )
             }
 
@@ -217,7 +219,7 @@ fun ReceiptPaperCard(
                     StreamingSkeleton(width = 60.dp, height = 18.dp)
                 } else {
                     Text(
-                        text = "%.2f".format(record.subtotal),
+                        text = AmountFormatter.format(record.subtotal),
                         fontFamily = OutfitFontFamily,
                         fontSize = 16.sp,
                         color = Color.Black.copy(alpha = 0.87f)
@@ -242,7 +244,7 @@ fun ReceiptPaperCard(
                             modifier = Modifier.weight(1f)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        val formattedDiscount = if (discount.amount > 0) "-%.2f".format(discount.amount) else "%.2f".format(discount.amount)
+                        val formattedDiscount = if (discount.amount > 0) "-${AmountFormatter.format(discount.amount)}" else AmountFormatter.format(discount.amount)
                         Text(
                             text = formattedDiscount,
                             fontFamily = OutfitFontFamily,
@@ -272,7 +274,7 @@ fun ReceiptPaperCard(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "%.2f".format(tax.amount),
+                            text = AmountFormatter.format(tax.amount),
                             fontFamily = OutfitFontFamily,
                             fontSize = 14.sp,
                             color = Color.Black.copy(alpha = 0.54f)
@@ -306,9 +308,8 @@ fun ReceiptPaperCard(
                     StreamingSkeleton(width = 90.dp, height = 28.dp)
                 }
             } else {
-                val currencyPrefix = if (!record.currency.isNullOrBlank()) "${record.currency} " else ""
                 Text(
-                    text = "$currencyPrefix${"%.2f".format(record.totalAmount)}",
+                    text = AmountFormatter.formatWithCurrency(record.currency, record.totalAmount),
                     fontFamily = OutfitFontFamily,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Black,

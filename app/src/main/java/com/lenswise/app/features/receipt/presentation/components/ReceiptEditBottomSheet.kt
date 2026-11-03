@@ -38,6 +38,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.lenswise.app.core.util.AmountFormatter
 import com.lenswise.app.domain.model.receipt.ReceiptItem
 import com.lenswise.app.presentation.components.sheet.LensWiseFixedSheet
 import com.lenswise.app.presentation.components.sheet.LensWiseSheetHandle
@@ -178,7 +179,7 @@ fun ReceiptEditBottomSheet(
                         var translatedName by remember(target) { mutableStateOf(target.item.translatedName) }
                         var quantityText by remember(target) { mutableStateOf(target.item.safeQuantity.toString()) }
                         var priceText by remember(target) {
-                            mutableStateOf(if (target.item.price > 0) "%.2f".format(target.item.price) else "")
+                            mutableStateOf(if (target.item.price > 0) AmountFormatter.format(target.item.price) else "")
                         }
 
                         fun doSave() {
@@ -344,7 +345,7 @@ fun ReceiptEditBottomSheet(
 
                     is ReceiptEditTarget.TotalAmount -> {
                         var amountText by remember(target) {
-                            mutableStateOf(if (target.current > 0) "%.2f".format(target.current) else "")
+                            mutableStateOf(if (target.current > 0) AmountFormatter.format(target.current) else "")
                         }
 
                         fun doSave() {

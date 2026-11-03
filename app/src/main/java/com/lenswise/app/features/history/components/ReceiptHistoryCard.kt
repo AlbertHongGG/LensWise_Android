@@ -32,11 +32,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.lenswise.app.core.util.AmountFormatter
 import com.lenswise.app.domain.model.receipt.ReceiptScannerRecord
 import com.lenswise.app.presentation.theme.AppColors
 import com.lenswise.app.presentation.theme.AppTypography
 import com.lenswise.app.presentation.theme.OutfitFontFamily
-import java.util.Locale
 
 /**
  * 收據歷史紀錄卡片元件 (ReceiptHistoryCard)。
@@ -51,8 +51,7 @@ fun ReceiptHistoryCard(
     val isDark = isSystemInDarkTheme()
 
     val amountText = remember(record.totalAmount, record.currency) {
-        val curr = if (!record.currency.isNullOrEmpty()) "${record.currency} " else ""
-        "$curr${String.format(Locale.US, "%.2f", record.totalAmount)}"
+        AmountFormatter.formatWithCurrency(record.currency, record.totalAmount)
     }
 
     Box(

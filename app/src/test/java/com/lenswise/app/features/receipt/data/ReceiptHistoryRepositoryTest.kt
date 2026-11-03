@@ -52,7 +52,7 @@ class ReceiptHistoryRepositoryTest {
         assertEquals(50.0, deserialized.items[0].price, 0.001)
         assertEquals(3, deserialized.totalItemCount)
         assertEquals("7-Eleven 台北信義門市", deserialized.displayTitle)
-        assertTrue(deserialized.displaySubtitle.contains("NT$ 145.00"))
+        assertTrue(deserialized.displaySubtitle.contains("NT$ 145"))
     }
 
     @Test
@@ -94,6 +94,6 @@ class ReceiptHistoryRepositoryTest {
         assertEquals("消費稅 8%", deserialized.taxes[0].name)
         assertEquals(881.0, deserialized.taxes[0].amount, 0.001)
         assertEquals(11912.0, deserialized.totalAmount, 0.001)
-        assertEquals("JPY 11912.00", deserialized.displaySubtitle)
+        assertEquals("JPY 11912", deserialized.displaySubtitle)
     }
 }

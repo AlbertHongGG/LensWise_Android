@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -20,15 +21,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.lenswise.app.core.util.AmountFormatter
 import com.lenswise.app.domain.model.receipt.ReceiptItem
 import com.lenswise.app.presentation.theme.OutfitFontFamily
 
 /**
  * 發票單一品項列 (ReceiptItemRow)。
  * 1:1 對齊 LensWise 熱感應發票紙質感佈局：
- * - 左側：翻譯名稱（16sp Bold Black）+ 原始名稱（14sp Black87）。
- * - 中間：購買個數（15sp SemiBold Black75，寬度 48.dp 居中對齊）。
- * - 右側：小計總金額（16sp Bold Black，寬度 80.dp 靠右對齊）。
+ * - 左側：翻譯名稱（16sp Bold Black）+ 原始名稱（14sp Black87），填滿可用水平空間。
+ * - 中間：購買個數（15sp SemiBold Black75，緊湊 36.dp 居中對齊）。
+ * - 右側：小計金額（16sp Bold Black，智慧無冗餘小數點格式化，靠右對齊）。
  * - 點擊觸發品項原地編輯彈窗。
  */
 @Composable
@@ -87,19 +89,19 @@ fun ReceiptItemRow(
             fontWeight = FontWeight.SemiBold,
             color = Color.Black.copy(alpha = 0.75f),
             textAlign = TextAlign.Center,
-            modifier = Modifier.width(48.dp)
+            modifier = Modifier.width(36.dp)
         )
 
         Spacer(modifier = Modifier.width(8.dp))
 
         Text(
-            text = "%.2f".format(item.price),
+            text = AmountFormatter.format(item.price),
             fontFamily = OutfitFontFamily,
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
             color = Color.Black,
             textAlign = TextAlign.End,
-            modifier = Modifier.width(80.dp)
+            modifier = Modifier.widthIn(min = 52.dp)
         )
     }
 }

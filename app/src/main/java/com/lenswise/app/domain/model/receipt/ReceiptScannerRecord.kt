@@ -2,6 +2,7 @@ package com.lenswise.app.domain.model.receipt
 
 import android.os.Parcelable
 import com.lenswise.app.core.ai.model.ChatMessage
+import com.lenswise.app.core.util.AmountFormatter
 import com.lenswise.app.domain.model.history.IHistoryRecord
 import kotlinx.parcelize.IgnoredOnParcel
 import kotlinx.parcelize.Parcelize
@@ -37,7 +38,7 @@ data class ReceiptScannerRecord(
     override val displaySubtitle: String
         get() = if (totalAmount > 0.0) {
             val curr = currency ?: "$"
-            "$curr ${"%.2f".format(totalAmount)}"
+            AmountFormatter.formatWithCurrency(curr, totalAmount)
         } else {
             "無金額資訊"
         }
