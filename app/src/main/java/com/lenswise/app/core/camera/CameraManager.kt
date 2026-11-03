@@ -132,7 +132,19 @@ class CameraManager(
         )
     }
 
+    fun unbind() {
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+        cameraProviderFuture.addListener({
+            runCatching {
+                cameraProviderFuture.get().unbindAll()
+            }
+            camera = null
+            imageCapture = null
+        }, ContextCompat.getMainExecutor(context))
+    }
+
     fun release() {
+        unbind()
         if (!cameraExecutor.isShutdown) {
             cameraExecutor.shutdown()
         }

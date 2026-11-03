@@ -1,4 +1,4 @@
-﻿package com.lenswise.app.features.scanner.components
+package com.lenswise.app.features.scanner.components
 
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -28,6 +28,7 @@ import com.lenswise.app.core.camera.CameraManager
 @Composable
 fun CameraViewfinder(
     cameraManager: CameraManager,
+    isActive: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -42,8 +43,12 @@ fun CameraViewfinder(
     var focusTarget by remember { mutableStateOf<Offset?>(null) }
     var currentLinearZoom by remember { mutableFloatStateOf(0f) }
 
-    LaunchedEffect(lifecycleOwner, previewView) {
-        cameraManager.bindToLifecycle(lifecycleOwner, previewView)
+    LaunchedEffect(lifecycleOwner, previewView, isActive) {
+        if (isActive) {
+            cameraManager.bindToLifecycle(lifecycleOwner, previewView)
+        } else {
+            cameraManager.unbind()
+        }
     }
 
     DisposableEffect(Unit) {

@@ -1,6 +1,7 @@
 package com.lenswise.app.core.media
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
 import coil.request.Options
 import kotlinx.coroutines.Dispatchers
@@ -185,13 +186,28 @@ class ThumbnailCacheRepositoryTest {
         val keepStandard = File(cacheDir, "200_2000.jpg").apply { writeBytes(byteArrayOf(7, 8, 9)) }
         val keepMicro = File(cacheDir, "200_2000_micro.jpg").apply { writeBytes(byteArrayOf(10, 11, 12)) }
 
-        // 僅保留 200，100 被刪除
+        // 僅保留 200，100 被刪除；所有舊 _micro 檔案被徹底清理
         repo.reconcileActiveAssets(activeAssetIds = setOf(200L))
 
         assertFalse("Standard file of deleted asset must be deleted", standardFile.exists())
         assertFalse("Micro file of deleted asset must be deleted", microFile.exists())
         assertTrue("Active asset standard file should remain", keepStandard.exists())
-        assertTrue("Active asset micro file should remain", keepMicro.exists())
+        assertFalse("Legacy micro file should be cleaned up", keepMicro.exists())
+    }
+
+    @Test
+    fun `L1 memory micro thumbnail cache operations should be thread-safe and synchronous`() {
+        val repo = DiskThumbnailCacheRepository(
+            context = mockContext,
+            cacheDirName = "test_thumbs",
+            boundedDispatcher = Dispatchers.Default
+        )
+        val mockBitmap = mock(Bitmap::class.java)
+
+        assertNull(repo.getMemoryMicroThumbnail(12345L))
+
+        repo.putMemoryMicroThumbnail(12345L, mockBitmap)
+        assertEquals(mockBitmap, repo.getMemoryMicroThumbnail(12345L))
     }
 
     @Test

@@ -60,7 +60,8 @@ class GalleryPickerViewModelTest {
         }
         override fun getMemoryMicroThumbnail(assetId: Long): Bitmap? = null
         override fun putMemoryMicroThumbnail(assetId: Long, bitmap: Bitmap) {}
-        override suspend fun getOrGenerateMicroThumbnail(asset: MediaAsset): Bitmap? = null
+        override suspend fun loadMicroThumbnailFast(asset: MediaAsset): Bitmap? = null
+        override suspend fun warmMicroThumbnails(assets: List<MediaAsset>, limit: Int) {}
     }
 
     private class FakeGalleryPreloadManager : GalleryPreloadManager {

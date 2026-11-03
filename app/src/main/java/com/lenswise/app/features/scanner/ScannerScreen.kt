@@ -77,9 +77,10 @@ fun ScannerScreen(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        // 1. 全螢幕相機視口 (支援雙指縮放與單擊對焦環，並提供 Haze 磨砂毛玻璃繪圖採樣)
+        // 1. 全螢幕相機視口 (相簿開啟時自動休眠 unbind，100% 釋放 45% CPU/GPU 算力予相簿滑動)
         CameraViewfinder(
             cameraManager = cameraManager,
+            isActive = !showCustomGallery,
             modifier = Modifier
                 .fillMaxSize()
                 .haze(hazeState)

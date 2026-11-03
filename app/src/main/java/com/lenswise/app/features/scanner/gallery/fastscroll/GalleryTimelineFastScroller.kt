@@ -55,7 +55,6 @@ fun GalleryTimelineFastScroller(
     gridState: LazyGridState,
     items: List<GalleryUiItem>,
     isDark: Boolean,
-    onFastScrollDraggingChanged: ((Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val timeline = remember(items) { FastScrollTimeline(items) }
@@ -134,7 +133,6 @@ fun GalleryTimelineFastScroller(
                     detectVerticalDragGestures(
                         onDragStart = { offset ->
                             isDragging = true
-                            onFastScrollDraggingChanged?.invoke(true)
                             val clampedY = (offset.y - thumbHeightPx / 2f).coerceIn(0f, maxThumbOffsetY)
                             dragOffsetY = clampedY
                             val fraction = if (maxThumbOffsetY > 0f) clampedY / maxThumbOffsetY else 0f
@@ -171,12 +169,10 @@ fun GalleryTimelineFastScroller(
                         onDragEnd = {
                             isDragging = false
                             lastSnappedSectionIndex = -1
-                            onFastScrollDraggingChanged?.invoke(false)
                         },
                         onDragCancel = {
                             isDragging = false
                             lastSnappedSectionIndex = -1
-                            onFastScrollDraggingChanged?.invoke(false)
                         }
                     )
                 }
