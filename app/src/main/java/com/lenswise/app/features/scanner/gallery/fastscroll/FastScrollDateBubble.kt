@@ -30,10 +30,26 @@ import com.lenswise.app.presentation.theme.OutfitFontFamily
  *
  * 核心保證：
  * 1. 對標 Google 相簿經典外觀：深色圓角膠囊氣泡，搭配半透明霧面背景與高對比文字。
- * 2. 零重組幾何位移：透過 [Modifier.graphicsLayer] 於 GPU 渲染層更新垂直座標，杜絕任何 Composable 重組穿透。
- * 3. 邊界保護：垂直座標依據容器高度嚴密裁切 (Clamping)，絕不越界遮擋頂部 Header 或底部邊緣。
- * 4. 彈性動力學過渡：出現時帶有微微的彈性縮放 (scaleIn)，消失時迅速淡出 (fadeOut)。
+ * 2. 嚴格可見度控制：僅在狀態為按住拖曳 ([FastScrollerState.isBubbleVisible]) 時顯現，常態滾動完全隱藏。
+ * 3. 零重組幾何位移：透過 [Modifier.graphicsLayer] 於 GPU 渲染層更新垂直座標，杜絕任何 Composable 重組穿透。
+ * 4. 邊界保護：垂直座標依據容器高度嚴密裁切 (Clamping)，絕不越界遮擋頂部 Header 或底部邊緣。
+ * 5. 彈性動力學過渡：出現時帶有微微的彈性縮放 (scaleIn)，消失時迅速淡出 (fadeOut)。
  */
+@Composable
+fun FastScrollDateBubble(
+    state: FastScrollerState,
+    isDark: Boolean,
+    modifier: Modifier = Modifier
+) {
+    FastScrollDateBubble(
+        bucket = state.activeBucket,
+        visible = state.isBubbleVisible,
+        offsetYProvider = { state.getBubbleOffsetY() },
+        isDark = isDark,
+        modifier = modifier
+    )
+}
+
 @Composable
 fun FastScrollDateBubble(
     bucket: DateBucket?,
