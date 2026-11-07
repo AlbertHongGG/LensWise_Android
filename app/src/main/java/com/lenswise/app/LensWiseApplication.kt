@@ -47,6 +47,12 @@ class LensWiseApplication : Application(), ImageLoaderFactory {
         private set
     lateinit var capturedImageRepository: com.lenswise.app.core.image.CapturedImageRepository
         private set
+    lateinit var cameraService: com.lenswise.app.core.camera.CameraService
+        private set
+    lateinit var imageProcessingService: com.lenswise.app.core.image.ImageProcessingService
+        private set
+    lateinit var captureAndProcessImageUseCase: com.lenswise.app.domain.scanner.CaptureAndProcessImageUseCase
+        private set
 
     override fun onCreate() {
         super.onCreate()
@@ -59,6 +65,13 @@ class LensWiseApplication : Application(), ImageLoaderFactory {
         menuHistoryRepository = com.lenswise.app.features.menu.data.MenuHistoryRepository(this)
         aiConfigRepository = com.lenswise.app.features.ai.config.AiConfigRepository(this)
         capturedImageRepository = com.lenswise.app.core.image.DefaultCapturedImageRepository()
+        cameraService = com.lenswise.app.core.camera.CameraXServiceImpl(this)
+        imageProcessingService = com.lenswise.app.core.image.DefaultImageProcessingService(this)
+        captureAndProcessImageUseCase = com.lenswise.app.domain.scanner.CaptureAndProcessImageUseCase(
+            cameraService = cameraService,
+            imageProcessingService = imageProcessingService,
+            capturedImageRepository = capturedImageRepository
+        )
 
         com.lenswise.app.presentation.notification.NotificationController.addListener { type, message ->
             notificationLogManager.logNotification(type, message)

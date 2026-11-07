@@ -116,5 +116,47 @@ class ScannerLogicTest {
         assertEquals(ScannerMode.MENU, viewModel.uiState.value.currentMode)
         assertEquals(2, viewModel.uiState.value.imageCount) // 照片依然保持存在！
     }
+
+    @Test
+    fun testScannerViewModelTakePictureFlow() {
+        val fakeSource = FakeScannerPreferencesDataSource(currentMode = ScannerMode.PRODUCT)
+        val dummyEntity = createDummyImageEntity()
+        val fakeCamera = object : com.lenswise.app.core.camera.CameraService {
+            override suspend fun bindPreview(
+                lifecycleOwner: androidx.lifecycle.LifecycleOwner,
+                surfaceProvider: androidx.camera.core.Preview.SurfaceProvider,
+                viewportAspectRatio: Float
+            ): Result<Unit> = Result.success(Unit)
+
+            override suspend fun capturePhoto(): Result<com.lenswise.app.core.camera.RawCameraCapture> =
+                Result.success(com.lenswise.app.core.camera.RawCameraCapture(byteArrayOf(1, 2), 1f))
+            override fun setLinearZoom(zoom: Float) {}
+            override fun focusOnPoint(meteringPoint: androidx.camera.core.MeteringPoint) {}
+            override fun unbind() {}
+            override fun release() {}
+        }
+        val fakeProcessor = object : com.lenswise.app.core.image.ImageProcessingService {
+            override suspend fun processCameraCapture(capture: com.lenswise.app.core.camera.RawCameraCapture): Result<AppImageEntity> =
+                Result.success(dummyEntity)
+            override suspend fun processGalleryUri(uri: android.net.Uri): Result<AppImageEntity> =
+                Result.success(dummyEntity)
+        }
+        val repo = com.lenswise.app.core.image.DefaultCapturedImageRepository()
+        val useCase = com.lenswise.app.domain.scanner.CaptureAndProcessImageUseCase(fakeCamera, fakeProcessor, repo)
+
+        val testScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Unconfined)
+        val viewModel = ScannerViewModel(
+            preferencesDataSource = fakeSource,
+            capturedImageRepository = repo,
+            captureAndProcessImageUseCase = useCase,
+            imageProcessingService = fakeProcessor,
+            scope = testScope
+        )
+
+        viewModel.takePicture()
+
+        assertEquals(1, viewModel.uiState.value.imageCount)
+        assertFalse(viewModel.uiState.value.isCapturing)
+    }
 }
 

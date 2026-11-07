@@ -19,15 +19,16 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.lenswise.app.core.camera.CameraManager
+import com.lenswise.app.core.camera.CameraService
 
 /**
  * 全螢幕相機視口元件。
  * 支援雙指平滑縮放 (Pinch-to-Zoom)、單擊對焦 (Tap-to-Focus) 與動態聚焦環。
+ * 遵循依賴反轉，僅依賴 [CameraService] 抽象介面。
  */
 @Composable
 fun CameraViewfinder(
-    cameraManager: CameraManager,
+    cameraService: CameraService,
     isActive: Boolean = true,
     modifier: Modifier = Modifier
 ) {
@@ -45,15 +46,18 @@ fun CameraViewfinder(
 
     LaunchedEffect(lifecycleOwner, previewView, isActive) {
         if (isActive) {
-            cameraManager.bindToLifecycle(lifecycleOwner, previewView)
+            val ratio = if (previewView.width > 0 && previewView.height > 0) {
+                previewView.width.toFloat() / previewView.height.toFloat()
+            } else 0f
+            cameraService.bindPreview(lifecycleOwner, previewView.surfaceProvider, ratio)
         } else {
-            cameraManager.unbind()
+            cameraService.unbind()
         }
     }
 
     DisposableEffect(Unit) {
         onDispose {
-            cameraManager.release()
+            cameraService.release()
         }
     }
 
@@ -64,7 +68,7 @@ fun CameraViewfinder(
                 detectTransformGestures { _, _, zoomFactor, _ ->
                     val step = (zoomFactor - 1.0f) * 0.75f
                     currentLinearZoom = (currentLinearZoom + step).coerceIn(0f, 1f)
-                    cameraManager.setLinearZoom(currentLinearZoom)
+                    cameraService.setLinearZoom(currentLinearZoom)
                 }
             }
             .pointerInput(Unit) {
@@ -72,7 +76,7 @@ fun CameraViewfinder(
                     focusTarget = offset
                     val factory = previewView.meteringPointFactory
                     val point = factory.createPoint(offset.x, offset.y)
-                    cameraManager.focusOnPoint(point)
+                    cameraService.focusOnPoint(point)
                 }
             }
     ) {
@@ -88,4 +92,3 @@ fun CameraViewfinder(
         )
     }
 }
-

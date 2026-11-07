@@ -20,7 +20,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.haze
-import com.lenswise.app.core.camera.CameraManager
+import com.lenswise.app.LensWiseApplication
+import com.lenswise.app.core.camera.CameraService
 import com.lenswise.app.core.media.MediaAccessManager
 import com.lenswise.app.features.scanner.components.CameraViewfinder
 import com.lenswise.app.features.scanner.components.ScannerBottomControls
@@ -41,7 +42,7 @@ fun ScannerScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
-    val cameraManager = remember { CameraManager(context) }
+    val cameraService: CameraService = remember { LensWiseApplication.instance.cameraService }
     val hazeState = remember { HazeState() }
     var showCustomGallery by remember { mutableStateOf(false) }
 
@@ -79,7 +80,7 @@ fun ScannerScreen(
     Box(modifier = modifier.fillMaxSize()) {
         // 1. 全螢幕相機視口 (相簿開啟時自動休眠 unbind，100% 釋放 45% CPU/GPU 算力予相簿滑動)
         CameraViewfinder(
-            cameraManager = cameraManager,
+            cameraService = cameraService,
             isActive = !showCustomGallery,
             modifier = Modifier
                 .fillMaxSize()
@@ -99,7 +100,7 @@ fun ScannerScreen(
             hazeState = hazeState,
             onTakeShutter = {
                 if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-                    viewModel.takePicture(context, cameraManager)
+                    viewModel.takePicture()
                 } else {
                     cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                 }
@@ -122,7 +123,7 @@ fun ScannerScreen(
             CustomGalleryBottomSheet(
                 onDismiss = { showCustomGallery = false },
                 onConfirmSelection = { uris ->
-                    viewModel.onImagesPicked(context, uris)
+                    viewModel.onImagesPicked(uris)
                 },
                 viewModel = galleryPickerViewModel
             )
