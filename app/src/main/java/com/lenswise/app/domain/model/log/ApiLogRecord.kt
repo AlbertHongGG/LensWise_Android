@@ -15,15 +15,19 @@ data class ApiLogRecord(
     val timestamp: String,
     val agentName: String,
     val durationMs: Long,
+    val status: Int = 200,
     val request: ApiLogRequest,
     val response: ApiLogResponse
-)
+) {
+    val isSuccess: Boolean
+        get() = status in 200..299 && response.error.isNullOrBlank()
+}
 
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class ApiLogRequest(
-    val model: String,
-    val prompt: String,
+    val model: String = "",
+    val prompt: String = "",
     @SerialName("system_prompt")
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val systemPrompt: String? = null,

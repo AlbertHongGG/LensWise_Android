@@ -95,10 +95,13 @@ abstract class BaseAgent<TIn, TOut>(
 
         val imageSummaries = request.images?.map { "${it.size} bytes" }
 
+        val status = if (errorText == null) 200 else 500
+
         val record = ApiLogRecord(
             timestamp = isoTimestamp,
             agentName = agentType,
             durationMs = durationMs,
+            status = status,
             request = ApiLogRequest(
                 model = provider.name,
                 prompt = request.prompt,

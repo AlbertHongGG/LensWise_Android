@@ -18,6 +18,8 @@ data class ApiLogModel(
     val displayTime: String,
     val durationMs: Long,
     val timestamp: Long,
+    val status: Int = 200,
+    val isSuccess: Boolean = status in 200..299,
     val rawJson: String = "",
     val agentType: AiAgentType? = null,
     val source: String = agentType?.displayName ?: "其他"

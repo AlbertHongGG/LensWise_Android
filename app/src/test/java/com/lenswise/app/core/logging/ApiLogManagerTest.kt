@@ -46,5 +46,25 @@ class ApiLogManagerTest {
         )
 
         assertEquals("收據掃描", model.source)
+        assertEquals(200, model.status)
+        org.junit.Assert.assertTrue(model.isSuccess)
+    }
+
+    @Test
+    fun testApiLogModel_failedStatus_computesIsSuccessFalse() {
+        val model = ApiLogModel(
+            id = "failed.json",
+            file = File("failed.json"),
+            title = "ReceiptScanner",
+            displayTime = "2026-10-19 20:15:00",
+            durationMs = 1200L,
+            timestamp = 1760876100000L,
+            status = 500,
+            isSuccess = false,
+            agentType = AiAgentType.RECEIPT_SCANNER
+        )
+
+        assertEquals(500, model.status)
+        org.junit.Assert.assertFalse(model.isSuccess)
     }
 }

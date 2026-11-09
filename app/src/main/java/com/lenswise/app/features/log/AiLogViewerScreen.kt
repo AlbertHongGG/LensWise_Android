@@ -84,7 +84,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun AiLogViewerScreen(
     apiLogManager: ApiLogManager,
-    onNavigateToDetail: (rawJson: String) -> Unit,
+    onNavigateToDetail: (logId: String) -> Unit,
     modifier: Modifier = Modifier,
     onNavigateBack: () -> Unit = {}
 ) {
@@ -169,7 +169,7 @@ fun AiLogViewerScreen(
                                 ApiLogCardContent(
                                     log = log,
                                     isDark = isDark,
-                                    onClick = { onNavigateToDetail(log.resolveRawJson()) },
+                                    onClick = { onNavigateToDetail(log.id) },
                                     modifier = Modifier
                                         .alpha(if (isBeingDragged) 0.3f else 1.0f)
                                         .draggableToTrash(

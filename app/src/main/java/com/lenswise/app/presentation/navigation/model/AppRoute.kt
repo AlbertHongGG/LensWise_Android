@@ -59,7 +59,7 @@ sealed interface AppRoute : Parcelable {
 
     /** API 日誌詳細 JSON 檢視畫面 (ApiLogDetailScreen) */
     @Parcelize
-    data class ApiLogDetail(val rawJson: String) : AppRoute {
+    data class ApiLogDetail(val logId: String) : AppRoute {
         @IgnoredOnParcel
         override val key: String = "route_api_log_detail"
     }

@@ -109,6 +109,8 @@ class ApiLogManager(private val context: Context) : AiLogger {
                 var dtMillis = file.lastModified()
                 var displayTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(dtMillis))
                 var durationMs = 0L
+                var status = 200
+                var hasError = false
 
                 if (parts.size >= 2) {
                     val dateStr = parts[0]
@@ -122,7 +124,7 @@ class ApiLogManager(private val context: Context) : AiLogger {
                     }
                 }
 
-                // 輕量提取 Header，僅讀取開頭 2KB 提取 agentName 與 durationMs，絕不加載 Base64 圖片巨量酬載至記憶體
+                // 輕量提取 Header，僅讀取開頭 2KB 提取 agentName 與 durationMs、status，絕不加載 Base64 圖片巨量酬載至記憶體
                 runCatching {
                     file.bufferedReader().use { reader ->
                         val buffer = CharArray(2048)
@@ -142,9 +144,20 @@ class ApiLogManager(private val context: Context) : AiLogger {
                             if (durationMatch != null) {
                                 durationMs = durationMatch.groupValues[1].toLongOrNull() ?: 0L
                             }
+                            val statusMatch = """"status"\s*:\s*(\d+)""".toRegex().find(snippet)
+                            if (statusMatch != null) {
+                                status = statusMatch.groupValues[1].toIntOrNull() ?: 200
+                            }
+                            val errorMatch = """"error"\s*:\s*"([^"]+)"""".toRegex().find(snippet)
+                            if (errorMatch != null && errorMatch.groupValues[1].isNotBlank()) {
+                                hasError = true
+                            }
                         }
                     }
                 }
+
+                val effectiveStatus = if (hasError && status in 200..299) 500 else status
+                val isSuccess = effectiveStatus in 200..299 && !hasError
 
                 ApiLogModel(
                     id = file.name,
@@ -153,6 +166,8 @@ class ApiLogManager(private val context: Context) : AiLogger {
                     displayTime = displayTime,
                     durationMs = durationMs,
                     timestamp = dtMillis,
+                    status = effectiveStatus,
+                    isSuccess = isSuccess,
                     agentType = agentType,
                     source = agentType?.displayName ?: "其他"
                 )
@@ -208,6 +223,14 @@ class ApiLogManager(private val context: Context) : AiLogger {
             val entries = loadAllEntries()
             _logsFlow.value = entries
         }
+    }
+
+    /**
+     * 依據 logId 取得日誌檔案之原始 JSON 內容（按需單次延遲讀取）
+     */
+    fun getLogRawJson(logId: String): String? {
+        val file = File(logDir, logId)
+        return if (file.exists()) runCatching { file.readText() }.getOrNull() else null
     }
 
     suspend fun clearAllLogs() = withContext(Dispatchers.IO) {

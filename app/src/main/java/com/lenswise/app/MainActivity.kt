@@ -283,13 +283,13 @@ fun AppNavigation(
             is AppRoute.ApiLog -> {
                 AiLogViewerScreen(
                     apiLogManager = app.apiLogManager,
-                    onNavigateToDetail = { rawJson -> navigator.push(AppRoute.ApiLogDetail(rawJson)) }
+                    onNavigateToDetail = { logId -> navigator.push(AppRoute.ApiLogDetail(logId)) }
                 )
             }
             is AppRoute.ApiLogDetail -> {
                 ApiLogDetailScreen(
-                    rawJson = route.rawJson,
-                    onNavigateBack = { navigator.pop() }
+                    logId = route.logId,
+                    apiLogManager = app.apiLogManager
                 )
             }
             is AppRoute.History -> {
